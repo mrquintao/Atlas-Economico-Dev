@@ -3,6 +3,22 @@
 Entradas curtas, da mais recente para a mais antiga: o que foi entregue, o que foi validado, as falhas e
 como foram corrigidas, e as decisões relevantes. Os detalhes ficam nos PRs, nas issues e nos ADRs.
 
+## 2026-10-21 — M4 concluída: coleta automática (issue #6, PR #33)
+
+- `app/ingestion/batch.py` + CLI `ingest --all` (falha isolada por indicador, saída 1 se algum falhar,
+  `2` para argumentos inválidos); `scheduler.py` (`INGEST_SCHEDULE` em Brasília, `INGEST_ON_START`,
+  `--check` com conexão ao banco, SIGTERM para entre indicadores); serviço `scheduler` (perfil) e
+  healthcheck da API no Compose; CI sobe o perfil com horário 12 h à frente; `tzdata` explícito.
+- API: `last_run` (status, horários, só `error_type`); painel de metodologia avisa falha/andamento.
+- Achado na validação real: um 404 do gateway do BCB (`{"error": "endpoint not found!"}`, URL errada)
+  era tratado como janela vazia e a coleta saía como **sucesso** com 0 registros. Corrigido no conector.
+- qa-auditor: sem críticos/altos. Médios corrigidos: runs órfãos em `running` (fechados após 1 h),
+  resposta vazia para intervalo com dados gravados agora é falha, `--check` confere o banco, CLI rejeita
+  intervalo inválido antes de gravar runs. Baixos corrigidos: `run_id` no relatório de falha, texto do
+  painel sem coleta anterior, CI sem coleta real, documentação. Registrados (ADR 0007): horários
+  perdidos, ausência de trava de concorrência.
+- Ambiente: `/tmp/pgdata` recriado; dados reais recoletados no banco `atlas`.
+
 ## 2026-10-21 — M3 concluída: `GET /api/v1/dashboard/national` (issue #5, PR #32)
 
 - Backend: `services/dashboard.py` (último valor e mesmo mês do ano anterior, reaproveitando
