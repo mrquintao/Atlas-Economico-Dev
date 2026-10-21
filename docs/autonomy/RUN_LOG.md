@@ -3,7 +3,7 @@
 Entradas curtas, da mais recente para a mais antiga: o que foi entregue, o que foi validado, as falhas e
 como foram corrigidas, e as decisões relevantes. Os detalhes ficam nos PRs, nas issues e nos ADRs.
 
-## 2026-10-21 — M2: IPCA 12 meses (issue #4)
+## 2026-10-21 — M2 concluída: IPCA 12 meses (issue #4, PR #30, merge `93decf8`)
 
 - Conector `integrations/ibge/sidra.py` (tabela 1737, variável 2265, validada na API); ingestão genérica
   `ingestion/series_ingestion.py` com despacho por fonte na CLI; migração 0005 (fonte IBGE, `IPCA_12M`).

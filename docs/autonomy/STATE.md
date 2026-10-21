@@ -7,11 +7,11 @@
 |---|---|
 | Atualizado em | 2026-10-21 |
 | Fase atual | 1 — MVP nacional |
-| Última entrega | M1 — Robustez (issue #3), PR #28: parâmetros desconhecidos e repetidos (422), filtro pelo fim do período de referência + índice, presets alinhados ao mês, estados de carregamento consistentes |
-| Próxima entrega elegível | **M3 — `GET /api/v1/dashboard/national` ([#5](https://github.com/mrquintao/Atlas-Economico-Dev/issues/5))**, após o merge da M2 |
-| Issue ativa | M2 ([#4](https://github.com/mrquintao/Atlas-Economico-Dev/issues/4)): PR aberto a partir de `claude/admiring-knuth-q0bg78`; conferir o estado do PR antes de qualquer trabalho |
-| Branch | `claude/admiring-knuth-q0bg78` (M2) |
-| Último commit integrado na `main` | merge do PR #28 (conferir com `git log origin/main -1`) |
+| Última entrega | M2 — IPCA 12 meses (issue #4), PR #30: conector IBGE/SIDRA, ingestão genérica por fonte, cartão e terceiro gráfico sincronizado, quebras de linha em períodos ausentes |
+| Próxima entrega elegível | **M3 — `GET /api/v1/dashboard/national` ([#5](https://github.com/mrquintao/Atlas-Economico-Dev/issues/5))** |
+| Issue ativa | nenhuma até o início da M3 |
+| Branch | novo branch a partir da `main` atualizada |
+| Último commit integrado na `main` | merge do PR #30 (`93decf8`; conferir com `git log origin/main -1`) |
 | Última validação | M2: `scripts/check.sh` (144 pytest com PostgreSQL, 51 vitest, lint, format, `alembic check`, typecheck, build); coleta real do IPCA (550 meses, idempotente) conferida 100% contra o SIDRA; navegador desktop e mobile com dados reais, console limpo; qa-auditor sem críticos, achados importantes corrigidos |
 
 ## Bloqueios
@@ -29,9 +29,9 @@
 
 ## Próxima ação recomendada
 
-1. Se o PR da M2 ainda estiver aberto: conferir a CI do último commit e fazer o merge pelo gate da
-   AGENT_POLICY §3; depois fechar a #4 e marcar a M2 como ✅ no roadmap.
-2. Iniciar a M3 (#5): endpoint `GET /api/v1/dashboard/national` com o resumo dos três indicadores.
+Iniciar a M3 (#5): endpoint `GET /api/v1/dashboard/national` com o resumo dos três indicadores
+(último valor, mês/dia de referência, variação em 12 meses em p.p., fonte e metadados), reutilizando
+`latestFromMonthly`/estatísticas do backend; depois M4 (#6), automação da coleta.
 
 Achados menores da auditoria da M2 deixados para depois (registrados no PR): resposta vazia do SIDRA conta
 como sucesso, igual ao SGS (avaliar alerta na M4, monitoramento); lacunas de vários meses recebem uma
