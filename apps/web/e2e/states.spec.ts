@@ -68,6 +68,25 @@ test("SP: charts in their own periods, synchronised across bimesters and four-mo
   expect(await tooltipText(rcl)).toBe("R$ 268,00 bi Referência: 6º bim./2025 (nov–dez)");
 });
 
+test("SP: the first bimester of a year-to-date flow shows its value on hover", async ({ page }) => {
+  await page.goto("/estados/SP");
+  const primary = chart(page, "Resultado primário");
+  await expect(primary).toBeVisible();
+  // Default domain: 01/01/2023 to 31/12/2025 (end of the last bimester); 01/01/2025 sits at
+  // 731 of 1095 days. January restarts the accumulation (a line break shares its date).
+  await hover(page, primary, 731 / 1095);
+  expect(await tooltipText(primary)).toBe("R$ 3,00 bi Referência: 1º bim./2025 (jan–fev)");
+});
+
+test("SP: the latest end date still includes the latest periods", async ({ page }) => {
+  await page.goto("/estados/SP");
+  await expect(chart(page, RCL)).toBeVisible();
+  await page.getByLabel("Data final").fill("2025-12-31");
+  await expect(chart(page, RCL)).toHaveAccessibleName(/a 6º bim\.\/2025/);
+  await expect(chart(page, DCL_RCL)).toHaveAccessibleName(/a 3º quadr\.\/2025/);
+  await expect(page.getByLabel("Data final")).toHaveAttribute("max", "2025-12-31");
+});
+
 test("SP: a custom period reloads every chart", async ({ page }) => {
   await page.goto("/estados/SP");
   await expect(chart(page, RCL)).toBeVisible();
@@ -83,7 +102,7 @@ test("DF: shows the comparability note and the missing indicator", async ({ page
     "não são diretamente comparáveis aos dos estados",
   );
   await expect(card(page, RCL)).toContainText("R$ 53,60 bi");
-  const missing = page.getByRole("region", { name: "Indicadores sem dados para Distrito Federal" });
+  const missing = page.getByRole("region", { name: "Indicadores sem dados nesta UF" });
   await expect(missing.getByRole("listitem")).toHaveText(["Resultado nominal"]);
   await expect(chart(page, "Resultado nominal")).toHaveCount(0);
 });
@@ -92,7 +111,7 @@ test("MG: only indicators with data get cards and charts; absences are explicit"
   await page.goto("/estados/MG");
   await expect(card(page, RCL)).toContainText("R$ 134,00 bi");
   await expect(page.getByRole("region", { name: "Últimos valores publicados" }).getByRole("region")).toHaveCount(2);
-  const missing = page.getByRole("region", { name: "Indicadores sem dados para Minas Gerais" });
+  const missing = page.getByRole("region", { name: "Indicadores sem dados nesta UF" });
   await expect(missing.getByRole("listitem")).toHaveCount(7);
   await expect(missing).toContainText("não são estimados nem exibidos como zero");
   await expect(chart(page, RCL)).toBeVisible();
@@ -102,7 +121,7 @@ test("MG: only indicators with data get cards and charts; absences are explicit"
 
 test("a UF without fiscal data says so instead of showing zeros", async ({ page }) => {
   await page.goto("/estados/AC");
-  await expect(page.getByText("Ainda não há dados fiscais armazenados para Acre.", { exact: false })).toBeVisible();
+  await expect(page.getByText("Ainda não há dados fiscais armazenados para esta UF.", { exact: false })).toBeVisible();
   await expect(page.getByRole("group", { name: "Período predefinido" })).toHaveCount(0);
   await expect(page.getByRole("img")).toHaveCount(0);
 });
@@ -118,6 +137,7 @@ for (const path of ["/estados/XX", "/estados/BR", "/estados/31"]) {
   test(`an invalid UF (${path}) gets a friendly 404`, async ({ page, consoleErrors }) => {
     const response = await page.goto(path);
     expect(response?.status()).toBe(404);
+    await expect(page).toHaveTitle("Página não encontrada — Atlas Econômico Brasileiro");
     await expect(page.getByRole("heading", { level: 1, name: "Página não encontrada" })).toBeVisible();
     await page.getByRole("link", { name: "Ver a lista de estados" }).click();
     await expect(page).toHaveURL(/\/estados$/);

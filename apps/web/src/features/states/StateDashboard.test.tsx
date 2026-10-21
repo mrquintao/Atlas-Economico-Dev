@@ -229,7 +229,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe("StateDashboard", () => {
   it("shows the latest RCL in reais with its bimester, window and same-period comparison", async () => {
-    render(<StateDashboard uf="SP" name="São Paulo" />);
+    render(<StateDashboard uf="SP" />);
     const card = await findCard("Receita corrente líquida");
     expect(within(card).getByText("R$ 266,22 bi")).toBeInTheDocument();
     expect(within(card).getByText("6º bim./2025 (nov–dez)")).toBeInTheDocument();
@@ -246,18 +246,26 @@ describe("StateDashboard", () => {
     ).toHaveAttribute("href", rcl.source_url);
   });
 
+  it("states the sign convention of the fiscal results, only on their cards", async () => {
+    render(<StateDashboard uf="SP" />);
+    const result = await findCard("Resultado primário");
+    expect(within(result).getByText("Positivo indica superávit; negativo, déficit.")).toBeInTheDocument();
+    const rclCard = await findCard("Receita corrente líquida");
+    expect(within(rclCard).queryByText(/superávit/)).not.toBeInTheDocument();
+  });
+
   it("says when there is no same-period value to compare, never inventing a change", async () => {
-    render(<StateDashboard uf="SP" name="São Paulo" />);
+    render(<StateDashboard uf="SP" />);
     const card = await findCard("DCL / RCL");
     expect(within(card).getByText("112,40% da RCL ajustada")).toBeInTheDocument();
     expect(within(card).getByText("3º quadr./2025 (set–dez)")).toBeInTheDocument();
-    expect(within(card).getByText(/Sem valor armazenado do mesmo período/)).toBeInTheDocument();
+    expect(within(card).getByText(/Não há valor armazenado para o mesmo período do ano anterior/)).toBeInTheDocument();
     expect(within(card).queryByText(/p\.p\./)).not.toBeInTheDocument();
   });
 
   it("lists indicators without data explicitly, with no card and no chart", async () => {
-    render(<StateDashboard uf="SP" name="São Paulo" />);
-    const missing = await screen.findByRole("region", { name: "Indicadores sem dados para São Paulo" });
+    render(<StateDashboard uf="SP" />);
+    const missing = await screen.findByRole("region", { name: "Indicadores sem dados nesta UF" });
     expect(within(missing).getByRole("listitem")).toHaveTextContent("Dívida consolidada");
     expect(within(missing).getByText(/não são estimados nem exibidos como zero/)).toBeInTheDocument();
     await findCard("Receita corrente líquida");
@@ -267,53 +275,56 @@ describe("StateDashboard", () => {
   });
 
   it("draws one panel per available indicator, breaking year-to-date flows at each year", async () => {
-    render(<StateDashboard uf="SP" name="São Paulo" />);
+    render(<StateDashboard uf="SP" />);
     const rclChart = await screen.findByTestId("chart-Receita corrente líquida");
     expect(rclChart).toHaveAttribute("data-resets", "false");
     expect(rclChart).toHaveTextContent("de 6º bim./2024 a 6º bim./2025");
     // Shared x-axis domain: the UF's earliest first and latest last stored dates.
-    expect(rclChart).toHaveAttribute("data-domain", "2024-01-01/2025-11-01");
+    expect(rclChart).toHaveAttribute("data-domain", "2024-01-01/2025-12-31");
     const primaryChart = screen.getByTestId("chart-Resultado primário");
     expect(primaryChart).toHaveAttribute("data-resets", "true");
     // No statistics for year-to-date flows (periods not comparable): only the last value.
     expect(primaryChart).toHaveTextContent("2 valores publicados; o último é R$ 2,00 bi.");
     const panel = screen.getByRole("region", { name: primary.name });
-    expect(within(panel).queryByText("Variação no período")).not.toBeInTheDocument();
+    expect(within(panel).queryByText(/Diferença no período/)).not.toBeInTheDocument();
     expect(within(panel).getByText(YTD)).toBeInTheDocument();
-    expect(within(screen.getByRole("region", { name: rcl.name })).getByText("Variação no período")).toBeInTheDocument();
+    // Amounts in current reais: a difference, labelled with its unit (it includes inflation).
+    const rclPanel = within(screen.getByRole("region", { name: rcl.name }));
+    expect(rclPanel.getByText("Diferença no período (R$ correntes)")).toBeInTheDocument();
+    expect(rclPanel.getByText("Mínima / máxima (R$ correntes)")).toBeInTheDocument();
   });
 
   it("loads cards and series in one request each and refetches the series for a new period", async () => {
-    render(<StateDashboard uf="SP" name="São Paulo" />);
+    render(<StateDashboard uf="SP" />);
     await screen.findByTestId("chart-Receita corrente líquida");
     expect(requests("/states/SP/dashboard")).toHaveLength(1);
     expect(requests("/states/SP/indicators")).toHaveLength(1);
     expect(requests("/states/SP/indicators")[0].searchParams.get("start_date")).toBeNull();
 
     await userEvent.click(screen.getByRole("button", { name: "5 anos" }));
-    // "5 anos" ends at the latest period stored for the UF (nov/2025).
+    // "5 anos" ends at the end of the latest period stored for the UF (31/12/2025).
     await waitFor(() =>
-      expect(requests("/states/SP/indicators").at(-1)?.searchParams.get("start_date")).toBe("2020-11-01"),
+      expect(requests("/states/SP/indicators").at(-1)?.searchParams.get("start_date")).toBe("2020-12-01"),
     );
     expect(requests("/states/SP/dashboard")).toHaveLength(1);
   });
 
   it("shows the Distrito Federal comparability note", async () => {
-    render(<StateDashboard uf="DF" name="Distrito Federal" />);
+    render(<StateDashboard uf="DF" />);
     const note = await screen.findByRole("complementary", { name: "Ressalva de comparabilidade" });
     expect(note).toHaveTextContent(DF_NOTE);
   });
 
   it("has no note for a state", async () => {
-    render(<StateDashboard uf="SP" name="São Paulo" />);
+    render(<StateDashboard uf="SP" />);
     await findCard("Receita corrente líquida");
     expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
   });
 
   it("says plainly when a UF has no fiscal data at all", async () => {
-    render(<StateDashboard uf="MG" name="Minas Gerais" />);
+    render(<StateDashboard uf="MG" />);
     expect(
-      await screen.findByText(/Ainda não há dados fiscais armazenados para Minas Gerais/),
+      await screen.findByText(/Ainda não há dados fiscais armazenados para esta UF/),
     ).toBeInTheDocument();
     expect(screen.queryByRole("group", { name: "Período predefinido" })).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: /Indicadores sem dados/ })).not.toBeInTheDocument();
@@ -324,7 +335,7 @@ describe("StateDashboard", () => {
     fetchMock.mockImplementation(async () =>
       json({ error: { code: "boom", message: "Falha simulada." } }, 500),
     );
-    render(<StateDashboard uf="SP" name="São Paulo" />);
+    render(<StateDashboard uf="SP" />);
     const alerts = await screen.findAllByRole("alert");
     expect(alerts.length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("Não foi possível carregar os dados.")).toBeInTheDocument();
@@ -339,8 +350,13 @@ describe("StateDashboard", () => {
 });
 
 describe("stateBounds", () => {
+  it("ends at the last day of the latest stored period (bimester or four-month period)", () => {
+    expect(stateBounds([{ ...dclRcl, last_stored_date: "2025-09-01" }]).last).toBe("2025-12-31");
+    expect(stateBounds([{ ...rcl, last_stored_date: "2024-01-01" }]).last).toBe("2024-02-29");
+  });
+
   it("spans the UF's stored dates and ignores indicators without data", () => {
-    expect(stateBounds([rcl, dclRcl, noData(dc)])).toEqual({ first: "2024-01-01", last: "2025-11-01" });
+    expect(stateBounds([rcl, dclRcl, noData(dc)])).toEqual({ first: "2024-01-01", last: "2025-12-31" });
     expect(stateBounds([noData(dc)])).toEqual({ first: null, last: null });
   });
 });

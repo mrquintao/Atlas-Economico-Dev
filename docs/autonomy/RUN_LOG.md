@@ -3,6 +3,31 @@
 Entradas curtas, da mais recente para a mais antiga: o que foi entregue, o que foi validado, as falhas e
 como foram corrigidas, e as decisões relevantes. Os detalhes ficam nos PRs, nas issues e nos ADRs.
 
+## 2026-10-21 — S7: página por estado `/estados/[uf]` (issue #17, PRs #43 e #44)
+
+- O mantenedor integrou o branch no PR #43 antes da auditoria; o PR #44 traz as correções do economist
+  e do qa-auditor.
+
+- Frontend: `/estados` (27 UFs por região) e `/estados/[uf]` (27 páginas pré-renderizadas): cartões do
+  `/states/{uf}/dashboard` (valor em reais com escala, bimestre/quadrimestre, janela de acumulação,
+  diferença para o mesmo período do ano anterior, nota de sinal dos resultados), lista explícita de
+  indicadores sem dados, aviso para UF sem dados, ressalva do DF e gráficos sincronizados de
+  `/states/{uf}/indicators` (uma requisição). `src/proxy.ts`: minúsculas → 308; UF inválida → 404 real
+  (com streaming, `notFound()` na página daria 200).
+- Componentes nacionais generalizados (gráfico, cursor, resumo e formatação para bimestre/quadrimestre e
+  R$); formatação nacional inalterada (só os rótulos do eixo y passam a ter até 2 casas).
+- Fixture E2E sintética ampliada (SP, DF, MG; 2023–2025); `e2e/states.spec.ts` (14 testes). Mutação em
+  `alignTime` (período sem converter para o último dia) derruba o teste de cursor quadrimestre → bimestre.
+- economist: textos corrigidos (sem nome da UF interpolado, "extraídos", nota do filtro sobre % da RCL,
+  rótulos "Diferença no período (R$ correntes)"), rótulos do eixo com casas decimais, escala após
+  arredondamento, nota de superávit/déficit.
+- qa-auditor: 1 alto corrigido (tooltip vazio no 1º bimestre dos fluxos acumulados: a quebra de ano
+  dividia a data com o ponto), 1 médio corrigido (data final máxima e domínio terminavam no início do
+  último período), baixos corrigidos ("-0" no eixo, título da página 404) ou registrados no PR.
+- Validação: `scripts/check.sh` verde (382 pytest, 112 vitest); E2E local 24/24.
+- Ambiente: lição — conferir `ps aux | grep next-server` antes do E2E local; um servidor antigo na porta
+  3000 é reaproveitado fora do CI e serve outro build.
+
 ## 2026-10-21 — S5 concluída: API estadual (issue #15, PR #42)
 
 - Novos endpoints `GET /states/{uf}/indicators` (metadados, disponibilidade e séries por UF, filtros de

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  formatAxisNumber,
   formatChange,
   formatCurrency,
   formatDate,
@@ -49,6 +50,18 @@ describe("format", () => {
     expect(formatCurrency(-5_120_000)).toBe("-R$ 5,12 mi");
     expect(formatCurrency(950.5)).toBe("R$ 950,50");
     expect(formatCurrency(0)).toBe("R$ 0,00");
+    // The scale is chosen after rounding.
+    expect(formatCurrency(999_999_999)).toBe("R$ 1,00 bi");
+    expect(formatCurrency(-999_996_000, true)).toBe("-R$ 1,00 bi");
+    expect(formatCurrency(999_994_000)).toBe("R$ 999,99 mi");
+  });
+
+  it("formats axis ticks with only the decimals they need", () => {
+    expect(formatAxisNumber(0.5)).toBe("0,5");
+    expect(formatAxisNumber(1)).toBe("1");
+    expect(formatAxisNumber(1234.25)).toBe("1.234,25");
+    expect(formatAxisNumber(-0)).toBe("0");
+    expect(formatAxisNumber(-1e-16)).toBe("0");
   });
 
   it("signs differences in reais and never shows -0", () => {
