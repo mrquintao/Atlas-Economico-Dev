@@ -9,6 +9,10 @@ describe("buildTimeSeriesOption", () => {
     name: "Meta Selic",
     unit: "% a.a.",
     frequency: "monthly",
+    aggregated: true,
+    step: true,
+    domain: { min: "2008-01-01", max: "2026-10-21" },
+    description: "Meta Selic de set/2026 a out/2026.",
     palette,
     observations: [
       { date: "2026-09-30", value: 13.75, period_start: "2026-09-01", period_end: "2026-09-30", partial: false },
@@ -36,6 +40,7 @@ describe("buildTimeSeriesOption", () => {
   it("enables zoom and accessible description", () => {
     expect(option.dataZoom.map((z: { type: string }) => z.type)).toEqual(["inside", "slider"]);
     expect(option.aria.enabled).toBe(true);
+    expect(option.aria.label.description).toBe("Meta Selic de set/2026 a out/2026.");
   });
 
   it("formats tooltips in pt-BR and flags partial months", () => {
@@ -44,5 +49,37 @@ describe("buildTimeSeriesOption", () => {
     expect(html).toContain("out/2026");
     expect(html).toContain("21/10/2026");
     expect(html).toContain("mês parcial");
+  });
+
+  it("uses the shared x-axis domain", () => {
+    expect(option.xAxis.min).toBe("2008-01-01");
+    expect(option.xAxis.max).toBe("2026-10-21");
+  });
+});
+
+describe("buildTimeSeriesOption for an original monthly series", () => {
+  const option = buildTimeSeriesOption({
+    name: "Dívida bruta (DBGG)",
+    unit: "% do PIB",
+    frequency: "monthly",
+    aggregated: false,
+    step: false,
+    domain: null,
+    description: "Dívida bruta (DBGG).",
+    palette,
+    observations: [
+      { date: "2026-08-01", value: 82.87, period_start: "2026-08-01", period_end: "2026-08-31", partial: false },
+    ],
+  }) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+  it("draws a regular line, not steps", () => {
+    expect(option.series[0].step).toBe(false);
+  });
+
+  it("labels the tooltip with the reference month only", () => {
+    const html = option.tooltip.formatter([{ data: ["2026-08-01", 82.87, false] }]);
+    expect(html).toContain("82,87% do PIB");
+    expect(html).toContain("Referência: ago/2026");
+    expect(html).not.toContain("vigente");
   });
 });

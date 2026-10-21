@@ -1,5 +1,5 @@
 import { formatChange, formatDate, formatMonth, formatRate } from "@/lib/format";
-import type { Observation, ObservationsResponse } from "@/types/api";
+import type { Indicator, Observation, ObservationsResponse } from "@/types/api";
 
 export interface LatestSummary {
   value: number;
@@ -38,7 +38,21 @@ export function describeSeries(response: ObservationsResponse): string {
     `${indicator.short_name} de ${fmtDate(stats.first.date)} a ${fmtDate(stats.last.date)}: ` +
     `passou de ${formatRate(stats.first.value, unit)} para ${formatRate(stats.last.value, unit)} ` +
     `(${formatChange(stats.change, stats.change_unit)}). ` +
-    `Mínima de ${formatRate(stats.min.value, unit)} em ${formatDate(stats.min.date)}; ` +
-    `máxima de ${formatRate(stats.max.value, unit)} em ${formatDate(stats.max.date)}.`
+    `Mínima de ${formatRate(stats.min.value, unit)} em ${fmtDate(stats.min.date)}; ` +
+    `máxima de ${formatRate(stats.max.value, unit)} em ${fmtDate(stats.max.date)}.`
   );
+}
+
+type WithFrequency = Pick<Indicator, "frequency">;
+
+/** A reference date in the indicator's own granularity (day for daily, month for monthly). */
+export function formatReference(indicator: WithFrequency, date: string): string {
+  return indicator.frequency === "daily" ? formatDate(date) : formatMonth(date);
+}
+
+/** How the reference date of the latest value is described on its card. */
+export function referenceLabel(indicator: WithFrequency, date: string): string {
+  return indicator.frequency === "daily"
+    ? `Vigente em ${formatDate(date)}`
+    : `Posição de ${formatMonth(date)}`;
 }

@@ -16,8 +16,16 @@ interface Options {
   name: string;
   unit: string;
   frequency: Frequency;
+  /** True when monthly values were derived from a daily series (last value of each month). */
+  aggregated: boolean;
   observations: Observation[];
   palette: ChartPalette;
+  /** Step line for levels that only change by decision (e.g. the Selic target). */
+  step: boolean;
+  /** Shared x-axis domain (ISO dates) so that all charts on the page line up in time. */
+  domain: { min: string; max: string } | null;
+  /** Accessible description (ECharts sets it as the container's aria-label). */
+  description: string;
 }
 
 type Datum = [string, number, boolean];
@@ -27,8 +35,12 @@ export function buildTimeSeriesOption({
   name,
   unit,
   frequency,
+  aggregated,
   observations,
   palette,
+  step,
+  domain,
+  description,
 }: Options): EChartsCoreOption {
   const data: Datum[] = observations.map((o) => [o.date, o.value, o.partial]);
   const isMonthly = frequency === "monthly";
@@ -37,14 +49,17 @@ export function buildTimeSeriesOption({
     animationDuration: 300,
     aria: {
       enabled: true,
-      label: {
-        description: `Gráfico de linha: ${name} (${unit}), ${observations.length} observações.`,
-      },
+      label: { description },
     },
-    grid: { left: 8, right: 16, top: 32, bottom: 72, containLabel: true },
+    // Fixed margins (no containLabel): every chart gets the same plot area, so a given date
+    // sits at the same horizontal position in all synchronised charts.
+    grid: { left: 44, right: 16, top: 32, bottom: 72, containLabel: false },
     textStyle: { color: palette.text, fontFamily: "inherit" },
     tooltip: {
       trigger: "axis",
+      // Hide immediately: a lingering tooltip from the previous date would pair wrong values
+      // while the synchronised cursor moves into a range without data.
+      hideDelay: 0,
       backgroundColor: palette.tooltipBg,
       borderColor: palette.grid,
       textStyle: { color: palette.text },
@@ -52,14 +67,19 @@ export function buildTimeSeriesOption({
         const first = (Array.isArray(params) ? params[0] : params) as { data?: Datum } | undefined;
         if (!first?.data) return "";
         const [date, value, partial] = first.data;
-        const when = isMonthly
-          ? `${formatMonth(date)} — vigente em ${formatDate(date)}${partial ? " (mês parcial)" : ""}`
-          : formatDate(date);
+        const partialNote = partial ? " (mês parcial)" : "";
+        const when = !isMonthly
+          ? formatDate(date)
+          : aggregated
+            ? `${formatMonth(date)} — vigente em ${formatDate(date)}${partialNote}`
+            : `Referência: ${formatMonth(date)}${partialNote}`;
         return `<strong>${formatRate(value, unit)}</strong><br/>${when}`;
       },
     },
     xAxis: {
       type: "time",
+      min: domain?.min,
+      max: domain?.max,
       axisLine: { lineStyle: { color: palette.grid } },
       axisLabel: { color: palette.muted, hideOverlap: true },
       splitLine: { show: false },
@@ -90,8 +110,7 @@ export function buildTimeSeriesOption({
       {
         name,
         type: "line",
-        // The target only changes on Copom decisions: draw it as a step function.
-        step: "end",
+        step: step ? "end" : false,
         // Only partial periods (e.g. the running month) get a hollow marker.
         showSymbol: true,
         symbol: "emptyCircle",

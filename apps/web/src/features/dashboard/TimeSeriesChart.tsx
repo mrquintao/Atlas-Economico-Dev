@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Frequency, Observation } from "@/types/api";
 
 import { buildTimeSeriesOption, type ChartPalette } from "./chart-option";
+import { afterOptionUpdate, dataExtent, registerChart, type SyncedChartMeta } from "./chart-sync";
 
 echarts.use([LineChart, GridComponent, TooltipComponent, DataZoomComponent, AriaComponent, CanvasRenderer]);
 
@@ -46,12 +47,24 @@ interface Props {
   name: string;
   unit: string;
   frequency: Frequency;
+  aggregated: boolean;
+  step: boolean;
+  domain: { min: string; max: string } | null;
   observations: Observation[];
-  /** Short textual summary for assistive technology. */
+  /** Textual summary of the series, used as the chart's accessible name. */
   summary: string;
 }
 
-export function TimeSeriesChart({ name, unit, frequency, observations, summary }: Props) {
+export function TimeSeriesChart({
+  name,
+  unit,
+  frequency,
+  aggregated,
+  step,
+  domain,
+  observations,
+  summary,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
   const palette = usePalette();
@@ -60,33 +73,52 @@ export function TimeSeriesChart({ name, unit, frequency, observations, summary }
     const container = containerRef.current;
     if (!container) return;
     const chart = echarts.init(container, undefined, { renderer: "canvas" });
+    const unregister = registerChart(chart, { granularity: "day", domainKey: null, extent: null });
     chartRef.current = chart;
     const observer = new ResizeObserver(() => chart.resize());
     observer.observe(container);
     return () => {
       observer.disconnect();
+      unregister();
       chart.dispose();
       chartRef.current = null;
     };
   }, []);
 
   useEffect(() => {
-    if (!chartRef.current || !palette) return;
-    chartRef.current.setOption(
-      buildTimeSeriesOption({ name, unit, frequency, observations, palette }),
+    const chart = chartRef.current;
+    if (!chart || !palette) return;
+    chart.setOption(
+      buildTimeSeriesOption({
+        name,
+        unit,
+        frequency,
+        aggregated,
+        observations,
+        palette,
+        step,
+        domain,
+        description: summary,
+      }),
       { notMerge: true },
     );
-  }, [name, unit, frequency, observations, palette]);
+    // Original monthly series are dated on the 1st but stand for the whole month.
+    const granularity = frequency === "monthly" && !aggregated ? "month" : "day";
+    const meta: SyncedChartMeta = {
+      granularity,
+      domainKey: domain ? `${domain.min}/${domain.max}` : null,
+      extent: dataExtent(
+        observations.map((o) => o.date),
+        granularity,
+      ),
+    };
+    afterOptionUpdate(chart, meta);
+  }, [name, unit, frequency, aggregated, observations, palette, step, domain, summary]);
 
   return (
     <figure className="m-0">
-      <div
-        ref={containerRef}
-        role="img"
-        aria-label={summary}
-        className="h-[360px] w-full sm:h-[420px]"
-      />
-      <figcaption className="sr-only">{summary}</figcaption>
+      {/* ECharts' aria component labels this element with `summary` (see chart-option). */}
+      <div ref={containerRef} role="img" aria-label={summary} className="h-[360px] w-full sm:h-[420px]" />
     </figure>
   );
 }

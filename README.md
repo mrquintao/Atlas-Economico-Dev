@@ -5,11 +5,13 @@ do Brasil, construída **exclusivamente com dados oficiais** (Banco Central, IBG
 SICONFI) e com rastreabilidade completa: cada número exibido informa fonte, série, unidade,
 metodologia e data da última coleta.
 
-> **Estado atual (iteração 1):** fatia vertical completa da **meta Selic (SGS 432)**:
-> API oficial do BCB → coleta → PostgreSQL → API interna → frontend → gráfico interativo.
-> IPCA 12 meses e Dívida bruta/PIB são as próximas etapas; a expansão estadual vem na fase 2.
+> **Estado atual (iteração 2):** dados oficiais da **meta Selic (SGS 432)** e da **dívida bruta do
+> governo geral / PIB (SGS 13762)**, com gráficos sincronizados no mesmo período, eixo de datas, zoom
+> e cursor. IPCA 12 meses é a próxima etapa; a expansão estadual vem na fase 2.
 
 ![Dashboard](docs/screenshots/desktop.png)
+
+<sub>Cursor sincronizado por data entre os gráficos: [captura](docs/screenshots/desktop-sync.png).</sub>
 
 ## Objetivos
 
@@ -56,6 +58,7 @@ docs/                     Arquitetura, catálogo, metodologia, API, pipeline, de
 cp .env.example .env                       # ajuste credenciais se quiser
 docker compose up --build -d               # db + api (aplica migrações ao iniciar) + web
 docker compose exec api python -m app.ingestion.cli ingest SELIC_TARGET --full   # coleta inicial (~1–2 min)
+docker compose exec api python -m app.ingestion.cli ingest DBGG_GDP               # série mensal (segundos)
 ```
 
 - Frontend: http://localhost:3000
@@ -78,16 +81,19 @@ psql -U postgres -c "CREATE DATABASE atlas_test OWNER atlas;"   # apenas para te
 cd services/api
 cp ../../.env.example .env                 # DATABASE_URL etc.
 uv sync                                    # cria .venv com Python 3.12 e dependências
-uv run alembic upgrade head                # migrações + seed (BCB, Brasil, SELIC_TARGET)
+uv run alembic upgrade head                # migrações + seed (BCB, Brasil, SELIC_TARGET, DBGG_GDP)
 uv run python -m app.ingestion.cli ingest SELIC_TARGET --full   # coleta inicial do histórico completo
+uv run python -m app.ingestion.cli ingest DBGG_GDP               # dívida bruta/PIB (série mensal)
 uv run uvicorn app.main:app --reload --port 8000
 ```
 
-Coletas seguintes são incrementais (re-buscam os últimos 90 dias para detectar revisões):
+Coletas seguintes são incrementais: séries diárias re-buscam os últimos 90 dias e séries mensais
+são recoletadas inteiras (revisões do PIB podem alterar anos anteriores):
 
 ```bash
 uv run python -m app.ingestion.cli ingest SELIC_TARGET
-# ou, para agendar via cron:  scripts/ingest.sh
+uv run python -m app.ingestion.cli ingest DBGG_GDP
+# ou, para agendar via cron (todos os indicadores):  scripts/ingest.sh
 ```
 
 ### 3. Frontend
@@ -131,7 +137,7 @@ unitários rodam. Nenhum teste acessa a internet. O CI (GitHub Actions) roda tud
 
 | Fonte | Uso | Links |
 |---|---|---|
-| Banco Central do Brasil — SGS | Meta Selic (432) · próximo: DBGG/PIB (13762) | [Dados abertos](https://dadosabertos.bcb.gov.br/) · [SGS 432](https://dadosabertos.bcb.gov.br/dataset/432-taxa-de-juros---meta-selic-definida-pelo-copom) · [SGS 13762](https://dadosabertos.bcb.gov.br/dataset/13762-divida-bruta-do-governo-geral--pib---metodologia-utilizada-a-partir-de-2008) |
+| Banco Central do Brasil — SGS | Meta Selic (432) · DBGG/PIB (13762) | [Dados abertos](https://dadosabertos.bcb.gov.br/) · [SGS 432](https://dadosabertos.bcb.gov.br/dataset/432-taxa-de-juros---meta-selic-definida-pelo-copom) · [SGS 13762](https://dadosabertos.bcb.gov.br/dataset/13762-divida-bruta-do-governo-geral--pib---metodologia-utilizada-a-partir-de-2008) |
 | IBGE — SIDRA | Próximo: IPCA 12 meses (tabela 1737) | [API SIDRA](https://apisidra.ibge.gov.br/) · [Serviço de dados](https://servicodados.ibge.gov.br/api/docs/) |
 | Tesouro Nacional / SICONFI | Fase 2 (estados) | [Tesouro Transparente](https://www.tesourotransparente.gov.br/) · [SICONFI API](https://apidatalake.tesouro.gov.br/docs/siconfi/) |
 

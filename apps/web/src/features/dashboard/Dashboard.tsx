@@ -2,10 +2,8 @@
 
 import { useMemo, useState } from "react";
 
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { EmptyState, ErrorState, LoadingState } from "@/components/ui/states";
-import { useObservations } from "@/hooks/useObservations";
-import { formatChange, formatDate, formatMonth, formatRate } from "@/lib/format";
+import { Card, CardContent } from "@/components/ui/card";
+import { useIndicators } from "@/hooks/useObservations";
 import {
   DEFAULT_PRESET,
   isValidRange,
@@ -15,33 +13,52 @@ import {
   type DateRange,
   type PeriodPreset,
 } from "@/lib/period";
+import type { Indicator } from "@/types/api";
 
-import { IndicatorCard, PlaceholderCard } from "./IndicatorCard";
-import { MethodologyPanel } from "./MethodologyPanel";
+import { PlaceholderCard } from "./IndicatorCard";
+import { IndicatorHighlight } from "./IndicatorHighlight";
+import { IndicatorPanel } from "./IndicatorPanel";
+import { DASHBOARD_INDICATORS } from "./indicators";
 import { PeriodFilter } from "./PeriodFilter";
-import { describeSeries, latestFromMonthly } from "./summary";
-import { TimeSeriesChart } from "./TimeSeriesChart";
 
-const SELIC = "SELIC_TARGET";
-const FULL_HISTORY: DateRange = { start: null, end: null };
+interface StoredBounds {
+  first: string | null;
+  last: string | null;
+}
+
+/** Earliest first and latest last stored date across the dashboard's indicators. */
+export function storedBounds(indicators: Indicator[]): StoredBounds {
+  const codes = new Set(DASHBOARD_INDICATORS.map((i) => i.code));
+  const shown = indicators.filter((i) => codes.has(i.code));
+  const firsts = shown.flatMap((i) => (i.first_stored_date ? [i.first_stored_date] : []));
+  const lasts = shown.flatMap((i) => (i.last_stored_date ? [i.last_stored_date] : []));
+  return {
+    first: firsts.length ? firsts.reduce((a, b) => (a < b ? a : b)) : null,
+    last: lasts.length ? lasts.reduce((a, b) => (a > b ? a : b)) : null,
+  };
+}
 
 export function Dashboard() {
   // One shared range for every chart on the page (charts are time-synchronised).
   const [preset, setPreset] = useState<PeriodPreset>(DEFAULT_PRESET);
   const [range, setRange] = useState<DateRange>({ start: SINCE_2008_START, end: null });
-  const [frequency, setFrequency] = useState<"daily" | "monthly">("daily");
   const invalidRange = !isValidRange(range);
   // An invalid range is never sent to the API; the last valid one stays displayed.
   const [appliedRange, setAppliedRange] = useState<DateRange>(range);
 
-  const latest = useObservations(SELIC, FULL_HISTORY, "monthly");
-  const series = useObservations(SELIC, appliedRange, frequency);
-
-  const latestSummary = useMemo(
-    () => (latest.data ? latestFromMonthly(latest.data.observations) : null),
-    [latest.data],
+  const catalog = useIndicators();
+  const byCode = useMemo(
+    () => new Map((catalog.data ?? []).map((i) => [i.code, i])),
+    [catalog.data],
   );
-  const indicator = latest.data?.indicator ?? series.data?.indicator ?? null;
+  const bounds = useMemo(() => storedBounds(catalog.data ?? []), [catalog.data]);
+
+  // Same x-axis for every chart, so the same date sits at the same horizontal position.
+  const domain = useMemo(() => {
+    const min = appliedRange.start ?? bounds.first;
+    const max = appliedRange.end ?? bounds.last;
+    return min && max ? { min, max } : null;
+  }, [appliedRange.start, appliedRange.end, bounds.first, bounds.last]);
 
   function updateRange(next: DateRange) {
     setRange(next);
@@ -50,9 +67,8 @@ export function Dashboard() {
 
   function handlePreset(next: Exclude<PeriodPreset, "custom">) {
     setPreset(next);
-    // Relative presets ("5 anos") end at the latest official observation.
-    const anchor = indicator?.last_stored_date ?? todayLocalIso();
-    updateRange(rangeForPreset(next, anchor));
+    // Relative presets ("5 anos") end at the latest official observation of any indicator.
+    updateRange(rangeForPreset(next, bounds.last ?? todayLocalIso()));
   }
 
   function handleCustomRange(next: DateRange) {
@@ -67,111 +83,47 @@ export function Dashboard() {
           Indicadores em destaque
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {indicator ? (
-            <IndicatorCard indicator={indicator} latest={latestSummary} />
-          ) : latest.status === "error" ? (
-            <Card className="p-5" role="alert">
-              <h3 className="text-sm font-medium text-muted-foreground">Meta Selic</h3>
-              <p className="mt-2 text-sm">{latest.error.message}</p>
-            </Card>
-          ) : (
-            <Card className="p-5" aria-busy>
-              <h3 className="text-sm font-medium text-muted-foreground">Meta Selic</h3>
-              <div className="mt-3 h-8 w-32 animate-pulse rounded bg-muted" />
-            </Card>
-          )}
+          {DASHBOARD_INDICATORS.map((config) => (
+            <IndicatorHighlight key={config.code} config={config} />
+          ))}
           <PlaceholderCard title="IPCA — 12 meses" note="Em implementação: próxima etapa do MVP." />
-          <PlaceholderCard title="Dívida bruta / PIB" note="Em implementação: próxima etapa do MVP." />
         </div>
       </section>
 
-      <Card aria-labelledby="chart-selic">
-        <CardHeader>
-          <h2 id="chart-selic" className="text-lg font-semibold">
-            {indicator?.name ?? "Meta da taxa Selic"}
-          </h2>
-          {indicator && <p className="text-sm text-muted-foreground">{indicator.description}</p>}
-        </CardHeader>
-        <CardContent className="flex flex-col gap-5">
-          <PeriodFilter
-            preset={preset}
-            range={range}
-            minDate={indicator?.first_stored_date ?? null}
-            maxDate={indicator?.last_stored_date ?? null}
-            frequency={frequency}
-            onPresetChange={handlePreset}
-            onCustomRange={handleCustomRange}
-            onFrequencyChange={setFrequency}
-            invalidRange={invalidRange}
-          />
-          <SeriesBody series={series} />
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
+      <section aria-labelledby="period" className="flex flex-col gap-3">
+        <h2 id="period" className="sr-only">
+          Período dos gráficos
+        </h2>
+        <Card>
+          <CardContent className="pt-5">
+            <PeriodFilter
+              preset={preset}
+              range={range}
+              minDate={bounds.first}
+              maxDate={bounds.last}
+              onPresetChange={handlePreset}
+              onCustomRange={handleCustomRange}
+              invalidRange={invalidRange}
+            />
+            <p className="mt-3 text-xs text-muted-foreground">
+              O período vale para todos os gráficos abaixo, que compartilham o mesmo eixo de datas:
+              o zoom e o cursor de um gráfico acompanham os demais. Cada indicador mantém sua
+              frequência e unidade originais. Use a roda do mouse, o gesto de pinça ou a barra
+              inferior de cada gráfico para ampliar.
+            </p>
+          </CardContent>
+        </Card>
+      </section>
 
-function SeriesBody({ series }: { series: ReturnType<typeof useObservations> }) {
-  const data = series.data;
-  if (series.status === "error" && !data) {
-    return <ErrorState message={series.error.message} onRetry={series.retry} />;
-  }
-  if (!data) {
-    return <LoadingState />;
-  }
-  const { stats, indicator, unit } = data;
-  const fmtDate = data.frequency === "monthly" ? formatMonth : formatDate;
-
-  return (
-    <div className="flex flex-col gap-4" aria-busy={series.status === "loading"}>
-      {series.status === "error" && (
-        <div role="alert" className="flex flex-wrap items-center gap-3 text-sm text-red-700 dark:text-red-400">
-          <span>{series.error.message} Exibindo os últimos dados carregados.</span>
-          <button
-            type="button"
-            onClick={series.retry}
-            className="rounded-md border border-border px-2 py-1 font-medium text-foreground hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
-          >
-            Tentar novamente
-          </button>
-        </div>
-      )}
-      {stats ? (
-        <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
-          <Stat label={`Início (${fmtDate(stats.first.date)})`} value={formatRate(stats.first.value, unit)} />
-          <Stat label={`Fim (${fmtDate(stats.last.date)})`} value={formatRate(stats.last.value, unit)} />
-          <Stat label="Variação no período" value={formatChange(stats.change, stats.change_unit)} />
-          <Stat
-            label="Mínima / máxima"
-            value={`${formatRate(stats.min.value, unit)} / ${formatRate(stats.max.value, unit)}`}
-          />
-        </dl>
-      ) : null}
-      {data.count === 0 ? (
-        <EmptyState message="Não há observações oficiais armazenadas para o período selecionado." />
-      ) : (
-        <TimeSeriesChart
-          name={indicator.short_name}
-          unit={unit}
-          frequency={data.frequency}
-          observations={data.observations}
-          summary={describeSeries(data)}
+      {DASHBOARD_INDICATORS.map((config) => (
+        <IndicatorPanel
+          key={config.code}
+          config={config}
+          indicator={byCode.get(config.code) ?? null}
+          range={appliedRange}
+          domain={domain}
         />
-      )}
-      <p className="text-xs text-muted-foreground">
-        {data.aggregation.description} Use a roda do mouse, o gesto de pinça ou a barra inferior
-        para ampliar o gráfico.
-      </p>
-      <MethodologyPanel response={data} />
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex flex-col gap-0.5">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="font-semibold tabular-nums">{value}</dd>
+      ))}
     </div>
   );
 }

@@ -4,22 +4,14 @@ import { useId } from "react";
 
 import { Segmented } from "@/components/ui/segmented";
 import { PERIOD_PRESETS, type DateRange, type PeriodPreset } from "@/lib/period";
-import type { RequestedFrequency } from "@/types/api";
-
-const FREQUENCIES: { value: Extract<RequestedFrequency, "daily" | "monthly">; label: string }[] = [
-  { value: "daily", label: "Diária" },
-  { value: "monthly", label: "Mensal" },
-];
 
 interface Props {
   preset: PeriodPreset;
   range: DateRange;
   minDate: string | null;
   maxDate: string | null;
-  frequency: "daily" | "monthly";
   onPresetChange: (preset: Exclude<PeriodPreset, "custom">) => void;
   onCustomRange: (range: DateRange) => void;
-  onFrequencyChange: (frequency: "daily" | "monthly") => void;
   invalidRange: boolean;
 }
 
@@ -28,10 +20,8 @@ export function PeriodFilter({
   range,
   minDate,
   maxDate,
-  frequency,
   onPresetChange,
   onCustomRange,
-  onFrequencyChange,
   invalidRange,
 }: Props) {
   const startId = useId();
@@ -80,10 +70,6 @@ export function PeriodFilter({
             onChange={(e) => onCustomRange({ start: range.start, end: e.target.value || null })}
           />
         </label>
-        <div className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-muted-foreground">Frequência</span>
-          <Segmented label="Frequência" options={FREQUENCIES} value={frequency} onChange={onFrequencyChange} />
-        </div>
       </div>
       {invalidRange && (
         <p id={errorId} role="alert" className="text-sm text-red-700 dark:text-red-400 lg:basis-full">
