@@ -66,9 +66,10 @@ fi
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --states)
-      # Same bounds as `derive-fiscal --year` (SICONFI data from 2015 on).
-      [[ $# -ge 2 && "$2" =~ ^[0-9]{4}$ && "$2" -ge 2015 && "$2" -le "$(date +%Y)" ]] ||
-        die "--states exige um ano entre 2015 e $(date +%Y) (ex.: --states $(($(date +%Y) - 1)))"
+      # Same bounds as `derive-fiscal --year` (2015 to the current year in Brasília time).
+      this_year="$(TZ=America/Sao_Paulo date +%Y)"
+      [[ $# -ge 2 && "$2" =~ ^[1-9][0-9]{3}$ && "$2" -ge 2015 && "$2" -le "$this_year" ]] ||
+        die "--states exige um ano entre 2015 e $this_year (ex.: --states $((this_year - 1)))"
       STATES_YEAR="$2"
       shift 2
       ;;
@@ -249,7 +250,7 @@ load_data() {
       api_cli derive-fiscal --year "$STATES_YEAR" --collect
   elif [[ "$mode" == "first-run" ]]; then
     printf '%s  i%s Indicadores fiscais estaduais: scripts/dev.sh data --states %s\n' \
-      "$DIM" "$RESET" "$(($(date +%Y) - 1))"
+      "$DIM" "$RESET" "$(($(TZ=America/Sao_Paulo date +%Y) - 1))"
   fi
 }
 
@@ -346,7 +347,7 @@ run_docker() {
     ok ".env criado a partir de .env.example"
   fi
   # Re-running with the stack already up just rebuilds/updates it; otherwise the ports must be free.
-  if [[ -z "$(docker compose -f "$ROOT/docker-compose.yml" ps --status running -q api 2>/dev/null)" ]]; then
+  if [[ -z "$(docker compose -f "$ROOT/docker-compose.yml" ps --status running -q 2>/dev/null)" ]]; then
     port_in_use 8000 && die "a porta 8000 já está em uso"
     port_in_use 3000 && die "a porta 3000 já está em uso"
   fi
