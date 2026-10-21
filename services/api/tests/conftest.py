@@ -55,6 +55,8 @@ def sgs_json(points: list[tuple[str, str | None]], status: int = 200) -> httpx.R
 @pytest.fixture(scope="session")
 def engine() -> Iterator[Engine]:
     if not TEST_DATABASE_URL:
+        if os.environ.get("REQUIRE_DB_TESTS") == "1":
+            pytest.fail("REQUIRE_DB_TESTS=1 but TEST_DATABASE_URL is not set")
         pytest.skip("TEST_DATABASE_URL not set; skipping database tests")
     eng = create_engine(TEST_DATABASE_URL)
     with eng.begin() as conn:
