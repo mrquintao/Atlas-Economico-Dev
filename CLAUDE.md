@@ -91,7 +91,24 @@ docker compose up --build
   — desativados em `.claude/settings.json` (`attribution.commit = ""`, `sessionUrl = false`).
   Commits saem com a identidade do mantenedor (`Mateus Quintão`, e-mail noreply do GitHub, sem
   assinatura), aplicada a cada sessão por `scripts/configure-git-identity.sh` (hook `SessionStart`).
-  Nunca reescrever histórico publicado nem usar force push; merge em `main` só com aprovação do mantenedor.
+  Nunca reescrever histórico publicado, usar force push ou fazer push direto na `main`.
+
+## Desenvolvimento autônomo
+
+O mantenedor autorizou o desenvolvimento autônomo, **inclusive o merge de PRs**, condicionado aos gates
+de qualidade. Antes de qualquer trabalho, leia:
+
+- [`docs/autonomy/STATE.md`](docs/autonomy/STATE.md): checkpoint (fase, próxima issue, bloqueios);
+- [`docs/autonomy/AGENT_POLICY.md`](docs/autonomy/AGENT_POLICY.md): ciclo por entrega, **gate de merge**
+  e proibições permanentes;
+- [`docs/autonomy/DEFINITION_OF_DONE.md`](docs/autonomy/DEFINITION_OF_DONE.md): critérios de conclusão;
+- [`docs/implementation-roadmap.md`](docs/implementation-roadmap.md): entregas por fase e dependências.
+
+As tarefas vivem em GitHub Issues (labels `phase:*`, `type:*`, `priority:*`, `autonomous:yes`,
+`agent:blocked`). Registre cada execução em [`docs/autonomy/RUN_LOG.md`](docs/autonomy/RUN_LOG.md).
+Proibições inegociáveis: force push, reescrita de histórico, push direto na `main`, segredos no Git,
+bypass ou desativação de checks e testes, operações destrutivas em dados reais, serviços pagos sem
+orçamento e implantação pública de funcionalidade incompleta.
 
 ## Fluxo com agentes
 
@@ -104,5 +121,4 @@ O agente principal atua como **Tech Lead**: decompõe tarefas, delega e integra.
 | `fullstack-developer` | Endpoints FastAPI, páginas Next.js, gráficos ECharts, acessibilidade |
 | `qa-auditor` | Antes de cada entrega: testes, revisão adversarial, conferência de amostras com a fonte oficial |
 
-Definition of done de uma funcionalidade: código + testes passando + lint/typecheck/build ok +
-documentação atualizada + amostra conferida com a fonte oficial (quando houver dado real).
+Definição de pronto: [`docs/autonomy/DEFINITION_OF_DONE.md`](docs/autonomy/DEFINITION_OF_DONE.md).
