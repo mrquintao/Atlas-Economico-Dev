@@ -29,6 +29,15 @@ export interface Indicator {
   first_stored_date: string | null;
   last_stored_date: string | null;
   last_collected_at: string | null;
+  /** Latest collection attempt, whatever its outcome (null if never attempted). */
+  last_run: IngestionRun | null;
+}
+
+export interface IngestionRun {
+  status: "running" | "success" | "failed";
+  started_at: string;
+  finished_at: string | null;
+  error_type: string | null;
 }
 
 export interface Geography {

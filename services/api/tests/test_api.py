@@ -1,5 +1,6 @@
 """API tests against PostgreSQL. Observation values are synthetic and inserted directly."""
 
+import json
 from collections.abc import Iterator
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
@@ -93,6 +94,45 @@ def test_indicator_metadata(client: TestClient, seeded: None) -> None:
     assert body["source_url"].startswith("https://dadosabertos.bcb.gov.br/")
     assert body["last_stored_date"] == "2024-03-10"
     assert body["last_collected_at"] is not None
+
+
+def test_indicator_reports_latest_run_even_when_it_failed(
+    client: TestClient, db: Session, selic: Indicator, seeded: None
+) -> None:
+    body = client.get("/api/v1/indicators/SELIC_TARGET").json()
+    assert body["last_run"]["status"] == "success"
+    assert body["last_run"]["error_type"] is None
+    last_success = body["last_collected_at"]
+
+    started = datetime.now(UTC) + timedelta(minutes=1)
+    db.add(
+        IngestionRun(
+            source_id=selic.source_id,
+            indicator_id=selic.id,
+            status="failed",
+            started_at=started,
+            finished_at=started,
+            error_message="SGSUnavailableError: synthetic outage at http://internal-host",
+            records_received=0,
+            records_inserted=0,
+            records_updated=0,
+            records_unchanged=0,
+        )
+    )
+    db.flush()
+    body = client.get("/api/v1/indicators/SELIC_TARGET").json()
+    assert body["last_run"]["status"] == "failed"
+    # Only the error type is public; the message may carry internal details.
+    assert body["last_run"]["error_type"] == "SGSUnavailableError"
+    assert "internal-host" not in json.dumps(body)
+    # The last successful collection is still reported separately.
+    assert body["last_collected_at"] == last_success
+
+
+def test_indicator_without_runs_has_no_last_run(client: TestClient) -> None:
+    body = client.get("/api/v1/indicators/IPCA_12M").json()
+    assert body["last_run"] is None
+    assert body["last_collected_at"] is None
 
 
 def test_unknown_indicator_returns_consistent_error(client: TestClient) -> None:

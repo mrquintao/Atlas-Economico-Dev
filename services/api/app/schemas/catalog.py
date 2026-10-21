@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -22,6 +23,16 @@ class GeographyOut(BaseModel):
     geographic_level: str
 
 
+class IngestionRunOut(BaseModel):
+    """Latest collection attempt of an indicator, whatever its outcome."""
+
+    status: Literal["running", "success", "failed"]
+    started_at: datetime
+    finished_at: datetime | None
+    # Only the exception type is public; the full message stays in ingestion_runs and the logs.
+    error_type: str | None
+
+
 class IndicatorOut(BaseModel):
     code: str
     name: str
@@ -41,3 +52,4 @@ class IndicatorOut(BaseModel):
     first_stored_date: date | None
     last_stored_date: date | None
     last_collected_at: datetime | None
+    last_run: IngestionRunOut | None
