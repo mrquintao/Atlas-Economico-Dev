@@ -175,17 +175,19 @@ def ingest_sgs_indicator(
         _finish(run, summary)
         session.commit()
     except Exception as exc:
-        session.rollback()
-        run.status = IngestionStatus.FAILED
-        run.error_message = f"{type(exc).__name__}: {exc}"[:2000]
-        summary.status = run.status
-        _finish(run, summary)
+        logger.exception("ingestion_failed", extra=log_ctx)
+        summary.status = IngestionStatus.FAILED
+        # Recording the failure touches the database again (the rollback expires `run`, so it
+        # is reloaded). If that fails too (e.g. database down), the original error still wins.
         try:
+            session.rollback()
+            run.status = IngestionStatus.FAILED
+            run.error_message = f"{type(exc).__name__}: {exc}"[:2000]
+            _finish(run, summary)
             session.commit()
-        except Exception:  # e.g. database down: keep the original error visible
+        except Exception:
             session.rollback()
             logger.exception("ingestion_failure_not_recorded", extra=log_ctx)
-        logger.exception("ingestion_failed", extra=log_ctx)
         raise
 
     logger.info(

@@ -214,3 +214,19 @@ def test_default_collection_date_uses_brasilia_time(
     )
     assert summary.end == date(2024, 1, 5)
     assert summary.inserted == 5
+
+
+def test_original_error_survives_failure_to_record_the_run(
+    db: Session, ingest, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import app.ingestion.sgs_ingestion as module
+
+    def database_down(*_: object) -> None:
+        raise RuntimeError("database down")
+
+    def broken(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("unreachable", request=request)
+
+    monkeypatch.setattr(module, "_finish", database_down)
+    with pytest.raises(SGSUnavailableError):
+        ingest(broken, start=date(2024, 1, 1))
