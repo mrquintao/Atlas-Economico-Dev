@@ -6,7 +6,7 @@ Values are synthetic. Connectors are replaced by in-memory fakes; nothing touche
 from __future__ import annotations
 
 import json
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.ingestion import cli
-from app.ingestion.batch import run_batch, select_indicators
+from app.ingestion.batch import close_orphan_runs, run_batch, select_indicators
 from app.ingestion.series_ingestion import IngestionError
 from app.integrations.bcb.sgs import SGSPoint, SGSUnavailableError, SGSWindowResult
 from app.models import DataSource, Indicator, IngestionRun
@@ -86,6 +86,7 @@ def test_failure_of_one_indicator_does_not_stop_the_others(db: Session, settings
     assert statuses == {"DBGG_GDP": "failed", "IPCA_12M": "success", "SELIC_TARGET": "success"}
     failed = result.items[0]
     assert failed.error is not None and "synthetic outage" in failed.error
+    assert failed.run_id is not None  # the failed run is identified in the report
 
     runs = runs_by_code(db)
     assert [r.status for r in runs["DBGG_GDP"]] == ["failed"]
@@ -128,6 +129,44 @@ def test_source_without_connector_fails_and_is_recorded(db: Session, settings: S
     assert result.items[0].run_id is not None
     assert runs_by_code(db)["SELIC_TARGET"][0].status == "failed"
     assert result.items[1].status == "success"
+
+
+def test_stop_request_skips_the_remaining_indicators(db: Session, settings: Settings) -> None:
+    bcb = FakeClient()
+    result = run_batch(
+        db,
+        settings,
+        clients={"BCB": bcb, "IBGE": FakeClient()},
+        should_stop=lambda: len(bcb.requested) > 0,  # stop after the first indicator
+        today=TODAY,
+    )
+    done = [i.indicator_code for i in result.items]
+    assert done == ["DBGG_GDP"]
+    assert "IPCA_12M" not in runs_by_code(db)
+
+
+def test_orphan_running_runs_are_closed(db: Session, settings: Settings) -> None:
+    selic = db.scalar(select(Indicator).where(Indicator.code == "SELIC_TARGET"))
+    assert selic is not None
+    now = datetime.now(UTC)
+    for started in (now - timedelta(hours=3), now - timedelta(minutes=5)):
+        db.add(
+            IngestionRun(
+                source_id=selic.source_id,
+                indicator_id=selic.id,
+                status="running",
+                started_at=started,
+                records_received=0,
+                records_inserted=0,
+                records_updated=0,
+                records_unchanged=0,
+            )
+        )
+    db.flush()
+    assert close_orphan_runs(db, now) == 1
+    runs = runs_by_code(db)["SELIC_TARGET"]
+    assert [r.status for r in runs] == ["failed", "running"]  # a recent run may be live
+    assert (runs[0].error_message or "").startswith("Interrupted")
 
 
 @pytest.fixture
@@ -179,6 +218,18 @@ def test_cli_single_indicator(cli_env, capsys) -> None:
 def test_cli_unknown_indicator_exits_non_zero(cli_env, capsys) -> None:
     assert cli.main(["ingest", "NOPE"]) == 1
     assert "Unknown indicator: NOPE" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    "args",
+    [["--start", "2024-03-05", "--end", "2024-03-01"], ["--start", "2999-01-01"]],
+)
+def test_cli_rejects_invalid_ranges_without_recording_runs(
+    cli_env, db: Session, args: list[str]
+) -> None:
+    with pytest.raises(SystemExit):
+        cli.main(["ingest", "--all", *args])
+    assert runs_by_code(db) == {}
 
 
 def test_cli_requires_exactly_one_target() -> None:

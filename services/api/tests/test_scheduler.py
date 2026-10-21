@@ -125,8 +125,18 @@ def test_check_validates_configuration(monkeypatch: pytest.MonkeyPatch, capsys) 
 
     monkeypatch.setattr(scheduler, "configure_logging", lambda *_: None)
     monkeypatch.setattr(scheduler, "get_settings", lambda: Settings(ingest_schedule="18:30,06:00"))
+    monkeypatch.setattr(scheduler, "check_database", lambda: 3)
     assert scheduler.main(["--check"]) == 0
     assert "06:00, 18:30" in capsys.readouterr().out
+
+    # Unreachable database or empty catalog: the deployment check fails.
+    def unreachable() -> int:
+        raise ConnectionError("synthetic: database down")
+
+    monkeypatch.setattr(scheduler, "check_database", unreachable)
+    assert scheduler.main(["--check"]) == scheduler.EXIT_CONFIG_ERROR
+    monkeypatch.setattr(scheduler, "check_database", lambda: 0)
+    assert scheduler.main(["--check"]) == scheduler.EXIT_CONFIG_ERROR
 
     monkeypatch.setattr(scheduler, "get_settings", lambda: Settings(ingest_schedule="25:00"))
     assert scheduler.main(["--check"]) == scheduler.EXIT_CONFIG_ERROR

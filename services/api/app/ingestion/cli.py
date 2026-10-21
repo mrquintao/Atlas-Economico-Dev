@@ -18,6 +18,7 @@ from dataclasses import asdict
 from datetime import date
 from typing import Any
 
+from app.core.clock import brazil_today
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.db.session import get_session_factory
@@ -39,6 +40,12 @@ def main(argv: list[str] | None = None) -> int:
     ingest.add_argument("--start", type=date.fromisoformat, help="YYYY-MM-DD")
     ingest.add_argument("--end", type=date.fromisoformat, help="YYYY-MM-DD")
     args = parser.parse_args(argv)
+    # Reject operator mistakes here: inside the batch they would be recorded as failed runs and
+    # shown publicly as collection failures although no source failed.
+    if args.start and args.end and args.start > args.end:
+        parser.error("--start must be on or before --end")
+    if args.start and args.start > brazil_today():
+        parser.error("--start is in the future (Brasília time)")
 
     settings = get_settings()
     configure_logging(settings.log_level, settings.log_json)

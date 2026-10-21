@@ -230,13 +230,15 @@ def ingest_indicator(
             run.error_message = format_error(exc)
             _finish(run, summary)
             session.commit()
+            exc.ingestion_run_id = run.id  # type: ignore[attr-defined]  # for batch reports
         except Exception:
             session.rollback()
             logger.exception("ingestion_failure_not_recorded", extra=log_ctx)
         raise
 
     if summary.received == 0:
-        # Not an error (e.g. a range with no publication yet), but worth an operator's look.
+        # Nothing stored in the range either (e.g. a fresh database before the first
+        # publication): not an error, but worth an operator's look.
         logger.warning("ingestion_received_no_records", extra=log_ctx)
     logger.info(
         "ingestion_finished",
@@ -320,6 +322,14 @@ def _upsert(
             )
         )
     }
+    if existing and not points:
+        # An official series does not vanish: an empty answer for a range we already hold is an
+        # upstream failure, never a successful collection (it would advance "last collection").
+        first, last = min(existing), max(existing)
+        raise IngestionError(
+            f"Source returned no records for {summary.start}..{summary.end}, which holds "
+            f"{len(existing)} stored observations ({first}..{last}); stored data kept"
+        )
     returned = {point.reference_date for point in points}
     missing = sorted(d for d in existing if d not in returned)
     if missing:

@@ -4,7 +4,7 @@ No queue, no cron daemon: one long-running process (the Compose ``scheduler`` se
 until the next configured time in Brasília, runs the same batch as ``ingest --all`` and repeats.
 
     INGEST_SCHEDULE="06:00,18:30" python -m app.ingestion.scheduler
-    python -m app.ingestion.scheduler --check     # validate the configuration and exit
+    python -m app.ingestion.scheduler --check     # validate configuration and database, exit
 """
 
 from __future__ import annotations
@@ -21,7 +21,8 @@ from app.core.clock import BRAZIL_TZ
 from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging
 from app.db.session import get_session_factory
-from app.ingestion.batch import BatchResult, run_batch
+from app.ingestion.batch import BatchResult, run_batch, select_indicators
+from app.ingestion.series_ingestion import format_error
 
 logger = logging.getLogger(__name__)
 
@@ -64,10 +65,16 @@ def next_run_after(now: datetime, times: list[time]) -> datetime:
     raise AssertionError("unreachable: a schedule always has a time within 24 hours")
 
 
-def collect_all(settings: Settings) -> BatchResult:
+def collect_all(settings: Settings, stop: threading.Event | None = None) -> BatchResult:
     """One scheduled execution: every catalog indicator, incrementally."""
     with get_session_factory()() as session:
-        return run_batch(session, settings)
+        return run_batch(session, settings, should_stop=stop.is_set if stop else lambda: False)
+
+
+def check_database() -> int:
+    """Number of catalog indicators; raises if the database is unreachable or not migrated."""
+    with get_session_factory()() as session:
+        return len(select_indicators(session, None))
 
 
 def run_forever(
@@ -131,7 +138,20 @@ def main(argv: list[str] | None = None) -> int:
     schedule = [t.strftime("%H:%M") for t in times]
     next_run = next_run_after(datetime.now(UTC), times).isoformat()
     if args.check:
-        print(f"schedule (America/Sao_Paulo): {', '.join(schedule)}; next run: {next_run}")
+        # Also prove the service reaches a migrated database with a non-empty catalog, so a
+        # wrong DATABASE_URL shows up at deploy time rather than at the first scheduled run.
+        try:
+            indicators = check_database()
+        except Exception as exc:
+            logger.error("scheduler_database_unavailable", extra={"error": format_error(exc)})
+            return EXIT_CONFIG_ERROR
+        if indicators == 0:
+            logger.error("scheduler_empty_catalog")
+            return EXIT_CONFIG_ERROR
+        print(
+            f"schedule (America/Sao_Paulo): {', '.join(schedule)}; next run: {next_run}; "
+            f"catalog indicators: {indicators}"
+        )
         return EXIT_OK
 
     stop = threading.Event()
@@ -152,7 +172,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     run_forever(
         times,
-        lambda: collect_all(settings),
+        lambda: collect_all(settings, stop),
         stop=stop,
         run_on_start=settings.ingest_on_start,
     )
