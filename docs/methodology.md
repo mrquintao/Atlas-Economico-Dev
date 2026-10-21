@@ -51,8 +51,10 @@
 - O zoom é mantido quando um gráfico é redesenhado (ex.: troca diária/mensal) e volta ao período
   inteiro quando o período global muda.
 - Cada indicador mantém sua frequência e unidade; escalas diferentes ficam em gráficos separados.
-- **Filtro por período de referência:** uma observação entra quando seu período (dia, para séries
-  diárias; mês inteiro, para séries mensais) se sobrepõe ao intervalo escolhido. Um intervalo iniciado
-  em 20/10/2021 inclui out/2021 na série mensal; para séries diárias nada muda. Os presets relativos
-  ("5 anos", "10 anos") começam no 1º dia do mês, e o eixo de datas começa no 1º dia do mês inicial
-  para que o ponto mensal incluído fique visível ([ADR 0005](adr/0005-filtro-por-periodo-de-referencia.md)).
+- **Filtro por período de referência:** cada observação entra no período escolhido quando o seu
+  período de referência termina dentro dele: o próprio dia, para séries diárias; o último dia do mês
+  (ou bimestre, quadrimestre), para as demais. Assim, um intervalo de 20/10/2021 a 15/03/2022 inclui
+  out/2021 (encerrado em 31/10) e não inclui mar/2022 (encerrado depois de 15/03). Para indicadores
+  acumulados, como o IPCA em 12 meses, o valor vale para a janela que termina no mês de referência, e
+  essa janela pode começar antes do início do período escolhido. Os presets relativos começam no
+  1º dia do mês ([ADR 0005](adr/0005-filtro-por-periodo-de-referencia.md)).

@@ -4,7 +4,9 @@ Documentação interativa gerada pelo FastAPI: `http://localhost:8000/docs` (Ope
 
 Convenções: datas ISO 8601 (`YYYY-MM-DD`); valores numéricos com a unidade explícita na resposta;
 parâmetros de consulta **não declarados pela rota são rejeitados** com `422 unknown_parameter`
-(ex.: `?start=` em vez de `start_date`), com `details.unknown` e `details.allowed`; erros sempre no formato:
+(ex.: `?start=` em vez de `start_date`), com `details.unknown` e `details.allowed`, e parâmetros
+escalares repetidos com `422 repeated_parameter`. Essa validação ocorre antes da rota: um indicador
+inexistente com parâmetro desconhecido responde 422. Erros sempre no formato:
 
 ```json
 { "error": { "code": "invalid_range", "message": "start_date deve ser anterior ou igual a end_date.", "details": null } }
@@ -23,8 +25,8 @@ parâmetros de consulta **não declarados pela rota são rejeitados** com `422 u
 
 | Parâmetro | Padrão | Descrição |
 |---|---|---|
-| `start_date` | — (início da série) | Data inicial inclusiva. Entra toda observação cujo período de referência termina nela ou depois (`period_end >= start_date`) |
-| `end_date` | — (última observação) | Data final inclusiva. Entra toda observação cujo período começa nela ou antes (`period_start <= end_date`) |
+| `start_date` | — (início da série) | Data inicial inclusiva |
+| `end_date` | — (última observação) | Data final inclusiva. Entra toda observação cujo **período de referência termina** no intervalo (`start_date <= period_end <= end_date`; ADR 0005) |
 | `geography` | `BR` | Sigla ou código IBGE. Série nacional pedida para UF → `422 geography_not_available` |
 | `frequency` | `original` | `original`, `daily` ou `monthly` (último valor do mês). Conversão para frequência mais alta → `422 frequency_not_supported` |
 
@@ -48,6 +50,7 @@ Resposta (resumida):
 }
 ```
 
+- `start_date`/`end_date` descrevem o intervalo coberto pelos períodos devolvidos, recortado ao pedido.
 - `stats.change` é a diferença absoluta (último − primeiro) na unidade `change_unit`.
 - Intervalo sem dados → `count: 0`, `observations: []`, `stats: null` (nunca zeros).
 - Sem paginação: uma série diária completa tem ~10 mil pontos (~600 KB), adequado para o gráfico.

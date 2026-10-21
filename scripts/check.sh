@@ -16,6 +16,7 @@ uv run ruff format --check .
 DATABASE_URL="$TEST_DATABASE_URL" uv run alembic upgrade head
 DATABASE_URL="$TEST_DATABASE_URL" uv run alembic downgrade base
 DATABASE_URL="$TEST_DATABASE_URL" uv run alembic upgrade head
+DATABASE_URL="$TEST_DATABASE_URL" uv run alembic check
 REQUIRE_DB_TESTS=1 uv run pytest -q
 
 echo "== Web =="

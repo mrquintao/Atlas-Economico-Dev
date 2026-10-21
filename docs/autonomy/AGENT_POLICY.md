@@ -54,7 +54,8 @@ Um PR só é integrado quando **todos** os itens valem para o commit mais recent
    - E2E, quando existir.
    Checks ausentes, pendentes, `skipped` ou `cancelled` **não** contam como aprovação.
 3. O PR está mergeável (sem conflitos; `mergeable_state` limpo).
-4. Não há achado crítico ou alto em aberto do `qa-auditor` nem thread de revisão sem resposta.
+4. Não há achado crítico, alto ou médio do `qa-auditor` sem correção ou decisão registrada (no PR ou
+   em ADR), nem thread de revisão sem resposta. Achados baixos são corrigidos ou registrados na issue.
 5. O estado é revalidado imediatamente antes do merge, que é feito com `expectedHeadSha` igual ao
    commit verificado.
 
