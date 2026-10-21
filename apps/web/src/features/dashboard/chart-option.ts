@@ -24,6 +24,8 @@ interface Options {
   step: boolean;
   /** Shared x-axis domain (ISO dates) so that all charts on the page line up in time. */
   domain: { min: string; max: string } | null;
+  /** Accessible description (ECharts sets it as the container's aria-label). */
+  description: string;
 }
 
 type Datum = [string, number, boolean];
@@ -38,6 +40,7 @@ export function buildTimeSeriesOption({
   palette,
   step,
   domain,
+  description,
 }: Options): EChartsCoreOption {
   const data: Datum[] = observations.map((o) => [o.date, o.value, o.partial]);
   const isMonthly = frequency === "monthly";
@@ -46,9 +49,7 @@ export function buildTimeSeriesOption({
     animationDuration: 300,
     aria: {
       enabled: true,
-      label: {
-        description: `Gráfico de linha: ${name} (${unit}), ${observations.length} observações.`,
-      },
+      label: { description },
     },
     // Fixed margins (no containLabel): every chart gets the same plot area, so a given date
     // sits at the same horizontal position in all synchronised charts.
@@ -56,6 +57,9 @@ export function buildTimeSeriesOption({
     textStyle: { color: palette.text, fontFamily: "inherit" },
     tooltip: {
       trigger: "axis",
+      // Hide immediately: a lingering tooltip from the previous date would pair wrong values
+      // while the synchronised cursor moves into a range without data.
+      hideDelay: 0,
       backgroundColor: palette.tooltipBg,
       borderColor: palette.grid,
       textStyle: { color: palette.text },

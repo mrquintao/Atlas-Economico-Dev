@@ -14,58 +14,9 @@ import { useEffect, useRef, useState } from "react";
 import type { Frequency, Observation } from "@/types/api";
 
 import { buildTimeSeriesOption, type ChartPalette } from "./chart-option";
+import { afterOptionUpdate, dataExtent, registerChart, type SyncedChartMeta } from "./chart-sync";
 
 echarts.use([LineChart, GridComponent, TooltipComponent, DataZoomComponent, AriaComponent, CanvasRenderer]);
-
-/**
- * Synchronisation of cursor and zoom across the dashboard's charts, by date. (echarts.connect
- * matches by data index, which fails across series of different lengths/frequencies, and
- * combining both mechanisms makes them re-trigger each other.)
- */
-const syncedCharts = new Set<echarts.ECharts>();
-let propagating = false;
-
-interface AxisPointerEvent {
-  axesInfo?: { axisDim: string; value: number }[];
-}
-
-function forOthers(source: echarts.ECharts, action: (chart: echarts.ECharts) => void) {
-  if (propagating) return;
-  propagating = true;
-  try {
-    for (const chart of syncedCharts) {
-      if (chart !== source && !chart.isDisposed()) action(chart);
-    }
-  } finally {
-    propagating = false;
-  }
-}
-
-function syncCursor(source: echarts.ECharts, event: AxisPointerEvent) {
-  const time = event.axesInfo?.find((a) => a.axisDim === "x")?.value;
-  forOthers(source, (chart) => {
-    if (time === undefined) {
-      chart.dispatchAction({ type: "hideTip" });
-      return;
-    }
-    const x = chart.convertToPixel({ xAxisIndex: 0 }, time);
-    if (Number.isFinite(x)) chart.dispatchAction({ type: "showTip", x, y: chart.getHeight() / 2 });
-  });
-}
-
-function syncZoom(source: echarts.ECharts) {
-  const option = source.getOption() as { dataZoom?: { start?: number; end?: number }[] };
-  const zoom = option.dataZoom?.[0];
-  if (zoom?.start === undefined || zoom.end === undefined) return;
-  // All charts share the same x-axis domain, so the same percentages are the same dates.
-  forOthers(source, (chart) =>
-    chart.dispatchAction({ type: "dataZoom", start: zoom.start, end: zoom.end }),
-  );
-}
-
-function hideOthers(source: echarts.ECharts) {
-  forOthers(source, (chart) => chart.dispatchAction({ type: "hideTip" }));
-}
 
 function readPalette(): ChartPalette {
   const css = getComputedStyle(document.documentElement);
@@ -100,7 +51,7 @@ interface Props {
   step: boolean;
   domain: { min: string; max: string } | null;
   observations: Observation[];
-  /** Short textual summary for assistive technology. */
+  /** Textual summary of the series, used as the chart's accessible name. */
   summary: string;
 }
 
@@ -122,24 +73,22 @@ export function TimeSeriesChart({
     const container = containerRef.current;
     if (!container) return;
     const chart = echarts.init(container, undefined, { renderer: "canvas" });
-    syncedCharts.add(chart);
-    chart.on("updateAxisPointer", (event) => syncCursor(chart, event as AxisPointerEvent));
-    chart.on("dataZoom", () => syncZoom(chart));
-    chart.getZr().on("globalout", () => hideOthers(chart));
+    const unregister = registerChart(chart, { granularity: "day", domainKey: null, extent: null });
     chartRef.current = chart;
     const observer = new ResizeObserver(() => chart.resize());
     observer.observe(container);
     return () => {
       observer.disconnect();
-      syncedCharts.delete(chart);
+      unregister();
       chart.dispose();
       chartRef.current = null;
     };
   }, []);
 
   useEffect(() => {
-    if (!chartRef.current || !palette) return;
-    chartRef.current.setOption(
+    const chart = chartRef.current;
+    if (!chart || !palette) return;
+    chart.setOption(
       buildTimeSeriesOption({
         name,
         unit,
@@ -149,20 +98,27 @@ export function TimeSeriesChart({
         palette,
         step,
         domain,
+        description: summary,
       }),
       { notMerge: true },
     );
-  }, [name, unit, frequency, aggregated, observations, palette, step, domain]);
+    // Original monthly series are dated on the 1st but stand for the whole month.
+    const granularity = frequency === "monthly" && !aggregated ? "month" : "day";
+    const meta: SyncedChartMeta = {
+      granularity,
+      domainKey: domain ? `${domain.min}/${domain.max}` : null,
+      extent: dataExtent(
+        observations.map((o) => o.date),
+        granularity,
+      ),
+    };
+    afterOptionUpdate(chart, meta);
+  }, [name, unit, frequency, aggregated, observations, palette, step, domain, summary]);
 
   return (
     <figure className="m-0">
-      <div
-        ref={containerRef}
-        role="img"
-        aria-label={summary}
-        className="h-[360px] w-full sm:h-[420px]"
-      />
-      <figcaption className="sr-only">{summary}</figcaption>
+      {/* ECharts' aria component labels this element with `summary` (see chart-option). */}
+      <div ref={containerRef} role="img" aria-label={summary} className="h-[360px] w-full sm:h-[420px]" />
     </figure>
   );
 }

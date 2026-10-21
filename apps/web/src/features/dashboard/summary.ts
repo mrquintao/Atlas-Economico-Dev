@@ -38,8 +38,8 @@ export function describeSeries(response: ObservationsResponse): string {
     `${indicator.short_name} de ${fmtDate(stats.first.date)} a ${fmtDate(stats.last.date)}: ` +
     `passou de ${formatRate(stats.first.value, unit)} para ${formatRate(stats.last.value, unit)} ` +
     `(${formatChange(stats.change, stats.change_unit)}). ` +
-    `Mínima de ${formatRate(stats.min.value, unit)} em ${formatDate(stats.min.date)}; ` +
-    `máxima de ${formatRate(stats.max.value, unit)} em ${formatDate(stats.max.date)}.`
+    `Mínima de ${formatRate(stats.min.value, unit)} em ${fmtDate(stats.min.date)}; ` +
+    `máxima de ${formatRate(stats.max.value, unit)} em ${fmtDate(stats.max.date)}.`
   );
 }
 
