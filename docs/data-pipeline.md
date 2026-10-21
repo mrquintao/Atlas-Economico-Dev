@@ -9,14 +9,46 @@ uv run python -m app.ingestion.cli ingest SELIC_TARGET --full    # todo o histó
 uv run python -m app.ingestion.cli ingest SELIC_TARGET --start 2020-01-01 --end 2020-12-31
 uv run python -m app.ingestion.cli ingest DBGG_GDP               # mensal: sempre a série inteira
 uv run python -m app.ingestion.cli ingest IPCA_12M               # IBGE/SIDRA: sempre a série inteira
+uv run python -m app.ingestion.cli ingest --all                  # todos os indicadores do catálogo
 ```
 
 A CLI escolhe o conector pela fonte do indicador (`data_sources.acronym`): `BCB` → SGS
 (`app/integrations/bcb/sgs.py`), `IBGE` → SIDRA (`app/integrations/ibge/sidra.py`). Idempotência,
 revisões e `ingestion_runs` são os mesmos para todas as fontes (`app/ingestion/series_ingestion.py`).
 
-A CLI imprime um resumo JSON (stdout); logs estruturados em JSON vão para stderr.
-Agendamento simples: `scripts/ingest.sh` via cron (sem filas ou orquestradores, de propósito).
+A CLI imprime um resumo JSON por indicador (stdout: `indicator`, `status`, `run_id`, `error`,
+`summary`); logs estruturados em JSON vão para stderr. Código de saída: `0` quando todas as coletas
+pedidas terminam com sucesso, `1` quando alguma falha (ou o código do indicador não existe).
+
+## Coleta automática
+
+Sem filas ou orquestradores, de propósito (`PROJECT_SPEC.md` §7):
+
+- **Docker Compose:** serviço opcional `scheduler` (perfil `scheduler`, `app/ingestion/scheduler.py`).
+  Um processo de longa duração espera o próximo horário de `INGEST_SCHEDULE` (`HH:MM`, vários
+  separados por vírgula, no fuso `America/Sao_Paulo`; padrão `06:00`) e executa a mesma coleta de
+  `ingest --all`. `INGEST_ON_START=true` também coleta ao iniciar. Configuração inválida encerra o
+  serviço com código 2; `python -m app.ingestion.scheduler --check` valida a configuração e mostra
+  a próxima execução. Uma coleta que falha é registrada e não derruba o agendador.
+- **Fora do Docker:** `scripts/ingest.sh` (`ingest --all`) num cron do sistema.
+
+Garantias de cada execução em lote (`app/ingestion/batch.py`):
+
+- cada indicador é coletado de forma independente e atômica: a falha de um não impede os demais;
+- **toda tentativa** gera uma linha em `ingestion_runs` — inclusive falhas anteriores à requisição
+  (intervalo inválido, fonte sem conector), com `status = failed` e a mensagem em `error_message`;
+- os conectores são abertos uma vez por fonte e respeitam o intervalo mínimo entre requisições;
+- uma coleta que não recebe nenhum registro termina com sucesso, mas gera o aviso
+  `ingestion_received_no_records` no log para conferência.
+
+Monitoramento: os logs (`docker compose logs scheduler`: `scheduler_waiting`, `batch_finished`,
+`batch_indicator_failed`, `scheduled_collection_finished`), a tabela `ingestion_runs` e o campo
+`last_run` de `GET /api/v1/indicators` (ver [api.md](api.md)), exibido no painel de metodologia
+quando a última tentativa falhou ou está em andamento.
+
+Parar o serviço durante uma coleta: o Compose concede 2 minutos (`stop_grace_period`) para concluí-la;
+se o processo for interrompido à força, a execução fica como `running` em `ingestion_runs`, e os dados
+gravados permanecem consistentes (cada indicador é gravado numa única transação).
 
 ## Etapas
 
@@ -49,6 +81,7 @@ Comportamentos observados (21/10/2026) e tratamento:
 |---|---|---|
 | Sucesso | `200` JSON `[{"data":"01/01/2024","valor":"11.75"}, …]` | Parsing e validação |
 | Janela sem dados | `404` JSON `{"erro": {… "Value(s) not found"}}` | Janela vazia (não é erro) |
+| Caminho inexistente (URL base errada) | `404` JSON `{"error": "endpoint not found!"}` | Erro, sem retry (antes da M4 era tratado como janela vazia e a falha passava por sucesso) |
 | Janela > 10 anos (diária) | `406` JSON `{"error": "O sistema aceita uma janela … 10 anos …"}` | Erro permanente, sem retry |
 | Falha intermitente do gateway | `400` **HTML** “Requisição inválida” | Retry com backoff |
 | Lentidão em janelas grandes | 5 e 10 anos levam ~30 s e frequentemente estouram o timeout | Janela padrão de 1 ano (~1 s) |

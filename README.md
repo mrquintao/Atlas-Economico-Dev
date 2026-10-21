@@ -44,7 +44,7 @@ services/api/             Backend FastAPI
   migrations/             Alembic (schema + seed do catálogo)
   tests/                  pytest
 infra/docker/             Dockerfiles
-scripts/ingest.sh         Coleta incremental (para cron)
+scripts/ingest.sh         Coleta incremental de todos os indicadores (para cron)
 docs/                     Arquitetura, catálogo, metodologia, API, pipeline, decisões
 ```
 
@@ -61,7 +61,24 @@ docker compose up --build -d               # db + api (aplica migrações ao ini
 docker compose exec api python -m app.ingestion.cli ingest SELIC_TARGET --full   # coleta inicial (~1–2 min)
 docker compose exec api python -m app.ingestion.cli ingest DBGG_GDP               # série mensal (segundos)
 docker compose exec api python -m app.ingestion.cli ingest IPCA_12M               # IBGE/SIDRA (segundos)
+docker compose exec api python -m app.ingestion.cli ingest --all                  # todos, incremental
 ```
+
+### Coleta automática
+
+O serviço opcional `scheduler` mantém os dados atualizados, sem filas nem serviços pagos:
+
+```bash
+# INGEST_SCHEDULE: horários do dia (HH:MM, separados por vírgula), no fuso de Brasília. Padrão: 06:00.
+INGEST_SCHEDULE=06:00,18:30 docker compose --profile scheduler up --build -d
+docker compose logs -f scheduler                       # próxima execução e resultado de cada coleta
+docker compose exec scheduler python -m app.ingestion.scheduler --check   # valida a configuração
+```
+
+- A falha de um indicador não impede os demais e fica registrada em `ingestion_runs`.
+- `INGEST_ON_START=true` também coleta ao iniciar o serviço (útil num banco recém-criado).
+- O painel "Sobre o indicador e a metodologia" mostra a última coleta bem-sucedida e avisa quando a
+  última tentativa falhou. Detalhes em [docs/data-pipeline.md](docs/data-pipeline.md#coleta-automática).
 
 - Frontend: http://localhost:3000
 - API / OpenAPI: http://localhost:8000
@@ -100,7 +117,8 @@ são recoletadas inteiras (revisões do PIB podem alterar anos anteriores):
 uv run python -m app.ingestion.cli ingest SELIC_TARGET
 uv run python -m app.ingestion.cli ingest DBGG_GDP
 uv run python -m app.ingestion.cli ingest IPCA_12M
-# ou, para agendar via cron (todos os indicadores):  scripts/ingest.sh
+uv run python -m app.ingestion.cli ingest --all   # todos (código de saída 1 se algum falhar)
+# ou, para agendar via cron do sistema:  scripts/ingest.sh
 ```
 
 ### 3. Frontend

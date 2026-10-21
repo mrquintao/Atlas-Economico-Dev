@@ -22,6 +22,21 @@ inexistente com parâmetro desconhecido responde 422. Erros sempre no formato:
 | `GET /api/v1/indicators/{code}/observations` | Série histórica filtrada |
 | `GET /api/v1/dashboard/national` | Resumo do dashboard nacional: último valor e variação em 12 meses de cada indicador |
 
+### Estado da coleta (`last_run`)
+
+Cada indicador (em `/indicators`, `/indicators/{code}`, nas observações e no dashboard) traz:
+
+- `last_collected_at`: fim da última coleta **bem-sucedida** (`null` se nunca houve uma);
+- `last_run`: a **última tentativa**, qualquer que seja o resultado (`null` se nunca houve uma):
+
+```json
+{ "status": "failed", "started_at": "2026-10-21T09:00:00Z", "finished_at": "2026-10-21T09:00:31Z", "error_type": "SGSUnavailableError" }
+```
+
+`status` é `running`, `success` ou `failed`. Só o tipo do erro é público (`error_type`); a mensagem
+completa fica em `ingestion_runs.error_message` e nos logs. Quando `last_run.status` é `failed`, os
+dados servidos são os da última coleta bem-sucedida.
+
 ## `GET /api/v1/indicators/{code}/observations`
 
 | Parâmetro | Padrão | Descrição |
