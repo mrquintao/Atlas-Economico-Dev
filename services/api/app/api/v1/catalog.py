@@ -1,14 +1,20 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.api.errors import ApiError
 from app.db.session import get_db
-from app.models import GeographicUnit, Indicator, IngestionRun
+from app.models import GeographicLevel, GeographicUnit, Indicator, IngestionRun
 from app.repositories import catalog as repo
-from app.schemas.catalog import GeographyOut, IndicatorOut, IngestionRunOut, SourceOut
+from app.schemas.catalog import (
+    GeographyListItem,
+    GeographyOut,
+    IndicatorOut,
+    IngestionRunOut,
+    SourceOut,
+)
 from app.schemas.observations import ErrorResponse
 
 router = APIRouter()
@@ -17,7 +23,7 @@ NOT_FOUND = {404: {"model": ErrorResponse}}
 
 
 def national_geography(session: Session) -> GeographicUnit:
-    geo = repo.get_geography(session, "BR")
+    geo = repo.get_geography(session, "BR", GeographicLevel.COUNTRY)
     if geo is None:
         raise ApiError(500, "catalog_not_seeded", "Unidade geográfica nacional não cadastrada.")
     return geo
@@ -83,8 +89,19 @@ def list_sources(session: DbSession) -> list[SourceOut]:
 
 
 @router.get("/geographies", tags=["catalog"])
-def list_geographies(session: DbSession) -> list[GeographyOut]:
-    return [GeographyOut.model_validate(g) for g in repo.list_geographies(session)]
+def list_geographies(
+    session: DbSession,
+    level: Annotated[
+        GeographicLevel | None, Query(description="Filtra por nível (country, region, state)")
+    ] = None,
+) -> list[GeographyListItem]:
+    return [
+        GeographyListItem(
+            **GeographyOut.model_validate(g).model_dump(),
+            parent=GeographyOut.model_validate(g.parent) if g.parent else None,
+        )
+        for g in repo.list_geographies(session, level)
+    ]
 
 
 @router.get("/indicators", tags=["catalog"])

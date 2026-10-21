@@ -1,6 +1,6 @@
 from datetime import date
 
-from sqlalchemy import CheckConstraint, Date, ForeignKey, String, Text
+from sqlalchemy import CheckConstraint, Date, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin
@@ -56,7 +56,11 @@ class Indicator(TimestampMixin, Base):
 
 
 class GeographicUnit(Base):
-    """Country/region/state/municipality, identified by its official IBGE code."""
+    """Country/region/state/municipality, identified by its official IBGE code.
+
+    IBGE codes and acronyms are unique only within a level (Brasil and the Norte region are both
+    code 1; SE is both the Sudeste region and the state of Sergipe).
+    """
 
     __tablename__ = "geographic_units"
     __table_args__ = (
@@ -64,11 +68,15 @@ class GeographicUnit(Base):
             "geographic_level IN ('country', 'region', 'state', 'municipality')",
             name="geographic_level",
         ),
+        UniqueConstraint("geographic_level", "ibge_code"),
+        UniqueConstraint("geographic_level", "acronym"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    ibge_code: Mapped[str] = mapped_column(String(16), unique=True)
-    acronym: Mapped[str] = mapped_column(String(8), unique=True)
+    ibge_code: Mapped[str] = mapped_column(String(16))
+    acronym: Mapped[str] = mapped_column(String(8))
     name: Mapped[str] = mapped_column(String(128))
     geographic_level: Mapped[str] = mapped_column(String(16))
     parent_id: Mapped[int | None] = mapped_column(ForeignKey("geographic_units.id"))
+
+    parent: Mapped["GeographicUnit | None"] = relationship(remote_side=[id])

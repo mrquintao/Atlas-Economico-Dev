@@ -16,7 +16,7 @@ inexistente com parâmetro desconhecido responde 422. Erros sempre no formato:
 |---|---|
 | `GET /api/v1/health` | Estado da aplicação e do banco (`503 database_unavailable` se o banco cair) |
 | `GET /api/v1/sources` | Fontes oficiais cadastradas |
-| `GET /api/v1/geographies` | Unidades geográficas cadastradas |
+| `GET /api/v1/geographies` | Unidades geográficas cadastradas (ver abaixo); filtro opcional `level` |
 | `GET /api/v1/indicators` | Catálogo com metadados, período armazenado e data da última coleta |
 | `GET /api/v1/indicators/{code}` | Metadados de um indicador (`404 indicator_not_found`) |
 | `GET /api/v1/indicators/{code}/observations` | Série histórica filtrada |
@@ -36,6 +36,22 @@ Cada indicador (em `/indicators`, `/indicators/{code}`, nas observações e no d
 `status` é `running`, `success` ou `failed`. Só o tipo do erro é público (`error_type`); a mensagem
 completa fica em `ingestion_runs.error_message` e nos logs. Quando `last_run.status` é `failed`, os
 dados servidos são os da última coleta bem-sucedida.
+
+## `GET /api/v1/geographies`
+
+Brasil, as 5 grandes regiões e as 27 UFs (26 estados e o DF), com os códigos oficiais da API de
+localidades do IBGE (ex.: MG = `31`, SP = `35`, DF = `53`) e o pai na hierarquia país → região → UF.
+Ordem: país, UFs e regiões, cada nível pelo código IBGE. `level` (`country`, `region`, `state`,
+`municipality`) filtra por nível; valor desconhecido → `422 validation_error`.
+
+```json
+{ "ibge_code": "31", "acronym": "MG", "name": "Minas Gerais", "geographic_level": "state",
+  "parent": { "ibge_code": "3", "acronym": "SE", "name": "Sudeste", "geographic_level": "region" } }
+```
+
+Códigos e siglas do IBGE só são únicos **dentro de um nível**: `1` é o Brasil e a Região Norte; `SE` é
+Sergipe e a Região Sudeste. No parâmetro `geography` das observações, a busca ocorre primeiro no nível
+do indicador; fora dele, a ordem é país, UF, região (`SE` → Sergipe, `1` → Brasil).
 
 ## `GET /api/v1/indicators/{code}/observations`
 
