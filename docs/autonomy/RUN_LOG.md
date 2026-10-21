@@ -3,7 +3,10 @@
 Entradas curtas, da mais recente para a mais antiga: o que foi entregue, o que foi validado, as falhas e
 como foram corrigidas, e as decisões relevantes. Os detalhes ficam nos PRs, nas issues e nos ADRs.
 
-## 2026-10-21 — S7: página por estado `/estados/[uf]` (issue #17)
+## 2026-10-21 — S7: página por estado `/estados/[uf]` (issue #17, PRs #43 e #44)
+
+- O mantenedor integrou o branch no PR #43 antes da auditoria; o PR #44 traz as correções do economist
+  e do qa-auditor.
 
 - Frontend: `/estados` (27 UFs por região) e `/estados/[uf]` (27 páginas pré-renderizadas): cartões do
   `/states/{uf}/dashboard` (valor em reais com escala, bimestre/quadrimestre, janela de acumulação,
