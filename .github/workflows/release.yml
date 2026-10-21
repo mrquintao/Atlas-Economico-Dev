@@ -22,20 +22,25 @@ jobs:
   release:
     name: Tag and publish release
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
     env:
       GH_TOKEN: ${{ github.token }}
       VERSION: ${{ inputs.version }}
     steps:
+      - name: Only from main
+        shell: bash
+        run: |
+          [[ "$GITHUB_REF" == refs/heads/main ]] || { echo "Releases are created only from main (got $GITHUB_REF)"; exit 1; }
       - uses: actions/checkout@v7
       - name: Validate version and notes
         shell: bash
         run: |
           [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid version: $VERSION"; exit 1; }
           test -f "docs/releases/$VERSION.md" || { echo "Missing docs/releases/$VERSION.md"; exit 1; }
-          if git ls-remote --exit-code --tags origin "refs/tags/$VERSION" >/dev/null; then
-            echo "Tag $VERSION already exists"; exit 1
-          fi
+          # Exit code 2 = tag absent; 0 = it exists; anything else (network, auth) is an error.
+          status=0
+          git ls-remote --exit-code --tags origin "refs/tags/$VERSION" >/dev/null || status=$?
+          [[ $status -eq 2 ]] || { echo "Tag $VERSION already exists or lookup failed (exit $status)"; exit 1; }
+          if gh release view "$VERSION" >/dev/null 2>&1; then echo "Release $VERSION already exists"; exit 1; fi
       - name: Require green CI on this commit
         shell: bash
         run: |

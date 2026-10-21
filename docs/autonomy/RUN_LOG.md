@@ -3,7 +3,7 @@
 Entradas curtas, da mais recente para a mais antiga: o que foi entregue, o que foi validado, as falhas e
 como foram corrigidas, e as decisões relevantes. Os detalhes ficam nos PRs, nas issues e nos ADRs.
 
-## 2026-10-21 — M7 concluída: critérios de aceite do MVP e release v0.1.0 (issue #9, PR #36)
+## 2026-10-21 — M7: critérios de aceite do MVP verificados; release v0.1.0 preparada (issue #9, PR #36)
 
 - Verificação do §25 em clone limpo da `main` (`1dcd398`), seguindo só a Opção B do README, com um
   banco novo:
@@ -22,7 +22,8 @@ como foram corrigidas, e as decisões relevantes. Os detalhes ficam nos PRs, nas
 - Contraste da navegação medido: 7,58:1 no tema claro e 7,34:1 no escuro (achado da M5 resolvido).
 - Novo workflow `Release` (`workflow_dispatch` na `main`): só cria a tag e a release se versão, notas,
   ausência de tag e os 4 checks obrigatórios do commit estiverem em ordem. As ferramentas do agente
-  não criam releases diretamente.
+  não criam releases diretamente. A tag é criada depois do merge, pelo workflow; o resultado fica
+  registrado numa entrada própria.
 
 ## 2026-10-21 — M6 concluída: testes E2E com Playwright (issue #8, PR #35)
 

@@ -6,12 +6,12 @@
 | Campo | Valor |
 |---|---|
 | Atualizado em | 2026-10-21 |
-| Fase atual | 2 — Atlas estadual (MVP nacional concluído: `v0.1.0`) |
-| Última entrega | M7 — verificação do §25 com evidências (`docs/releases/v0.1.0.md`) e release `v0.1.0` (issue #9, PR #36) pelo novo workflow `Release` |
-| Próxima entrega elegível | **S1 — unidades geográficas: 27 UFs e 5 regiões com códigos IBGE validados ([#11](https://github.com/mrquintao/Atlas-Economico-Dev/issues/11))** |
-| Issue ativa | nenhuma até o início da S1 |
+| Fase atual | 1 — MVP nacional (critérios do §25 verificados; falta publicar a tag `v0.1.0`) |
+| Última entrega | M7 (parcial) — verificação do §25 com evidências (`docs/releases/v0.1.0.md`) e workflow `Release` (issue #9, PR #36). A tag e a release `v0.1.0` ainda **não existem** |
+| Próxima entrega elegível | Concluir a M7: disparar `Release` (`version=v0.1.0`) na `main` com CI verde e registrar o resultado. Depois, **S1 — unidades geográficas ([#11](https://github.com/mrquintao/Atlas-Economico-Dev/issues/11))** |
+| Issue ativa | #9 até a publicação da `v0.1.0` |
 | Branch | novo branch a partir da `main` atualizada |
-| Último commit integrado na `main` | merge do PR #36 (conferir com `git log origin/main -1`); tag `v0.1.0` |
+| Último commit integrado na `main` | merge do PR #36 (conferir com `git log origin/main -1`) |
 | Última validação | M7: execução do README (Opção B) em clone limpo com banco novo e coleta real (10.093/237/550), recoleta sem duplicações, 15 amostras = fonte oficial (DBGG integral), navegador claro/escuro/mobile sem erros, contraste da navegação 7,58:1; `scripts/check.sh` e CI da `main` verdes |
 
 ## Bloqueios
@@ -29,7 +29,9 @@
 
 ## Próxima ação recomendada
 
-Confirmar a release `v0.1.0` no GitHub (workflow `Release`). Depois, iniciar a Fase 2 pela S1 (#11):
+Disparar o workflow `Release` com `version=v0.1.0` na `main` (depois de o CI do merge do PR #36 ficar
+verde), conferir a tag e a release no GitHub e registrar o link da execução (M7 ✅, Fase 2). Se o
+workflow falhar, corrigir e registrar aqui. Depois, iniciar a Fase 2 pela S1 (#11):
 27 UFs e 5 regiões com códigos IBGE validados contra a API de localidades do IBGE (economist +
 data-engineer), via migração de seed.
 

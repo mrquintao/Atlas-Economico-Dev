@@ -13,6 +13,8 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# The job names below are the required checks of the merge gate (AGENT_POLICY §3) and are
+# repeated in release.yml: rename them in both places.
 jobs:
   api:
     name: API (lint, migrations, tests)
