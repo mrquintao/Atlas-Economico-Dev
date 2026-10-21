@@ -1,6 +1,6 @@
 /** Types mirroring the internal API (services/api/app/schemas). */
 
-export type Frequency = "daily" | "monthly" | "quarterly" | "annual";
+export type Frequency = "daily" | "monthly" | "bimonthly" | "quarterly" | "four_monthly" | "annual";
 export type RequestedFrequency = "original" | "daily" | "monthly";
 
 export interface Source {

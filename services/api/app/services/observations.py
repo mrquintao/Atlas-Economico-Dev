@@ -13,8 +13,10 @@ from app.repositories.observations import ObservationRow
 _FREQUENCY_ORDER = {
     Frequency.DAILY: 0,
     Frequency.MONTHLY: 1,
-    Frequency.QUARTERLY: 2,
-    Frequency.ANNUAL: 3,
+    Frequency.BIMONTHLY: 2,
+    Frequency.QUARTERLY: 3,
+    Frequency.FOUR_MONTHLY: 4,
+    Frequency.ANNUAL: 5,
 }
 
 AGGREGATION_DESCRIPTIONS = {

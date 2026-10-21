@@ -27,7 +27,7 @@ from app.ingestion.series_ingestion import (
 )
 from app.integrations.bcb.sgs import SGSClient
 from app.integrations.ibge.sidra import SIDRAClient
-from app.models import Indicator, IngestionRun, IngestionStatus
+from app.models import DataSource, Indicator, IngestionRun, IngestionStatus
 
 logger = logging.getLogger(__name__)
 
@@ -65,15 +65,35 @@ class BatchResult:
         return [i.indicator_code for i in self.items if i.status != IngestionStatus.SUCCESS]
 
 
+# Sources whose indicators are derived from stored reports, not collected as series: the SICONFI
+# state indicators come from `derive-fiscal` (ADR 0010).
+DERIVED_SOURCES = frozenset({"SICONFI"})
+
+
 def select_indicators(session: Session, codes: Sequence[str] | None) -> list[Indicator]:
-    """The requested indicators, or the whole catalog (ordered by code) when ``codes`` is None."""
-    query = select(Indicator).options(joinedload(Indicator.source)).order_by(Indicator.code)
+    """The requested indicators, or the whole catalog (ordered by code) when ``codes`` is None.
+
+    Indicators of a derived source are left out of the whole catalog and rejected when asked for
+    explicitly, before any run is recorded. Any other source without a connector still fails
+    (and is recorded) in ``run_batch``.
+    """
+    query = (
+        select(Indicator)
+        .join(Indicator.source)
+        .options(joinedload(Indicator.source))
+        .order_by(Indicator.code)
+    )
     if codes is None:
-        return list(session.scalars(query))
+        return list(session.scalars(query.where(DataSource.acronym.not_in(DERIVED_SOURCES))))
     found = {i.code: i for i in session.scalars(query.where(Indicator.code.in_(codes)))}
     unknown = [code for code in codes if code not in found]
     if unknown:
         raise IngestionError(f"Unknown indicator: {', '.join(unknown)}")
+    derived = [code for code in codes if found[code].source.acronym in DERIVED_SOURCES]
+    if derived:
+        raise IngestionError(
+            f"{', '.join(derived)} is derived from the SICONFI annexes: use `derive-fiscal`"
+        )
     return [found[code] for code in codes]
 
 

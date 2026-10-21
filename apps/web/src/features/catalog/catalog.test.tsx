@@ -122,6 +122,7 @@ describe("MethodologyCatalog", () => {
     expect(card.getByText("SGS 432")).toBeInTheDocument();
     expect(card.getByText("% a.a. (variações em p.p.)")).toBeInTheDocument();
     expect(card.getByText("Diária")).toBeInTheDocument();
+    expect(card.getByText("Nacional (Brasil)")).toBeInTheDocument();
     expect(card.getByText("05/03/1999 a 20/10/2026")).toBeInTheDocument();
     expect(card.getByText("20/10/2026, 06:00 (horário de Brasília)")).toBeInTheDocument();
     expect(card.getByRole("link", { name: "Consultar na fonte oficial" })).toHaveAttribute(
@@ -142,6 +143,30 @@ describe("MethodologyCatalog", () => {
 
     const toc = within(screen.getByRole("navigation", { name: "Indicadores do catálogo" }));
     expect(toc.getByRole("link", { name: "Meta Selic" })).toHaveAttribute("href", "#SELIC_TARGET");
+  });
+
+  it("labels state indicators by coverage and four-month frequency", async () => {
+    const siconfi: Source = { ...bcb, acronym: "SICONFI", organization: "Secretaria do Tesouro Nacional" };
+    const dcl: Indicator = {
+      ...selic,
+      code: "STATE_DCL",
+      short_name: "DCL",
+      frequency: "four_monthly",
+      geographic_level: "state",
+      source: siconfi,
+      source_series_code: "RGF-Anexo 02",
+      first_stored_date: "2018-01-01",
+      last_stored_date: "2026-05-01",
+    };
+    routes["/api/v1/indicators"] = () => json([dcl]);
+    render(<MethodologyCatalog />);
+    const card = within(await screen.findByRole("region", { name: "DCL" }));
+    expect(card.getByText("Quadrimestral")).toBeInTheDocument();
+    expect(card.getByText("Estadual (cada UF separadamente)")).toBeInTheDocument();
+    expect(card.getByText(/SICONFI, RGF-Anexo 02/)).toBeInTheDocument();
+    expect(
+      card.getByText("01/01/2018 a 01/05/2026 (considerando todas as UFs; a cobertura varia por UF)"),
+    ).toBeInTheDocument();
   });
 
   it("shows an error with retry and recovers", async () => {

@@ -3,6 +3,22 @@
 Entradas curtas, da mais recente para a mais antiga: o que foi entregue, o que foi validado, as falhas e
 como foram corrigidas, e as decisões relevantes. Os detalhes ficam nos PRs, nas issues e nos ADRs.
 
+## 2026-10-21 — S4: indicadores fiscais estaduais (issue #14, PR #41)
+
+- Economist: mapeamento de 9 indicadores (uma linha publicada cada; `cod_conta` e coluna exatos),
+  ~130 requisições à API oficial, parecer em `docs/state-fiscal-indicators.md`. Ajustes ao escopo da
+  issue: resultados primário/nominal só desde 2023 (sem RPPS, MDF 13ª ed.), DCL/RCL desde 2020
+  (denominador ajustado), pessoal só do Executivo (R$ e %), e DC e investimentos acrescentados.
+- Código: `fiscal_indicators.py` (derivação idempotente, revisões, lacunas, ambiguidade falha),
+  `fiscal_catalog.py`, migração 0009 (frequências `bimonthly`/`four_monthly` + seed), CLI
+  `derive-fiscal [--collect]`, ADR 0010; `ingest --all`/agendador ignoram a fonte SICONFI.
+- Coleta real 2025, 27 UFs: 1.053 observações, 0 lacunas, 0 ambiguidades; idempotência; 54 amostras e
+  5 conferências independentes na API sem divergência.
+- qa-auditor: 0 crítico/alto; 4 médios corrigidos (estatísticas sobre fluxos acumulados no ano,
+  "última coleta" de indicador derivado, testes de poder/esfera/coluna do período sobreviviam a
+  mutação, verificação real pendente) e baixos corrigidos ou registrados no ADR 0010.
+- Validação: `scripts/check.sh` verde (348 pytest, 73 vitest), E2E local 11/11.
+
 ## 2026-10-21 — S3 concluída: conector SICONFI (issue #13, PR #40)
 
 - Reivindicação anterior da S3 (sessão `l0gdx7`, 05:50 UTC) sem branch nem PR em 3 h: assumida às 08:49 UTC.

@@ -7,12 +7,12 @@
 |---|---|
 | Atualizado em | 2026-10-21 |
 | Fase atual | 2 — Atlas estadual (MVP nacional concluído: release `v0.1.0`) |
-| Última entrega | S3 — conector SICONFI (RREO/RGF) e camada bruta `fiscal_reports`/`fiscal_report_rows` (migração 0008, issue #13, PR #40, ADR 0009). Antes: S2 (#12, PR #39), S1 (#11, PR #38) e [release `v0.1.0`](https://github.com/mrquintao/Atlas-Economico-Dev/releases/tag/v0.1.0) |
-| Próxima entrega elegível | **S4 — catálogo e normalização de indicadores fiscais estaduais ([#14](https://github.com/mrquintao/Atlas-Economico-Dev/issues/14))**, com o economist: escolher anexos/linhas (por `cod_conta` e coluna) para RCL, DCL, DCL/RCL, pessoal, primário e nominal; ver pontos para a S4 no ADR 0009 |
+| Última entrega | S4 — indicadores fiscais estaduais derivados do SICONFI (9 indicadores `STATE_*`, migração 0009, CLI `derive-fiscal`, ADR 0010, issue #14, PR #41). Antes: S3 (#13, PR #40), S2 (#12, PR #39), S1 (#11, PR #38) e [release `v0.1.0`](https://github.com/mrquintao/Atlas-Economico-Dev/releases/tag/v0.1.0) |
+| Próxima entrega elegível | **S5 — API estadual `/states/{uf}/indicators` e `/states/{uf}/dashboard` ([#15](https://github.com/mrquintao/Atlas-Economico-Dev/issues/15))**; os dados vêm de `derive-fiscal` (ver `docs/state-fiscal-indicators.md`) |
 | Issue ativa | nenhuma (comentar na issue ao iniciar, para evitar sessões concorrentes) |
 | Branch | novo branch a partir da `main` atualizada |
-| Último commit integrado na `main` | merge do PR #40 (conferir com `git log origin/main -1`); tag `v0.1.0` em `ade5512` |
-| Última validação | S3: coleta real RREO-Anexo 03 e RGF-Anexo 02 de 2024 para SP e RJ (18 anexos, 5.452 linhas, 22 requisições ≤ 1/s); 8 anexos conferidos linha a linha contra a API oficial (autor + qa-auditor); recoleta só com o extrato; `scripts/check.sh` verde (323 testes de API, 72 vitest) |
+| Último commit integrado na `main` | merge do PR #41 (conferir com `git log origin/main -1`); tag `v0.1.0` em `ade5512` |
+| Última validação | S4: coleta real de 2025 para as 27 UFs (5 anexos) e derivação: 1.053 observações, 0 lacunas/ambiguidades, reexecução idempotente; 54 amostras do economist + 5 conferências independentes na API sem divergência; `scripts/check.sh` verde (348 pytest, 73 vitest); E2E local 11/11 |
 
 ## Bloqueios
 
@@ -29,19 +29,21 @@
 
 ## Próxima ação recomendada
 
-Iniciar a S4 (#14) com o economist: definir, para cada indicador fiscal estadual, o anexo, o
-`cod_conta` e a coluna (por exercício/edição do MDF), coletar os anexos necessários das 27 UFs com
-`ingest-siconfi` e derivar `observations` (nível `state`) a partir de `fiscal_report_rows`. Antes de pôr o
-SICONFI no agendador, criar trava entre processos (o limitador de taxa é por processo). Atenção: códigos e
-siglas do IBGE são únicos só por nível (`1` = Brasil e Norte; `SE` = Sergipe e Sudeste).
+Iniciar a S5 (#15): endpoints estaduais sobre os indicadores `STATE_*` (já servidos por
+`/indicators/{code}/observations?geography=UF`). Para ter dados locais: `derive-fiscal --year 2025
+--collect` (≈ 15 min a 1 req/s; outros anos idem). Regras a respeitar na API/UI: fluxos acumulados no
+ano (`year_to_date` em `fiscal_catalog.py`) não têm estatísticas entre períodos; ressalva do DF em
+comparações; lacunas nunca como zero. Antes de pôr o SICONFI no agendador, criar trava entre
+processos. Atenção: códigos e siglas do IBGE são únicos só por nível (`1` = Brasil e Norte; `SE` =
+Sergipe e Sudeste).
 
 Concorrência: na sessão da S1, outra sessão disparou a release `v0.1.0` um minuto antes (a segunda
 execução foi recusada pela trava de tag). Antes de começar, conferir branches e PRs abertos e
 reivindicar a issue com um comentário.
 
-Migração mais recente: `0008` (fonte SICONFI, `fiscal_reports`, `fiscal_report_rows`).
+Migração mais recente: `0009` (frequências `bimonthly`/`four_monthly` e seed dos 9 indicadores fiscais estaduais).
 
-Achados menores pendentes (registrados nas issues/PRs): S3 — `Retry-After` do 429 ignorado (backoff
+Achados menores pendentes (registrados nas issues/PRs): S4 — observação mantida quando uma retificação remove a linha de origem (ADR 0010); coleta falha interrompe `derive-fiscal --collect` sem derivar. S3 — `Retry-After` do 429 ignorado (backoff
 já mais lento que o limite); coleta do SICONFI manual, fora do agendador; limitador de taxa por processo.
 S2 — a malha só é coletada manualmente
 (`ingest-boundaries`), fora do agendador; edições não publicadas pelo IBGE respondem 500 e passam
@@ -59,7 +61,7 @@ segue coberta só pelo smoke test do job Docker (ADR 0008).
 
 - PostgreSQL 16 local: `/usr/lib/postgresql/16/bin`, dados em `/tmp/pgdata` (sobrevive a reinícios;
   após um reboot: `su postgres -c "/usr/lib/postgresql/16/bin/pg_ctl -D /tmp/pgdata -l /tmp/pgdata/log -o '-p 5432 -k /tmp' start"`).
-  Bancos: `atlas` (dados reais, **não destruir**; na sessão da S3 o cluster foi recriado do zero: `atlas` migrado até 0008, só com os anexos do SICONFI coletados na S3, sem séries nem malha), `atlas_test` e `atlas_ci` (descartáveis).
+  Bancos: `atlas` (dados reais, **não destruir**; na sessão da S4 o cluster foi recriado do zero: `atlas` migrado até 0009, com os anexos de 2025 das 27 UFs e os indicadores `STATE_*` derivados, sem séries nacionais nem malha), `atlas_test` e `atlas_ci` (descartáveis).
 - Validação local: `TEST_DATABASE_URL=postgresql+psycopg://atlas:atlas@localhost:5432/atlas_ci scripts/check.sh`.
 - E2E local: banco `atlas_e2e` com a fixture sintética (`docs/testing-e2e.md`), `npm run build` e
   `CI=1 DATABASE_URL=…/atlas_e2e PLAYWRIGHT_CHROMIUM_EXECUTABLE=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npm run test:e2e`.

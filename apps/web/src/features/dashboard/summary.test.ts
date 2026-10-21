@@ -65,10 +65,12 @@ describe("sourceSeriesLabel and the monthly reference prefix", () => {
   type Source = Parameters<typeof sourceSeriesLabel>[0];
   const bcb = { source: { acronym: "BCB" }, source_series_code: "432" } as Source;
   const ibge = { source: { acronym: "IBGE" }, source_series_code: "1737/2265" } as Source;
+  const siconfi = { source: { acronym: "SICONFI" }, source_series_code: "RGF-Anexo 02" } as Source;
 
   it("names the official series by source", () => {
     expect(sourceSeriesLabel(bcb)).toBe("SGS 432");
     expect(sourceSeriesLabel(ibge)).toBe("SIDRA 1737 (v. 2265)");
+    expect(sourceSeriesLabel(siconfi)).toBe("SICONFI, RGF-Anexo 02");
   });
 
   it("uses the prefix for monthly series only", () => {

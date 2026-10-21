@@ -74,6 +74,18 @@ def last_successful_collection(session: Session, indicator_id: int) -> datetime 
     )
 
 
+def last_observation_collection(
+    session: Session, indicator_id: int, geographic_unit_id: int | None = None
+) -> datetime | None:
+    """Latest source collection behind the stored observations (one unit, or all with None)."""
+    query = select(func.max(Observation.collected_at)).where(
+        Observation.indicator_id == indicator_id
+    )
+    if geographic_unit_id is not None:
+        query = query.where(Observation.geographic_unit_id == geographic_unit_id)
+    return session.scalar(query)
+
+
 def latest_run(session: Session, indicator_id: int) -> IngestionRun | None:
     return session.scalar(
         select(IngestionRun)
@@ -84,14 +96,15 @@ def latest_run(session: Session, indicator_id: int) -> IngestionRun | None:
 
 
 def observation_bounds(
-    session: Session, indicator_id: int, geographic_unit_id: int
+    session: Session, indicator_id: int, geographic_unit_id: int | None = None
 ) -> tuple[date | None, date | None]:
-    row = session.execute(
-        select(func.min(Observation.reference_date), func.max(Observation.reference_date)).where(
-            Observation.indicator_id == indicator_id,
-            Observation.geographic_unit_id == geographic_unit_id,
-        )
-    ).one()
+    """First and last reference dates stored for one unit, or across all units (None)."""
+    query = select(
+        func.min(Observation.reference_date), func.max(Observation.reference_date)
+    ).where(Observation.indicator_id == indicator_id)
+    if geographic_unit_id is not None:
+        query = query.where(Observation.geographic_unit_id == geographic_unit_id)
+    row = session.execute(query).one()
     return row[0], row[1]
 
 

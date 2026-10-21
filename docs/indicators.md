@@ -5,9 +5,21 @@
 | `SELIC_TARGET` | Taxa de juros - Meta Selic definida pelo Copom | BCB SGS 432 | % a.a. | p.p. | diária (dias corridos) | Brasil | 05/03/1999 | **Implementado** |
 | `IPCA_12M` | IPCA - Variação acumulada em 12 meses | IBGE SIDRA, tabela 1737, variável 2265 | % | p.p. | mensal (mês de referência) | Brasil | 01/12/1980 | **Implementado** |
 | `DBGG_GDP` | Dívida bruta do governo geral (% PIB) - Metodologia utilizada a partir de 2008 | BCB SGS 13762 | % do PIB | p.p. | mensal (posição de fim de mês) | Brasil | 01/12/2006 | **Implementado** |
+| `STATE_RCL` | Receita corrente líquida dos estados (12 meses) | SICONFI, RREO Anexo 03 | R$ correntes | R$ | bimestral | UF | 2018 | **Implementado** |
+| `STATE_DC` | Dívida consolidada dos estados | SICONFI, RGF Anexo 02 (Executivo) | R$ correntes | R$ | quadrimestral (saldo) | UF | 2018 | **Implementado** |
+| `STATE_DCL` | Dívida consolidada líquida dos estados | SICONFI, RGF Anexo 02 (Executivo) | R$ correntes | R$ | quadrimestral (saldo) | UF | 2018 | **Implementado** |
+| `STATE_DCL_RCL` | DCL sobre a RCL ajustada | SICONFI, RGF Anexo 02 (Executivo) | % da RCL ajustada | p.p. | quadrimestral | UF | 2020 | **Implementado** |
+| `STATE_PERSONNEL_EXEC` | Despesa com pessoal do Executivo (12 meses) | SICONFI, RGF Anexo 01 (Executivo) | R$ correntes | R$ | quadrimestral | UF | 2018 | **Implementado** |
+| `STATE_PERSONNEL_EXEC_RCL` | Pessoal do Executivo sobre a RCL ajustada | SICONFI, RGF Anexo 01 (Executivo) | % da RCL ajustada | p.p. | quadrimestral | UF | 2018 | **Implementado** |
+| `STATE_PRIMARY_RESULT` | Resultado primário, acima da linha, sem RPPS (no ano) | SICONFI, RREO Anexo 06 | R$ correntes | R$ | bimestral | UF | 2023 | **Implementado** |
+| `STATE_NOMINAL_RESULT` | Resultado nominal, acima da linha, sem RPPS (no ano) | SICONFI, RREO Anexo 06 | R$ correntes | R$ | bimestral | UF | 2023 | **Implementado** |
+| `STATE_INVESTMENTS` | Investimentos liquidados (no ano) | SICONFI, RREO Anexo 01 | R$ correntes | R$ | bimestral | UF | 2018 | **Implementado** |
 
 Indicadores só entram no catálogo (migração de seed) depois que seus metadados são confirmados na
 fonte oficial.
+
+Os indicadores `STATE_*` são derivados dos anexos do SICONFI (uma linha publicada por indicador);
+mapeamento, parecer do economist e amostras oficiais em [`state-fiscal-indicators.md`](state-fiscal-indicators.md).
 
 ## SELIC_TARGET (SGS 432)
 

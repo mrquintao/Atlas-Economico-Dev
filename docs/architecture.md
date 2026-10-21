@@ -43,7 +43,7 @@
 | `geographic_boundaries` | Geometria oficial (GeoJSON em `JSONB`) de cada unidade por edição da malha do IBGE (`mesh_year`) e qualidade, com hash, URL da consulta e data da coleta |
 | `fiscal_reports` | Camada bruta do SICONFI (S3): um anexo do RREO/RGF por UF, exercício, período, esfera e poder, com hash do conteúdo, data da entrega (`extrato_entregas`), URL da consulta e data da coleta |
 | `fiscal_report_rows` | Cada valor publicado no anexo (`rotulo`, `coluna`, `cod_conta`, `conta`, `NUMERIC(24,8)`); base dos indicadores fiscais estaduais (S4) |
-| `observations` | Valores (`NUMERIC(24,8)`), período de referência, `collected_at`, referência da fonte |
+| `observations` | Valores (`NUMERIC(24,8)`), período de referência, `collected_at`, referência da fonte. Nos indicadores estaduais do SICONFI (S4, ADR 0010), derivados de uma linha de `fiscal_report_rows`, `metadata_json` aponta o anexo e a linha de origem |
 | `ingestion_runs` | Auditoria de cada coleta: status, contagens, erro, janelas consultadas e SHA-256 de cada payload |
 | `observation_revisions` | Valor anterior/novo quando a fonte revisa um dado já publicado |
 

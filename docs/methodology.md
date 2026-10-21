@@ -55,6 +55,18 @@
   do painel (desde 2008) não é afetado; períodos que incluem os anos 1980–1994 comprimem visualmente
   os valores recentes. O menor valor da série é 1,65% (dez/1998); não há valores negativos até set/2026.
 
+## Indicadores fiscais estaduais (SICONFI)
+
+- Cada indicador é uma linha publicada nos demonstrativos da LRF (RREO e RGF) que o estado entrega ao
+  SICONFI, identificada por código de conta e coluna; percentuais são os publicados, nunca recalculados.
+- Período de referência = bimestre (RREO) ou quadrimestre (RGF). Fluxos "acumulados no ano"
+  recomeçam em janeiro; "12 meses" e saldos não. A janela está na metodologia de cada indicador.
+- Não se misturam definições: DCL/RCL só desde 2020 (denominador ajustado) e resultados primário e
+  nominal só desde 2023 (sem RPPS, MDF 13ª ed.). Despesa com pessoal é só do Poder Executivo.
+- Valores em reais correntes. Lacunas de entrega são lacunas, nunca zero. Comparações com o DF exigem
+  ressalva (competências estaduais e municipais; sem Judiciário e MP próprios).
+- Detalhes, parecer e amostras: [`state-fiscal-indicators.md`](state-fiscal-indicators.md).
+
 ## Lacunas nos gráficos
 
 Quando falta um período entre duas observações (um dia numa série diária, um mês numa mensal), o

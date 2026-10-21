@@ -4,7 +4,9 @@ from enum import StrEnum
 class Frequency(StrEnum):
     DAILY = "daily"
     MONTHLY = "monthly"
+    BIMONTHLY = "bimonthly"  # RREO bimester
     QUARTERLY = "quarterly"
+    FOUR_MONTHLY = "four_monthly"  # RGF four-month period
     ANNUAL = "annual"
 
 

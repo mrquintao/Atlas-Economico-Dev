@@ -6,12 +6,24 @@ import { sourceSeriesLabel } from "@/features/dashboard/summary";
 const FREQUENCY_LABEL: Record<string, string> = {
   daily: "Diária",
   monthly: "Mensal",
+  bimonthly: "Bimestral",
   quarterly: "Trimestral",
+  four_monthly: "Quadrimestral",
   annual: "Anual",
 };
 
 export function frequencyLabel(frequency: string): string {
   return FREQUENCY_LABEL[frequency] ?? frequency;
+}
+
+const LEVEL_LABEL: Record<string, string> = {
+  country: "Nacional (Brasil)",
+  region: "Regional (grandes regiões)",
+  state: "Estadual (cada UF separadamente)",
+};
+
+export function geographicLevelLabel(level: string): string {
+  return LEVEL_LABEL[level] ?? level;
 }
 
 /** Shown only when the latest attempt did not succeed: the data above may be outdated. */
@@ -52,6 +64,8 @@ export function IndicatorMetadata({
       <dd>
         {indicator.unit} (variações em {indicator.change_unit})
       </dd>
+      <dt className="text-muted-foreground">Abrangência</dt>
+      <dd>{geographicLevelLabel(indicator.geographic_level)}</dd>
       <dt className="text-muted-foreground">Frequência original</dt>
       <dd>{frequencyLabel(indicator.frequency)}</dd>
       {display ? (
@@ -87,7 +101,12 @@ export function IndicatorMetadata({
         </>
       ) : null}
       <dt className="text-muted-foreground">Dados armazenados</dt>
-      <dd>{storedRangeLabel(indicator)}</dd>
+      <dd>
+        {storedRangeLabel(indicator)}
+        {indicator.geographic_level === "state" && indicator.first_stored_date
+          ? " (considerando todas as UFs; a cobertura varia por UF)"
+          : ""}
+      </dd>
       <dt className="text-muted-foreground">Última coleta</dt>
       <dd>
         {indicator.last_collected_at

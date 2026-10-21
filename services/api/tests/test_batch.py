@@ -131,6 +131,14 @@ def test_source_without_connector_fails_and_is_recorded(db: Session, settings: S
     assert result.items[1].status == "success"
 
 
+def test_derived_indicators_are_skipped_or_rejected(db: Session, settings: Settings) -> None:
+    # The whole catalog (`ingest --all`, the scheduler) leaves the SICONFI indicators out.
+    assert [i.code for i in select_indicators(db, None)] == ["DBGG_GDP", "IPCA_12M", "SELIC_TARGET"]
+    with pytest.raises(IngestionError, match="use `derive-fiscal`"):
+        run_batch(db, settings, ["SELIC_TARGET", "STATE_DCL"])
+    assert runs_by_code(db) == {}
+
+
 def test_stop_request_skips_the_remaining_indicators(db: Session, settings: Settings) -> None:
     bcb = FakeClient()
     result = run_batch(
