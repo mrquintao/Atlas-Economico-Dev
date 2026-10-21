@@ -4,8 +4,8 @@
 
 ## Contexto
 
-A fase 2 depende dos relatórios fiscais que os estados entregam ao SICONFI (RREO bimestral e RGF
-quadrimestral). A API de dados abertos do Tesouro (`apidatalake.tesouro.gov.br/ords/siconfi/tt`) serve
+A fase 2 depende dos relatórios fiscais que os estados entregam ao SICONFI (RREO bimestral,
+consolidado do ente; RGF quadrimestral, um por Poder ou órgão — LRF arts. 52, 54 e 55). A API de dados abertos do Tesouro (`apidatalake.tesouro.gov.br/ords/siconfi/tt`) serve
 cada anexo como linhas (`rotulo`, `coluna`, `conta`, `valor`), paginadas (ORDS, até 5000 por página), com
 limite documentado de 1 requisição por segundo. Os indicadores estaduais (RCL, DCL, DCL/RCL, despesa
 com pessoal, resultados primário e nominal) ainda serão definidos e validados pelo economist na S4;
@@ -41,4 +41,13 @@ entre exercícios.
   `not_available` — nenhuma das duas é gravada como zero ou lacuna preenchida.
 - O RREO é consolidado do ente (`power` nulo); a unicidade usa `NULLS NOT DISTINCT` (PostgreSQL ≥ 15;
   o projeto usa 16).
+- O RGF é gravado por poder. Os anexos de dívida, garantias e operações de crédito (02, 03 e 04) só são
+  publicados pelo Executivo e já se referem ao ente inteiro. O anexo de pessoal (01) é por Poder ou
+  órgão, e o total do ente não é a soma automática dos RGFs: o limite de 60% da RCL (LRF art. 19) e os
+  sublimites por poder (art. 20) têm de ser lidos do demonstrativo consolidado ou definidos
+  explicitamente na S4.
+- Pontos para a S4 (economist): identificar linhas por `cod_conta` e coluna, nunca por posição; as
+  estruturas dos anexos mudam entre edições do MDF (ex.: resultados primário e nominal por volta de
+  2017/2018; ajustes da RCL pela EC 109/2021 e LC 178/2021); colunas do Anexo 02 são saldos, as do RREO
+  são fluxos acumulados; as linhas do DF (`id_ente=53`) voltam com `esfera = "E"` (conferido em 21/10/2026, RREO-Anexo 03 de 2024).
 - A fonte `SICONFI` aparece em `/fontes` sem indicadores até a S4.

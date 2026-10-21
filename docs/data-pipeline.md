@@ -187,8 +187,8 @@ Endpoints usados:
 
 | Endpoint | Parâmetros | Uso |
 |---|---|---|
-| `GET /tt/rreo` | `an_exercicio`, `nr_periodo` (bimestre 1–6), `co_tipo_demonstrativo=RREO`, `no_anexo` (ex.: `RREO-Anexo 03`), `co_esfera` (`E` = estados), `id_ente` (código IBGE da UF) | Anexo do RREO, consolidado do ente (sem poder) |
-| `GET /tt/rgf` | os mesmos, mais `in_periodicidade` (`Q` quadrimestral; `S` semestral, municípios pequenos) e `co_poder` (`E`, `L`, `J`, `M`, `D`) | Anexo do RGF de um poder (padrão: Executivo) |
+| `GET /tt/rreo` | `an_exercicio`, `nr_periodo` (bimestre 1–6), `co_tipo_demonstrativo=RREO`, `no_anexo` (ex.: `RREO-Anexo 03`), `co_esfera` (`E` = estados e DF; a API aceita também `M`, `U` e `C` = consórcio; conferido: as linhas do DF, `id_ente=53`, voltam com `esfera` `E`), `id_ente` (código IBGE da UF) | Anexo do RREO, consolidado do ente (sem poder) |
+| `GET /tt/rgf` | os mesmos, mais `in_periodicidade` (`Q` quadrimestral; `S`, semestral, é o *RGF Simplificado* de municípios com menos de 50 mil habitantes, LRF art. 63, fora do escopo e recusado pelo conector) e `co_poder` (`E` Executivo, `L` Legislativo, `J` Judiciário, `M` Ministério Público, `D` Defensoria Pública) | Anexo do RGF de um poder (padrão: Executivo) |
 | `GET /tt/extrato_entregas` | `id_ente`, `an_referencia` | Entregas e retificações do ente no ano (`data_status`, `status_relatorio`: `HO` homologado, `RE` retificado) |
 
 Comportamento observado (21/10/2026):
@@ -234,8 +234,11 @@ Executivo) de 2024 para SP e RJ: 18 anexos, 5.452 linhas, 22 requisições, semp
 2026: bimestres 1–4 gravados, 5–6 `not_delivered`. Reexecução: só as 2 requisições ao extrato, tudo
 `up_to_date`; com `--refresh`, 561 linhas `unchanged`. Três anexos conferidos linha a linha contra uma
 consulta independente à API oficial (SP RGF-Anexo 02 3º quadrimestre: 124 linhas; RJ RREO-Anexo 03 6º
-bimestre: 401; RJ RGF-Anexo 02 1º quadrimestre: 62): idênticos. Exemplo: dívida consolidada líquida do
-Executivo de SP até o 3º quadrimestre de 2024 = R$ 317.655.576.689,71.
+bimestre: 401; RJ RGF-Anexo 02 1º quadrimestre: 62): idênticos. Exemplo: dívida consolidada líquida (DCL) do Estado de São Paulo, saldo ao fim do 3º
+quadrimestre de 2024 (31/12/2024), RGF-Anexo 02 publicado pelo Poder Executivo (`cod_conta`
+`DividaConsolidadaLiquida`, coluna "Até o 3º Quadrimestre") = R$ 317.655.576.689,71, em valores
+correntes. O demonstrativo da DCL é publicado só pelo Executivo, mas abrange todos os Poderes do ente
+(MDF/STN).
 
 ## Verificação real (20–21/10/2026)
 

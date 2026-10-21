@@ -58,8 +58,15 @@ DELIVERABLES = {
 }
 # Periodicity code -> number of periods in a year.
 PERIODS_PER_YEAR = {"B": 6, "Q": 3, "S": 2}
-REPORT_PERIODICITIES = {"RREO": ("B",), "RGF": ("Q", "S")}
-SPHERES = ("E", "M", "U", "D")
+# The semiannual RGF ("S") is the simplified report (co_tipo_demonstrativo "RGF Simplificado") of
+# municipalities under 50k inhabitants (LRF art. 63); not supported while municipalities are out
+# of scope.
+REPORT_PERIODICITIES = {"RREO": ("B",), "RGF": ("Q",)}
+# co_esfera accepted by /rreo and /rgf (siconfi.yaml): M = municipalities, E = states and DF,
+# U = Union, C = consortia ("D" = DF exists only in the /entes schema).
+SPHERES = ("E", "M", "U", "C")
+# co_poder (RGF only): E = Executive, L = Legislative, J = Judiciary, M = Public Prosecution,
+# D = Public Defender's Office.
 POWERS = ("E", "L", "J", "M", "D")
 
 
@@ -111,7 +118,7 @@ class ReportRequest:
     entity_code: str  # IBGE code of the entity (2 digits for states)
     sphere: str = "E"
     power: str | None = None  # RGF only (E, L, J, M, D)
-    periodicity: str = "B"  # RREO: B; RGF: Q or S
+    periodicity: str = "B"  # RREO: B; RGF: Q
 
     def __post_init__(self) -> None:
         if self.report_type not in REPORT_PERIODICITIES:

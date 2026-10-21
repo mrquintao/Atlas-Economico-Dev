@@ -290,7 +290,7 @@ def test_minimum_interval_cannot_be_configured_below_the_official_limit() -> Non
         {"power": "E"},
         {"periodicity": "Q"},
         {"entity_code": "SP"},
-        {"sphere": "X"},
+        {"sphere": "D"},  # DF is queried with sphere E; "D" is not a co_esfera value
     ],
 )
 def test_report_request_validation(kwargs: dict[str, Any]) -> None:
@@ -303,6 +303,12 @@ def test_report_request_validation(kwargs: dict[str, Any]) -> None:
     }
     with pytest.raises(SiconfiError):
         ReportRequest(**{**base, **kwargs})
+
+
+def test_semiannual_rgf_is_not_supported() -> None:
+    # "S" is the simplified RGF of small municipalities ("RGF Simplificado"), out of scope.
+    with pytest.raises(SiconfiError, match="Periodicity"):
+        ReportRequest("RGF", 2024, 1, "RGF-Anexo 02", "35", "E", "E", "S")
 
 
 def test_rgf_requires_power() -> None:
