@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { PageHeader } from "@/components/layout/PageHeader";
+import { StateExplorer } from "@/features/states/StateExplorer";
 import { StateMapPanel } from "@/features/states/StateMap";
 import { REGION_NAMES, statePath, STATES } from "@/lib/states";
 
@@ -34,7 +35,19 @@ export default function StatesPage() {
           Comparar UFs: ranking e evolução histórica
         </Link>
       </div>
-      <StateMapPanel />
+      <StateExplorer />
+      <section aria-labelledby="by-indicator" className="flex flex-col gap-4">
+        <div className="flex max-w-3xl flex-col gap-1">
+          <h2 id="by-indicator" className="text-xl font-semibold tracking-tight">
+            As UFs num mesmo indicador
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            O mesmo mapa colorido pelo valor de um indicador fiscal, com todas as UFs no mesmo
+            período.
+          </p>
+        </div>
+        <StateMapPanel />
+      </section>
       <section aria-labelledby="regions" className="flex flex-col gap-4">
         <h2 id="regions" className="text-lg font-semibold">
           Lista das UFs por região

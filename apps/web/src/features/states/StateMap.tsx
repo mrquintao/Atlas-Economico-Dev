@@ -1,6 +1,5 @@
 "use client";
 
-import { geoMercator, geoPath } from "d3-geo";
 import Link from "next/link";
 import { useId, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 
@@ -9,9 +8,9 @@ import { InlineError, LoadingState, RefreshingIndicator, RetryButton } from "@/c
 import { useIndicators, useStateBoundaries, useStateMap } from "@/hooks/useObservations";
 import { formatPeriod, formatValue } from "@/lib/format";
 import { findState, statePath } from "@/lib/states";
-import type { BoundaryFeature, Indicator, StateBoundaries, StateMap, StateMapValue } from "@/types/api";
+import type { Indicator, StateBoundaries, StateMap, StateMapValue } from "@/types/api";
 
-import { rewindForD3 } from "./map-geometry";
+import { projectShapes } from "./map-geometry";
 import { buildScale, NO_DATA_FILL, type MapScale } from "./map-scale";
 import { keptPeriod, STATE_INDICATOR_ORDER } from "./state-indicators";
 import { StateDetails } from "./StateDetails";
@@ -279,27 +278,8 @@ function ChoroplethSvg({
   const { unit } = data.indicator;
   const byAcronym = useMemo(() => new Map(data.states.map((s) => [s.geography.acronym, s])), [data.states]);
 
-  const shapes = useMemo(() => {
-    // The official meshes follow RFC 7946 (exterior rings counter-clockwise); d3 needs clockwise.
-    const features = boundaries.features.map((f) => ({ ...f, geometry: rewindForD3(f.geometry) }));
-    const collection = { type: "FeatureCollection" as const, features };
-    const projection = geoMercator().fitExtent(
-      [
-        [8, 8],
-        [WIDTH - 8, HEIGHT - 8],
-      ],
-      collection,
-    );
-    const path = geoPath(projection);
-    return features
-      .map((feature: BoundaryFeature) => ({
-        acronym: feature.properties.acronym,
-        name: feature.properties.name,
-        d: path(feature) ?? "",
-        centroid: path.centroid(feature),
-      }))
-      .toSorted((a, b) => a.name.localeCompare(b.name, "pt-BR"));
-  }, [boundaries]);
+  // The official meshes follow RFC 7946; projectShapes rewinds them for d3.
+  const shapes = useMemo(() => projectShapes(boundaries, WIDTH, HEIGHT), [boundaries]);
 
   function fill(acronym: string): string {
     const item = byAcronym.get(acronym);
@@ -375,9 +355,11 @@ function ChoroplethSvg({
               onClick={() => toggle(shape.acronym, true)}
               onKeyDown={(event) => handleKey(event, shape.acronym)}
               onMouseMove={(event) => track(event, shape.acronym)}
-              onFocus={() =>
-                setFocused({ acronym: shape.acronym, x: shape.centroid[0], y: shape.centroid[1] })
-              }
+              onFocus={(event) => {
+                // Only keyboard focus gets the ring and tooltip; a mouse click also focuses.
+                if (!event.currentTarget.matches(":focus-visible")) return;
+                setFocused({ acronym: shape.acronym, x: shape.centroid[0], y: shape.centroid[1] });
+              }}
               onBlur={() => setFocused(null)}
               className="cursor-pointer outline-none transition-[filter] hover:brightness-110"
             />
