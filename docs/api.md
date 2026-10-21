@@ -228,7 +228,8 @@ o mesmo bimestre. Sem esse período armazenado (ou antes do início da série, c
 2023) → `change_12m: null`; nunca se usa um período vizinho. Não há variação percentual (resultados e DCL
 mudam de sinal) nem estatísticas da série. `change_note` explica a base da diferença: "Diferença em
 relação ao mesmo período do ano anterior, em reais correntes, sem correção pela inflação." (valores em
-R$) ou "Diferença em pontos percentuais (p.p.) em relação ao mesmo período do ano anterior." (% da RCL).
+R$) ou "Diferença em pontos percentuais (p.p.) em relação ao mesmo período do ano anterior." (% da RCL);
+`null` quando não há comparação.
 Os indicadores podem ter últimos períodos diferentes (bimestral × quadrimestral); cada `latest` traz o
 seu `period_start`/`period_end`.
 

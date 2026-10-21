@@ -113,7 +113,11 @@ def get_state_dashboard(uf: UfPath, session: DbSession, response: Response) -> S
             StateDashboardIndicatorOut(
                 **dict(summary),
                 accumulation_window=ACCUMULATION_WINDOWS[code],
-                change_note=CHANGE_NOTE_PP if indicator.change_unit == "p.p." else CHANGE_NOTE_BRL,
+                change_note=None
+                if summary.change_12m is None
+                else CHANGE_NOTE_PP
+                if indicator.change_unit == "p.p."
+                else CHANGE_NOTE_BRL,
             )
         )
     response.headers["Cache-Control"] = "public, max-age=300"

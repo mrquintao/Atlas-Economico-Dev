@@ -89,15 +89,17 @@ def test_unknown_uf_or_other_level_is_404(client: TestClient, path: str, uf: str
     assert response.json()["error"]["code"] == "state_not_found"
 
 
-@pytest.mark.parametrize("uf", ["SP", "sp", "35"])
+@pytest.mark.parametrize("uf", ["SP", "sp", " sp ", "35"])
 def test_uf_by_acronym_any_case_or_ibge_code(client: TestClient, uf: str) -> None:
     body = client.get(f"/api/v1/states/{uf}/dashboard").json()
     assert body["geography"]["acronym"] == "SP"
     assert body["geography"]["geographic_level"] == "state"
 
 
-def test_se_is_sergipe_not_the_sudeste_region(client: TestClient) -> None:
-    body = client.get("/api/v1/states/SE/indicators").json()
+@pytest.mark.parametrize("path", ["indicators", "dashboard"])
+@pytest.mark.parametrize("uf", ["SE", "se", "28"])
+def test_se_is_sergipe_not_the_sudeste_region(client: TestClient, path: str, uf: str) -> None:
+    body = client.get(f"/api/v1/states/{uf}/{path}").json()
     assert body["geography"] == {
         "ibge_code": "28",
         "acronym": "SE",
@@ -199,6 +201,7 @@ def test_dashboard_without_data(client: TestClient) -> None:
     for item in body["indicators"]:
         assert item["status"] == "no_data"
         assert item["latest"] is None and item["change_12m"] is None
+        assert item["change_note"] is None
 
 
 def test_dashboard_compares_with_the_same_period_a_year_earlier(
@@ -253,6 +256,7 @@ def test_dashboard_without_the_year_earlier_period_has_no_change(
     assert rcl["status"] == "available"
     assert rcl["latest"]["value"] == 60
     assert rcl["change_12m"] is None
+    assert rcl["change_note"] is None
 
 
 def test_dashboard_never_serves_another_uf(client: TestClient, db: Session) -> None:

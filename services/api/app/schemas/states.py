@@ -29,7 +29,9 @@ class StateIndicatorsOut(BaseModel):
 
 class StateDashboardIndicatorOut(DashboardIndicatorOut):
     accumulation_window: str = Field(description="Janela de acumulação do valor publicado")
-    change_note: str = Field(description="Base e unidade da comparação com o ano anterior")
+    change_note: str | None = Field(
+        description="Base e unidade da comparação com o ano anterior (nula sem comparação)"
+    )
 
 
 class StateDashboardOut(BaseModel):
