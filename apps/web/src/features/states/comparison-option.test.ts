@@ -12,8 +12,9 @@ function bim(start: string, end: string, value: number): Observation {
 
 describe("buildComparisonOption", () => {
   const series = [
-    { acronym: "SP", observations: [bim("2024-11-01", "2024-12-31", 9), bim("2025-01-01", "2025-02-28", 1)] },
-    { acronym: "MG", observations: [bim("2024-11-01", "2024-12-31", 4)] },
+    { label: "SP", index: 0, observations: [bim("2024-11-01", "2024-12-31", 9), bim("2025-01-01", "2025-02-28", 1)] },
+    // The 2nd UF of the selection has no data: MG keeps the style of the 3rd position.
+    { label: "MG", index: 2, observations: [bim("2024-11-01", "2024-12-31", 4)] },
   ];
 
   it("draws one line per UF, coloured by selection order, with distinct line styles", () => {
@@ -24,11 +25,11 @@ describe("buildComparisonOption", () => {
       palette: PALETTE,
       description: "x",
       resetsEachYear: false,
-    }) as { color: string[]; series: { name: string; connectNulls: boolean; lineStyle: { type: string } }[] };
-    expect(option.color).toEqual(COMPARISON_COLORS);
+    }) as { series: { name: string; color: string; connectNulls: boolean; lineStyle: { type: string } }[] };
     expect(option.series.map((s) => s.name)).toEqual(["SP", "MG"]);
+    expect(option.series.map((s) => s.color)).toEqual([COMPARISON_COLORS[0], COMPARISON_COLORS[2]]);
     expect(option.series.every((s) => s.connectNulls === false)).toBe(true);
-    expect(option.series.map((s) => s.lineStyle.type)).toEqual(["solid", "dashed"]);
+    expect(option.series.map((s) => s.lineStyle.type)).toEqual(["solid", "dotted"]);
   });
 
   it("breaks year-to-date flows at each January", () => {

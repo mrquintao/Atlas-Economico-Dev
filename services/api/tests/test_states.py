@@ -478,7 +478,9 @@ def test_ranking_orders_selected_ufs_and_leaves_absences_out(
     assert positions(ascending) == [(1, "ES", -14.5), (2, "SP", 124.23), (3, "MG", 167.46)]
     assert "do menor para o maior" in ascending["order_note"]
     assert [g["acronym"] for g in ascending["missing"]] == ["BA"]
-    assert ascending["missing_note"].startswith("Sem dado no período: BA. Essa UF não publicou")
+    assert ascending["missing_note"].startswith(
+        "Sem dado no período: BA. Não há valor armazenado para essa UF"
+    )
 
 
 def test_ranking_ties_share_a_position(client: TestClient, db: Session) -> None:
@@ -535,7 +537,7 @@ def test_ranking_notes(client: TestClient, db: Session) -> None:
 
     ratio = ranking(client, "STATE_DCL_RCL")["notes"]
     assert any(n.startswith("Métrica relativa") for n in ratio)
-    assert any("RCL ajustada" in n for n in ratio)
+    assert any("RCL ajustada para endividamento" in n for n in ratio)
     assert any("Valores negativos são possíveis" in n for n in ratio)
     assert not any("reflete sobretudo" in n for n in ratio)
     assert any("Acumulado de janeiro" in n for n in ranking(client, "STATE_INVESTMENTS")["notes"])
@@ -606,7 +608,8 @@ def test_comparison_notes_and_limits(client: TestClient) -> None:
     assert any("déficit" in n for n in primary)
     assert primary[-1].startswith("O Distrito Federal")
     personnel = notes("STATE_PERSONNEL_EXEC_RCL", "SP")
-    assert any("RCL ajustada" in n for n in personnel)
+    assert any("limites da despesa com pessoal" in n for n in personnel)
+    assert not any("DCL/RCL" in n for n in personnel)
     assert any("restos a pagar" in n for n in personnel)
     assert not any("recomeçam" in n for n in personnel)
 

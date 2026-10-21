@@ -65,9 +65,10 @@ export function UfPicker({ legend, selected, onChange, max, bulk = false }: Prop
                       checked={checked}
                       disabled={!checked && full}
                       onChange={(event) => toggle(state.acronym, event.target.checked)}
-                      aria-label={state.name}
                     />
+                    {/* Accessible name "SP (São Paulo)": starts with the visible label. */}
                     {state.acronym}
+                    <span className="sr-only"> ({state.name})</span>
                   </label>
                 );
               })}

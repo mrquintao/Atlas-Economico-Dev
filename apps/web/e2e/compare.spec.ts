@@ -60,11 +60,11 @@ test("absolute values carry the size warning; order and selection are applied", 
   await panel.getByText(/^UFs selecionadas/).click();
   await panel.getByRole("button", { name: "Nenhuma" }).click();
   await expect(panel.getByRole("alert")).toContainText("Selecione ao menos 2 UFs");
-  await panel.getByRole("checkbox", { name: "São Paulo" }).check();
-  await panel.getByRole("checkbox", { name: "Rio de Janeiro" }).check();
+  await panel.getByRole("checkbox", { name: "SP (São Paulo)" }).check();
+  await panel.getByRole("checkbox", { name: "RJ (Rio de Janeiro)" }).check();
   await expect(rows(page)).toHaveText([/Posição/, "1ºSão Paulo (SP)R$ 268,00 bi"]);
   await expect(panel).toContainText("1 de 2 UFs selecionadas");
-  await expect(panel).toContainText("Sem dado no período: RJ. Essa UF não publicou");
+  await expect(panel).toContainText("Sem dado no período: RJ. Não há valor armazenado para essa UF");
   await expect(panel).not.toContainText("O Distrito Federal acumula");
 });
 
@@ -76,8 +76,9 @@ test("historical comparison: one line per UF, absences listed apart", async ({ p
   await expect(chart).toHaveAccessibleName(/MG: 9 valores .*; RJ: sem dado\.$/);
   await expect(panel).toContainText("Sem dado: Rio de Janeiro. Nenhum valor de DCL / RCL armazenado para essa UF");
 
-  await panel.getByRole("checkbox", { name: "Distrito Federal" }).check();
+  await panel.getByRole("checkbox", { name: "DF (Distrito Federal)" }).check();
   await expect(chart).toHaveAccessibleName(/DF: 9 valores/);
+  await expect(panel.getByRole("checkbox", { checked: true })).toHaveCount(4);
   await expect(panel).toContainText("* O Distrito Federal acumula competências");
 
   await panel.getByRole("combobox", { name: "Indicador" }).selectOption("STATE_PRIMARY_RESULT");

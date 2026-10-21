@@ -102,21 +102,27 @@ RELATIVE_NOTE = (
     "recálculo pelo Atlas. Dividir pela receita corrente líquida permite comparar UFs de "
     "tamanhos diferentes."
 )
-DENOMINATOR_NOTE = (
-    "O denominador é a RCL ajustada definida na LRF, que pode diferir levemente da RCL exibida "
-    "no Atlas. DCL/RCL começa em 2020, quando a RCL ajustada para endividamento passou a ser o "
-    "denominador."
-)
+DENOMINATOR_NOTES = {
+    "STATE_DCL_RCL": "O denominador é a RCL ajustada para endividamento definida na LRF, que pode "
+    "diferir levemente da RCL exibida no Atlas. DCL/RCL começa em 2020, quando essa RCL ajustada "
+    "passou a ser o denominador.",
+    "STATE_PERSONNEL_EXEC_RCL": "O denominador é a RCL ajustada para o cálculo dos limites da "
+    "despesa com pessoal (LRF), que pode diferir levemente da RCL exibida no Atlas.",
+}
 SIGNED_NOTE = (
     "Valores negativos são possíveis: DCL negativa indica haveres financeiros maiores que a "
     "dívida; resultado negativo indica déficit."
 )
+# Only the absence of a stored value is known: the report may not have been delivered to the
+# SICONFI or may not have been collected yet (qa-auditor, S8).
 MISSING_NOTE = (
-    "Sem dado no período: {ufs}. Essas UFs não publicaram o valor deste período no SICONFI e "
-    "ficam fora da classificação. Ausência de dado não equivale a zero."
+    "Sem dado no período: {ufs}. Não há valor armazenado para essas UFs neste período (o "
+    "relatório pode não ter sido entregue ao SICONFI ou ainda não ter sido coletado); elas ficam "
+    "fora da classificação. Ausência de dado não equivale a zero."
 )
 MISSING_NOTE_ONE = (
-    "Sem dado no período: {ufs}. Essa UF não publicou o valor deste período no SICONFI e fica "
+    "Sem dado no período: {ufs}. Não há valor armazenado para essa UF neste período (o "
+    "relatório pode não ter sido entregue ao SICONFI ou ainda não ter sido coletado); ela fica "
     "fora da classificação. Ausência de dado não equivale a zero."
 )
 COMPARISON_NOTE = (
@@ -416,7 +422,7 @@ def ranking_notes(
     code = indicator.code
     notes = [RANKING_TIES_NOTE]
     if code in RELATIVE_CODES:
-        notes += [RELATIVE_NOTE, DENOMINATOR_NOTE]
+        notes += [RELATIVE_NOTE, DENOMINATOR_NOTES[code]]
     else:
         notes.append(RANKING_ABSOLUTE_NOTE)
     if code in YEAR_TO_DATE_CODES:
@@ -474,7 +480,7 @@ def comparison_notes(indicator: Indicator, selection: list[GeographicUnit]) -> l
     notes = [COMPARISON_NOTE]
     if code in YEAR_TO_DATE_CODES:
         notes.append(COMPARISON_YEAR_TO_DATE_NOTE)
-    notes.append(COMPARISON_BRL_NOTE if indicator.unit == BRL_UNIT else DENOMINATOR_NOTE)
+    notes.append(COMPARISON_BRL_NOTE if indicator.unit == BRL_UNIT else DENOMINATOR_NOTES[code])
     if code in SIGNED_CODES:
         notes.append(SIGNED_NOTE)
     if code in PERSONNEL_CODES:

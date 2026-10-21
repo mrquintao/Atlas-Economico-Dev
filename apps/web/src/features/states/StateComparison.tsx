@@ -29,6 +29,11 @@ import { UfPicker } from "./UfPicker";
 echarts.use([LineChart, GridComponent, LegendComponent, TooltipComponent, DataZoomComponent, AriaComponent, CanvasRenderer]);
 
 export const MAX_COMPARISON_UFS = 6;
+
+/** Acronym shown in the chart: the DF carries the comparability asterisk. */
+export function displayAcronym(acronym: string): string {
+  return acronym === "DF" ? "DF*" : acronym;
+}
 /** Initial example selection; any UF can be added or removed. */
 export const DEFAULT_COMPARISON_UFS = ["SP", "MG", "RJ"];
 const NO_RANGE = { start: null, end: null };
@@ -50,8 +55,8 @@ export function StateComparisonPanel() {
 
   const headingId = useId();
   const indicatorId = useId();
-  const data =
-    comparison.status === "error" && comparison.data?.indicator.code !== code ? null : comparison.data;
+  // Never the previous indicator or UFs under an error: the controls already show the new choice.
+  const data = comparison.status === "error" ? null : comparison.data;
 
   return (
     <Card aria-labelledby={headingId}>
@@ -140,8 +145,9 @@ function ComparisonBody({ data }: { data: StateComparison }) {
   const series: ComparisonSeries[] = useMemo(
     () =>
       data.series
-        .filter((s) => s.observations.length > 0)
-        .map((s) => ({ acronym: s.geography.acronym, observations: s.observations })),
+        // The position in the selection fixes colour and line style, also for UFs without data.
+        .map((s, index) => ({ label: displayAcronym(s.geography.acronym), index, observations: s.observations }))
+        .filter((s) => s.observations.length > 0),
     [data],
   );
   return (

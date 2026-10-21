@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Geography, Indicator, Observation, StateComparison, StateRanking } from "@/types/api";
 
+import { COMPARISON_COLORS } from "./comparison-option";
 import { DEFAULT_COMPARISON_UFS, MAX_COMPARISON_UFS, StateComparisonPanel } from "./StateComparison";
 import { DEFAULT_RANKING_CODE, StateRankingPanel } from "./StateRanking";
 
@@ -197,11 +198,46 @@ describe("StateRankingPanel", () => {
     await user.click(screen.getByRole("button", { name: "Nenhuma" }));
     expect(screen.getByRole("alert")).toHaveTextContent("Selecione ao menos 2 UFs");
     const before = requests("/states/ranking/").length;
-    await user.click(screen.getByRole("checkbox", { name: "São Paulo" }));
+    await user.click(screen.getByRole("checkbox", { name: "SP (São Paulo)" }));
     expect(requests("/states/ranking/")).toHaveLength(before);
-    await user.click(screen.getByRole("checkbox", { name: "Minas Gerais" }));
+    await user.click(screen.getByRole("checkbox", { name: "MG (Minas Gerais)" }));
     await waitFor(() => expect(requests("/states/ranking/").at(-1)?.searchParams.get("ufs")).toBe("MG,SP"));
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+});
+
+describe("StateRankingPanel errors", () => {
+  it("never shows the previous ranking under a failed request", async () => {
+    const user = userEvent.setup();
+    render(<StateRankingPanel />);
+    await screen.findByRole("table");
+    fetchMock.mockImplementation(async (url: string) =>
+      url.includes("/states/ranking/")
+        ? json({ error: { code: "internal", message: "Falha na API." } }, 500)
+        : defaultFetch(url),
+    );
+    await user.click(screen.getByRole("button", { name: "Menor → maior" }));
+    expect(await screen.findByText("Falha na API.")).toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    fetchMock.mockImplementation(defaultFetch);
+    await user.click(screen.getByRole("button", { name: "Tentar novamente" }));
+    expect(await screen.findByRole("table")).toBeInTheDocument();
+  });
+
+  it("offers the default period when the chosen one has no value", async () => {
+    const user = userEvent.setup();
+    render(<StateRankingPanel />);
+    await screen.findByRole("table");
+    fetchMock.mockImplementation(async (url: string) =>
+      new URL(url).searchParams.has("reference_date")
+        ? json({ error: { code: "period_not_found", message: "Nenhuma UF tem valor neste período." } }, 404)
+        : defaultFetch(url),
+    );
+    await user.selectOptions(screen.getByRole("combobox", { name: "Indicador" }), "STATE_DC");
+    expect(await screen.findByText("Nenhuma UF tem valor neste período.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Ver o período padrão" }));
+    expect(await screen.findByRole("table")).toBeInTheDocument();
+    expect(requests("/states/ranking/").at(-1)?.searchParams.has("reference_date")).toBe(false);
   });
 });
 
@@ -228,16 +264,49 @@ describe("StateComparisonPanel", () => {
     ]);
   });
 
+  it("keeps colours by selection order and marks the DF", async () => {
+    const user = userEvent.setup();
+    render(<StateComparisonPanel />);
+    await screen.findByRole("img", { name: /por UF\./ });
+    await user.click(screen.getByRole("checkbox", { name: "DF (Distrito Federal)" }));
+    await waitFor(() =>
+      expect(requests("/states/compare/").at(-1)?.searchParams.get("ufs")).toBe("SP,MG,RJ,DF"),
+    );
+    await waitFor(() => {
+      const option = setOption.mock.calls.at(-1)?.[0] as { series: { name: string; color: string }[] };
+      // RJ (3rd) has no data: DF keeps the 4th colour.
+      expect(option.series.map((s) => [s.name, s.color])).toEqual([
+        ["SP", COMPARISON_COLORS[0]],
+        ["MG", COMPARISON_COLORS[1]],
+        ["DF*", COMPARISON_COLORS[3]],
+      ]);
+    });
+  });
+
+  it("never plots the previous UFs under a failed request", async () => {
+    const user = userEvent.setup();
+    render(<StateComparisonPanel />);
+    await screen.findByRole("img", { name: /por UF\./ });
+    fetchMock.mockImplementation(async (url: string) =>
+      url.includes("/states/compare/")
+        ? json({ error: { code: "internal", message: "Falha na API." } }, 500)
+        : defaultFetch(url),
+    );
+    await user.click(screen.getByRole("checkbox", { name: "BA (Bahia)" }));
+    expect(await screen.findByText("Falha na API.")).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: /por UF\./ })).not.toBeInTheDocument();
+  });
+
   it("limits the selection to six UFs", async () => {
     const user = userEvent.setup();
     render(<StateComparisonPanel />);
     await screen.findByRole("img", { name: /por UF\./ });
-    for (const name of ["Bahia", "Paraná", "Ceará"]) {
+    for (const name of ["BA (Bahia)", "PR (Paraná)", "CE (Ceará)"]) {
       await user.click(screen.getByRole("checkbox", { name }));
     }
     expect(screen.getAllByRole("checkbox", { checked: true })).toHaveLength(MAX_COMPARISON_UFS);
-    expect(screen.getByRole("checkbox", { name: "Goiás" })).toBeDisabled();
-    expect(screen.getByRole("checkbox", { name: "Bahia" })).toBeEnabled();
+    expect(screen.getByRole("checkbox", { name: "GO (Goiás)" })).toBeDisabled();
+    expect(screen.getByRole("checkbox", { name: "BA (Bahia)" })).toBeEnabled();
     await waitFor(() =>
       expect(requests("/states/compare/").at(-1)?.searchParams.get("ufs")).toBe("SP,MG,RJ,BA,PR,CE"),
     );

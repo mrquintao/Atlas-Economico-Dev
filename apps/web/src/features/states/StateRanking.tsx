@@ -60,7 +60,9 @@ export function StateRankingPanel() {
   const headingId = useId();
   const indicatorId = useId();
   const periodId = useId();
-  const data = ranking.status === "error" && ranking.data?.indicator.code !== code ? null : ranking.data;
+  // After a failed request the previous data stays in the resource; it belongs to another
+  // indicator, order, period or selection than the controls show, so it is never displayed.
+  const data = ranking.status === "error" ? null : ranking.data;
   const periodNotFound = ranking.status === "error" && ranking.error.code === "period_not_found";
 
   return (
@@ -119,8 +121,8 @@ export function StateRankingPanel() {
               {data?.available_periods.length ? (
                 data.available_periods.map((period) => (
                   <option key={period.reference_date} value={period.reference_date}>
-                    {formatPeriod(data.indicator.frequency, period.reference_date, true)} — {period.coverage}{" "}
-                    {period.coverage === 1 ? "UF" : "UFs"}
+                    {formatPeriod(data.indicator.frequency, period.reference_date, true)} — {period.coverage} de 27
+                    UFs com dado
                   </option>
                 ))
               ) : (

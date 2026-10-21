@@ -14,7 +14,9 @@ const LINE_TYPES = ["solid", "dashed", "dotted"] as const;
 const SYMBOLS = ["circle", "rect", "triangle", "diamond", "roundRect", "pin"] as const;
 
 export interface ComparisonSeries {
-  acronym: string;
+  label: string;
+  /** Position of the UF in the selection (UFs without data included): sets colour and style. */
+  index: number;
   observations: Observation[];
 }
 
@@ -62,7 +64,6 @@ export function buildComparisonOption({
   return {
     animationDuration: 300,
     aria: { enabled: true, label: { description } },
-    color: COMPARISON_COLORS,
     grid: { left: 56, right: 16, top: 56, bottom: 72, containLabel: false },
     textStyle: { color: palette.text, fontFamily: "inherit" },
     legend: { top: 0, textStyle: { color: palette.text } },
@@ -100,14 +101,15 @@ export function buildComparisonOption({
         labelFormatter: (value: number) => formatMonth(new Date(value).toISOString().slice(0, 10)),
       },
     ],
-    series: series.map((s, i) => ({
-      name: s.acronym,
+    series: series.map((s) => ({
+      name: s.label,
       type: "line",
       connectNulls: false,
       showSymbol: true,
-      symbol: SYMBOLS[i % SYMBOLS.length],
+      symbol: SYMBOLS[s.index % SYMBOLS.length],
       symbolSize: 6,
-      lineStyle: { width: 2, type: LINE_TYPES[i % LINE_TYPES.length] },
+      color: COMPARISON_COLORS[s.index % COMPARISON_COLORS.length],
+      lineStyle: { width: 2, type: LINE_TYPES[s.index % LINE_TYPES.length] },
       data: toChartData(s.observations, frequency, resetsEachYear),
     })),
   };
