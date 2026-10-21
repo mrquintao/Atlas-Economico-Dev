@@ -87,9 +87,12 @@ class RowSelector:
 class FiscalIndicator:
     code: str
     selectors: tuple[RowSelector, ...]
+    # Flow accumulated in the year up to the period: it restarts every January, so values of
+    # different periods (and statistics across them) are not comparable.
+    year_to_date: bool = False
 
-    def selector_for(self, exercise: int) -> RowSelector | None:
-        return next((s for s in self.selectors if s.covers(exercise)), None)
+    def covers(self, exercise: int) -> bool:
+        return any(s.covers(exercise) for s in self.selectors)
 
 
 @dataclass
@@ -115,8 +118,9 @@ class DerivationSummary:
     outcomes: list[DerivationOutcome] = field(default_factory=list)
 
     def record(self, outcome: DerivationOutcome) -> None:
+        """Counts every outcome; lists only those worth auditing (not ``unchanged``)."""
         setattr(self, outcome.status, getattr(self, outcome.status) + 1)
-        if len(self.outcomes) < MAX_LISTED_OUTCOMES:
+        if outcome.status != "unchanged" and len(self.outcomes) < MAX_LISTED_OUTCOMES:
             self.outcomes.append(outcome)
 
 
@@ -355,7 +359,10 @@ def _finish(
         **(run.metadata_json or {}),
         "row_missing": summary.row_missing,
         "ambiguous": summary.ambiguous,
+        # A failed derivation stored nothing: list only what explains the failure and the gaps.
         "outcomes": [
-            asdict(o) for o in summary.outcomes if error is not None or o.status != "unchanged"
+            asdict(o)
+            for o in summary.outcomes
+            if error is None or o.status in ("ambiguous", "row_missing")
         ],
     }

@@ -113,9 +113,7 @@ def test_failure_before_the_request_is_recorded_as_a_run(db: Session, settings: 
     assert result.items[0].error is not None
 
 
-def test_source_without_connector_is_rejected_before_any_run(
-    db: Session, settings: Settings
-) -> None:
+def test_source_without_connector_fails_and_is_recorded(db: Session, settings: Settings) -> None:
     other = DataSource(acronym="XYZ", name="Synthetic", organization="Test", base_url="x")
     db.add(other)
     db.flush()
@@ -125,11 +123,20 @@ def test_source_without_connector_is_rejected_before_any_run(
     db.flush()
     db.expire_all()
 
-    with pytest.raises(IngestionError, match="No series connector for SELIC_TARGET"):
-        run_batch(db, settings, ["SELIC_TARGET", "IPCA_12M"], clients={"IBGE": FakeClient()})
+    result = run_batch(db, settings, ["SELIC_TARGET", "IPCA_12M"], clients={"IBGE": FakeClient()})
+    assert result.failed == ["SELIC_TARGET"]
+    assert result.items[0].error == "IngestionError: No connector for source XYZ"
+    assert result.items[0].run_id is not None
+    assert runs_by_code(db)["SELIC_TARGET"][0].status == "failed"
+    assert result.items[1].status == "success"
+
+
+def test_derived_indicators_are_skipped_or_rejected(db: Session, settings: Settings) -> None:
+    # The whole catalog (`ingest --all`, the scheduler) leaves the SICONFI indicators out.
+    assert [i.code for i in select_indicators(db, None)] == ["DBGG_GDP", "IPCA_12M", "SELIC_TARGET"]
+    with pytest.raises(IngestionError, match="use `derive-fiscal`"):
+        run_batch(db, settings, ["SELIC_TARGET", "STATE_DCL"])
     assert runs_by_code(db) == {}
-    # The whole catalog (`ingest --all`, the scheduler) skips it instead of failing.
-    assert [i.code for i in select_indicators(db, None)] == ["DBGG_GDP", "IPCA_12M"]
 
 
 def test_stop_request_skips_the_remaining_indicators(db: Session, settings: Settings) -> None:

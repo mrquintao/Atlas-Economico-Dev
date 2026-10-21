@@ -29,7 +29,11 @@ Indicadores estaduais (`geographic_level = "state"`, códigos `STATE_*`, S4): no
 `422 geography_not_available`, pois o padrão é `BR`). `frequency` (do indicador) pode ser `daily`,
 `monthly`, `bimonthly` (bimestre do RREO), `quarterly`, `four_monthly` (quadrimestre do RGF) ou
 `annual`; o parâmetro `frequency=monthly` sobre série bimestral ou quadrimestral responde
-`422 frequency_not_supported`.
+`422 frequency_not_supported`. Nos fluxos acumulados no ano (`STATE_PRIMARY_RESULT`,
+`STATE_NOMINAL_RESULT`, `STATE_INVESTMENTS`), `stats` vem `null`: variação, mínimo e máximo
+comparariam bimestres não comparáveis (ADR 0010). Nos indicadores derivados do SICONFI,
+`last_collected_at` é a data da coleta dos anexos que originaram as observações (da UF pedida ou,
+no catálogo, de todas), não a da derivação.
 
 ### Estado da coleta (`last_run`)
 

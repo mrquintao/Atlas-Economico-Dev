@@ -5,6 +5,7 @@ from fastapi import APIRouter, Query, Response
 
 from app.api.errors import ApiError
 from app.api.v1.catalog import DbSession, build_indicator_out, get_indicator_or_404
+from app.ingestion.fiscal_catalog import YEAR_TO_DATE_CODES
 from app.models import Frequency
 from app.repositories import catalog as catalog_repo
 from app.repositories.observations import ObservationRow
@@ -86,10 +87,12 @@ def get_observations(
     except FrequencyNotSupportedError as exc:
         raise ApiError(422, "frequency_not_supported", str(exc)) from exc
 
-    stats = compute_stats(series.rows)
+    # Year-to-date flows restart every January: a change or extreme across periods would compare
+    # non-comparable values (e.g. a 1st bimester with a 6th), so no statistics are served.
+    stats = None if indicator.code in YEAR_TO_DATE_CODES else compute_stats(series.rows)
     response.headers["Cache-Control"] = "public, max-age=300"
     return ObservationsResponse(
-        indicator=build_indicator_out(session, indicator),
+        indicator=build_indicator_out(session, indicator, geo),
         geography=GeographyOut.model_validate(geo),
         unit=indicator.unit,
         original_frequency=original,

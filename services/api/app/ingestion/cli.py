@@ -100,6 +100,10 @@ def main(argv: list[str] | None = None) -> int:
             parser.error("--collect requires --year (bounds the requests to the SICONFI API)")
         if args.refresh and not args.collect:
             parser.error("--refresh applies only with --collect")
+        chosen = [FISCAL_INDICATORS[c] for c in args.indicator or FISCAL_INDICATORS]
+        if args.year and not any(d.covers(y) for d in chosen for y in args.year):
+            first = min(s.first_exercise for d in chosen for s in d.selectors)
+            parser.error(f"no chosen indicator covers --year (the earliest starts in {first})")
         return _derive_fiscal(args)
     if args.command == "ingest-siconfi":
         if any(not 2015 <= y <= brazil_today().year for y in args.year):
@@ -189,7 +193,8 @@ def _derive_fiscal(args: argparse.Namespace) -> int:
     with get_session_factory()() as session:
         if args.collect:
             states = args.state or _all_states(session)
-            for report_type, annex, power in required_annexes(definitions, exercises or []):
+            needed = required_annexes(definitions, exercises or [])
+            for (report_type, annex, power), annex_exercises in needed.items():
                 try:
                     summary = ingest_siconfi_reports(
                         session,
@@ -197,11 +202,12 @@ def _derive_fiscal(args: argparse.Namespace) -> int:
                         report_type=report_type,
                         annex=annex,
                         states=states,
-                        exercises=exercises or [],
+                        exercises=annex_exercises,
                         power=power,
                         refresh=args.refresh,
                     )
                 except Exception as exc:  # recorded in ingestion_runs by the ingestion itself
+                    # Stop before deriving: a partial collection would be derived as gaps.
                     print(f"error: {annex}: {format_error(exc)}", file=sys.stderr)
                     return EXIT_FAILED
                 output["collections"].append(

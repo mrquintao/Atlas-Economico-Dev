@@ -71,14 +71,16 @@ INDICATORS: list[dict[str, str]] = [
         "short_name": "Dívida consolidada",
         "description": (
             "Total das obrigações financeiras do estado com prazo de amortização superior a 12 "
-            "meses, inclusive precatórios vencidos e não pagos, no fim de cada quadrimestre."
+            "meses, inclusive precatórios não pagos no orçamento em que foram incluídos, no fim "
+            "de cada quadrimestre."
         ),
         "series": "RGF-Anexo 02 · DividaConsolidada",
         "unit": BRL,
         "change_unit": BRL,
         "frequency": "four_monthly",
         "methodology": (
-            "Dívida consolidada (LRF, art. 29), como publicada no Anexo 2 do Relatório de Gestão "
+            "Dívida consolidada (LRF, arts. 29 e 30, § 7º), como publicada no Anexo 2 do "
+            "Relatório de Gestão "
             "Fiscal (RGF) do Poder Executivo, que se refere ao estado inteiro: linha "
             "DividaConsolidada, coluna 'Até o Nº Quadrimestre' do relatório do próprio "
             "quadrimestre. É um saldo (estoque) no último dia do quadrimestre, não um fluxo. Não "

@@ -265,7 +265,10 @@ coluna e exercícios) está em `app/ingestion/fiscal_catalog.py`, validado pelo 
 - `derive-fiscal` lê só o banco (nenhuma requisição ao SICONFI) e pode ser repetido; uma execução por
   indicador em `ingestion_runs` (fonte SICONFI, `metadata_json.dataset = "siconfi_derivation"`).
 - `--collect` (exige `--year`) roda antes `ingest_siconfi_reports` para cada anexo distinto de que os
-  indicadores escolhidos precisam naqueles exercícios (padrão: todas as UFs); `--refresh` força a recoleta.
+  indicadores escolhidos precisam, só nos exercícios cobertos por cada um (o Anexo 06 não é coletado antes
+  de 2023), em todas as UFs por padrão; `--refresh` força a recoleta. Se a coleta de um anexo falhar, a
+  CLI para com código 1 sem derivar (os anexos já gravados ficam; basta repetir o comando). Um `--year`
+  que nenhum indicador escolhido cobre é recusado.
 - Por período: linha encontrada → `inserted`/`updated`/`unchanged` (mudança de valor gravada em
   `observation_revisions`); linha ausente → `row_missing` (lacuna, valor armazenado mantido e relatado);
   linha repetida → `ambiguous` e a execução falha sem gravar nada. Anexo não coletado → sem observação.

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.api.errors import ApiError
 from app.core.config import get_settings
 from app.db.session import get_db
+from app.ingestion.batch import DERIVED_SOURCES
 from app.integrations.ibge.malhas import COORDINATE_DECIMALS, MALHAS_DOCUMENTATION_URL
 from app.models import GeographicBoundary, GeographicLevel, GeographicUnit, Indicator, IngestionRun
 from app.repositories import catalog as repo
@@ -42,10 +43,15 @@ def build_indicator_out(
 ) -> IndicatorOut:
     if geo is None and indicator.geographic_level != GeographicLevel.COUNTRY:
         # Catalog view of a subnational indicator: the stored range across all its units.
-        first, last = repo.observation_bounds(session, indicator.id)
+        unit_id = None
     else:
-        geo = geo or national_geography(session)
-        first, last = repo.observation_bounds(session, indicator.id, geo.id)
+        unit_id = (geo or national_geography(session)).id
+    first, last = repo.observation_bounds(session, indicator.id, unit_id)
+    if indicator.source.acronym in DERIVED_SOURCES:
+        # Derived indicators: a run reads stored annexes; the collection date is the annexes'.
+        last_collected = repo.last_observation_collection(session, indicator.id, unit_id)
+    else:
+        last_collected = repo.last_successful_collection(session, indicator.id)
     return IndicatorOut(
         code=indicator.code,
         name=indicator.name,
@@ -63,7 +69,7 @@ def build_indicator_out(
         source_url=indicator.source_url,
         first_stored_date=first,
         last_stored_date=last,
-        last_collected_at=repo.last_successful_collection(session, indicator.id),
+        last_collected_at=last_collected,
         last_run=_run_out(repo.latest_run(session, indicator.id)),
     )
 

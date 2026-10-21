@@ -46,6 +46,21 @@ mantendo a rastreabilidade de cada número até a linha oficial.
 ## Consequências
 
 - Novos valores de frequência: `bimonthly` e `four_monthly` (migração 0009).
+- Fluxos acumulados no ano (`year_to_date` no mapeamento: resultados primário e nominal e
+  investimentos) recomeçam em janeiro; por isso `GET /indicators/{code}/observations` não serve
+  `stats` (variação, mínimo e máximo) para eles, que comparariam bimestres de naturezas diferentes.
+- "Última coleta" (`last_collected_at`) de um indicador derivado é a data de coleta mais recente dos
+  anexos por trás das observações armazenadas (`observations.collected_at`), não a data da derivação.
+- `ingest --all` e o agendador ignoram explicitamente a fonte SICONFI (`DERIVED_SOURCES`); outra fonte
+  sem conector continua gerando execução com falha, para não sumir em silêncio.
+- Limitação conhecida: se uma retificação remover a linha de um período já derivado, a observação
+  é mantida com o valor anterior (como nas séries nacionais), o período aparece como `row_missing`
+  em cada derivação e `metadata_json.fiscal_report_row_id` passa a apontar para uma linha inexistente.
+- Pessoal/RCL desde 2018 e DCL/RCL só desde 2020: no Anexo 1 do RGF o denominador já é a "RCL
+  ajustada" para pessoal em todo o período (coluna `% sobre a RCL Ajustada` desde 2017); as mudanças
+  nos itens deduzidos decorrem da legislação aplicável ao limite e não mudam o conceito do indicador
+  (percentual legal publicado). No Anexo 2, o denominador mudou de conceito em 2020 (RCL → RCL
+  ajustada para endividamento), por isso a série começa nesse ano.
 - No catálogo (`GET /indicators`), o período armazenado de um indicador estadual considera todas as
   UFs; `GET /indicators/{code}/observations?geography=UF` já serve cada UF.
 - Fora do escopo agora: resultados de 2018–2022 (série própria, se vier), resultados com RPPS ou

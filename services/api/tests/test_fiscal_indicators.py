@@ -159,14 +159,15 @@ def test_required_annexes_respect_the_first_exercise() -> None:
     definitions = FISCAL_INDICATORS.values()
     before_2023 = required_annexes(definitions, [2019])
     assert ("RREO", "RREO-Anexo 06", None) not in before_2023
-    assert sorted(required_annexes(definitions, [2025])) == [
-        ("RGF", "RGF-Anexo 01", "E"),
-        ("RGF", "RGF-Anexo 02", "E"),
-        ("RREO", "RREO-Anexo 01", None),
-        ("RREO", "RREO-Anexo 03", None),
-        ("RREO", "RREO-Anexo 06", None),
-    ]
-    assert required_annexes(definitions, [2015]) == []
+    needed = required_annexes(definitions, [2019, 2023])
+    assert needed == {
+        ("RREO", "RREO-Anexo 03", None): [2019, 2023],
+        ("RGF", "RGF-Anexo 02", "E"): [2019, 2023],
+        ("RGF", "RGF-Anexo 01", "E"): [2019, 2023],
+        ("RREO", "RREO-Anexo 06", None): [2023],  # not collected for 2019
+        ("RREO", "RREO-Anexo 01", None): [2019, 2023],
+    }
+    assert required_annexes(definitions, [2015]) == {}
 
 
 def test_cli_rejects_collection_without_years(capsys: pytest.CaptureFixture[str]) -> None:
@@ -177,6 +178,11 @@ def test_cli_rejects_collection_without_years(capsys: pytest.CaptureFixture[str]
         cli.main(["derive-fiscal", "--refresh"])
     with pytest.raises(SystemExit):
         cli.main(["derive-fiscal", "--indicator", "SELIC_TARGET"])
+    with pytest.raises(SystemExit):
+        cli.main(["derive-fiscal", "--indicator", "STATE_PRIMARY_RESULT", "--year", "2020"])
+    assert "no chosen indicator covers --year (the earliest starts in 2023)" in (
+        capsys.readouterr().err
+    )
 
 
 # ---- database tests ----
@@ -362,6 +368,51 @@ def _rows(db: Session, state: str, annex: str, account_code: str) -> list[Fiscal
     )
 
 
+def test_rgf_period_reads_only_its_own_column(db: Session) -> None:
+    # Synthetic: the official SP 3rd four-month report stored as the 1st, with a different
+    # value in the "Até o 3º" column (which a 1st-period report never has).
+    report = next(
+        r for r in OFFICIAL["reports"] if r["annex"] == "RGF-Anexo 02" and r["state"] == "SP"
+    )
+    rows = [
+        {**r, "value": "1"} if r["column"] == "Até o 3º Quadrimestre" else r for r in report["rows"]
+    ]
+    _store(db, report, period=1, rows=rows)
+    derive_fiscal_indicator(db, FISCAL_INDICATORS["STATE_DCL"])
+    observation = _values(db, "STATE_DCL")[("SP", date(2025, 1, 1))]
+    first = next(
+        r
+        for r in report["rows"]
+        if r["account_code"] == "DividaConsolidadaLiquida"
+        and r["column"] == "Até o 1º Quadrimestre"
+    )
+    assert observation.value == Decimal(first["value"]) != Decimal("1")
+    assert observation.period_end == date(2025, 4, 30)
+
+
+def test_other_powers_and_spheres_are_never_mixed(
+    db: Session, official: list[FiscalReport]
+) -> None:
+    report = next(
+        r for r in OFFICIAL["reports"] if r["annex"] == "RGF-Anexo 01" and r["state"] == "MG"
+    )
+    synthetic = [{**r, "value": "1"} for r in report["rows"]]
+    _store(db, report, power="L", rows=synthetic)  # synthetic Legislative report
+    rreo = next(
+        r for r in OFFICIAL["reports"] if r["annex"] == "RREO-Anexo 03" and r["state"] == "MG"
+    )
+    stored = _store(db, rreo, rows=[{**r, "value": "1"} for r in rreo["rows"]], period=5)
+    stored.sphere = "M"  # synthetic: a municipal-sphere annex must be ignored
+    db.flush()
+    personnel = derive_fiscal_indicator(db, FISCAL_INDICATORS["STATE_PERSONNEL_EXEC"])
+    rcl = derive_fiscal_indicator(db, FISCAL_INDICATORS["STATE_RCL"], states=["MG"])
+    assert personnel.inserted == 6 and rcl.inserted == 1
+    assert _values(db, "STATE_PERSONNEL_EXEC")[("MG", date(2025, 9, 1))].value == Decimal(
+        "53869167715.23"
+    )
+    assert ("MG", date(2025, 9, 1)) not in _values(db, "STATE_RCL")
+
+
 def test_ambiguous_rows_fail_without_storing(db: Session, official: list[FiscalReport]) -> None:
     definition = FISCAL_INDICATORS["STATE_RCL"]
     # Synthetic: a second RCL row with the same column under another rotulo.
@@ -440,7 +491,27 @@ def test_api_serves_state_observations(
     ]
     # National geography is refused for a state indicator.
     assert client.get("/api/v1/indicators/STATE_DCL_RCL/observations").status_code == 422
+    assert body["stats"]["change"] == 0  # four-month ratios: statistics are served
+    assert body["indicator"]["first_stored_date"] == "2025-09-01"  # RJ's own range
+    # The "last collection" is the annexes' collection, not the derivation run.
+    assert body["indicator"]["last_collected_at"].startswith("2026-10-21T00:00:00")
     catalog = {i["code"]: i for i in client.get("/api/v1/indicators").json()}
     assert catalog["STATE_DCL_RCL"]["first_stored_date"] == "2025-09-01"
-    assert catalog["STATE_DCL_RCL"]["last_collected_at"] is not None
     assert catalog["STATE_RCL"]["first_stored_date"] is None
+    # A derivation that stores nothing does not count as a collection.
+    derive_fiscal_indicator(db, FISCAL_INDICATORS["STATE_RCL"], exercises=[2019])
+    catalog = {i["code"]: i for i in client.get("/api/v1/indicators").json()}
+    assert catalog["STATE_RCL"]["last_collected_at"] is None
+
+
+def test_api_serves_no_statistics_for_year_to_date_flows(
+    db: Session, official: list[FiscalReport], client: TestClient
+) -> None:
+    rreo6 = next(
+        r for r in OFFICIAL["reports"] if r["annex"] == "RREO-Anexo 06" and r["state"] == "SP"
+    )
+    _store(db, rreo6, period=1)  # synthetic copy as the 1st bimester: not comparable with the 6th
+    derive_fiscal_indicator(db, FISCAL_INDICATORS["STATE_PRIMARY_RESULT"], states=["SP"])
+    body = client.get("/api/v1/indicators/STATE_PRIMARY_RESULT/observations?geography=SP").json()
+    assert body["count"] == 2
+    assert body["stats"] is None

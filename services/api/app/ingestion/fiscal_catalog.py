@@ -71,6 +71,7 @@ FISCAL_INDICATORS: dict[str, FiscalIndicator] = {
                     2023,
                 ),
             ),
+            year_to_date=True,
         ),
         FiscalIndicator(
             "STATE_NOMINAL_RESULT",
@@ -84,6 +85,7 @@ FISCAL_INDICATORS: dict[str, FiscalIndicator] = {
                     2023,
                 ),
             ),
+            year_to_date=True,
         ),
         FiscalIndicator(
             "STATE_INVESTMENTS",
@@ -97,18 +99,25 @@ FISCAL_INDICATORS: dict[str, FiscalIndicator] = {
                     2018,
                 ),
             ),
+            year_to_date=True,
         ),
     )
 }
 
 
+# Year-to-date flows: statistics across periods would compare non-comparable values.
+YEAR_TO_DATE_CODES = frozenset(c for c, d in FISCAL_INDICATORS.items() if d.year_to_date)
+
+
 def required_annexes(
     definitions: Iterable[FiscalIndicator], exercises: Sequence[int]
-) -> list[tuple[str, str, str | None]]:
-    """Distinct (report type, annex, power) needed by the definitions in these exercises."""
-    needed: dict[tuple[str, str, str | None], None] = {}
+) -> dict[tuple[str, str, str | None], list[int]]:
+    """(report type, annex, power) needed by the definitions -> the exercises it is needed for."""
+    needed: dict[tuple[str, str, str | None], set[int]] = {}
     for definition in definitions:
         for selector in definition.selectors:
-            if any(selector.covers(exercise) for exercise in exercises):
-                needed[(selector.report_type, selector.annex, selector.power)] = None
-    return list(needed)
+            covered = {exercise for exercise in exercises if selector.covers(exercise)}
+            if covered:
+                key = (selector.report_type, selector.annex, selector.power)
+                needed.setdefault(key, set()).update(covered)
+    return {key: sorted(years) for key, years in needed.items()}
