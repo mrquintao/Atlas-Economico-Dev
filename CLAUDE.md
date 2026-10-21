@@ -87,6 +87,11 @@ docker compose up --build
   Testes nunca acessam a rede: usar `httpx.MockTransport` e fixtures locais.
 - **Segredos**: só via variáveis de ambiente (`.env`, nunca commitado). Ver `.env.example`.
 - **Commits**: pequenos, descritivos, no imperativo (`feat(api): ...`, `fix(web): ...`).
+  **Não** adicionar trailers de coautoria ou sessão do Claude (`Co-Authored-By`, `Claude-Session`)
+  — desativados em `.claude/settings.json` (`attribution.commit = ""`, `sessionUrl = false`).
+  Commits saem com a identidade do mantenedor (`Mateus Quintão`, e-mail noreply do GitHub, sem
+  assinatura), aplicada a cada sessão por `scripts/configure-git-identity.sh` (hook `SessionStart`).
+  Nunca reescrever histórico publicado nem usar force push; merge em `main` só com aprovação do mantenedor.
 
 ## Fluxo com agentes
 
