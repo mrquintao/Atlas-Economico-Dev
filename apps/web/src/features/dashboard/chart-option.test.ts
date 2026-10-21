@@ -121,3 +121,81 @@ describe("toChartData", () => {
     ]);
   });
 });
+
+describe("fiscal series (synthetic test data)", () => {
+  const period = (start: string, end: string, value: number) => ({
+    date: start,
+    value,
+    period_start: start,
+    period_end: end,
+    partial: false,
+  });
+
+  it("breaks a bimonthly line where a bimester is missing", () => {
+    const data = toChartData(
+      [
+        period("2024-01-01", "2024-02-29", 10),
+        period("2024-03-01", "2024-04-30", 20),
+        period("2024-07-01", "2024-08-31", 40),
+      ],
+      "bimonthly",
+    );
+    expect(data).toEqual([
+      ["2024-01-01", 10, false],
+      ["2024-03-01", 20, false],
+      ["2024-05-01", null, false],
+      ["2024-07-01", 40, false],
+    ]);
+  });
+
+  it("keeps contiguous four-month periods joined across year ends", () => {
+    const data = toChartData(
+      [period("2024-09-01", "2024-12-31", 1), period("2025-01-01", "2025-04-30", 2)],
+      "four_monthly",
+    );
+    expect(data).toHaveLength(2);
+  });
+
+  it("never joins two years of a year-to-date flow", () => {
+    const data = toChartData(
+      [period("2024-11-01", "2024-12-31", 90), period("2025-01-01", "2025-02-28", 15)],
+      "bimonthly",
+      true,
+    );
+    expect(data).toEqual([
+      ["2024-11-01", 90, false],
+      ["2025-01-01", null, false],
+      ["2025-01-01", 15, false],
+    ]);
+  });
+
+  const option = buildTimeSeriesOption({
+    name: "Receita corrente líquida",
+    unit: "R$ correntes",
+    frequency: "bimonthly",
+    aggregated: false,
+    step: false,
+    domain: null,
+    description: "RCL.",
+    palette,
+    observations: [
+      period("2025-09-01", "2025-10-31", 255_100_000_000),
+      period("2025-11-01", "2025-12-31", 266_221_395_322.55),
+    ],
+  }) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+  it("scales the axis of amounts in reais and says so in the axis name", () => {
+    expect(option.yAxis.name).toBe("R$ correntes, em bilhões");
+    expect(option.yAxis.axisLabel.formatter(250_000_000_000)).toBe("250");
+  });
+
+  it("labels the tooltip with the scaled amount and the bimester", () => {
+    const html = option.tooltip.formatter([{ data: ["2025-11-01", 266_221_395_322.55, false] }]);
+    expect(html).toContain("R$ 266,22 bi");
+    expect(html).toContain("Referência: 6º bim./2025 (nov–dez)");
+  });
+
+  it("marks every point of a sparse series, so a single period is visible", () => {
+    expect(option.series[0].symbolSize(["2025-11-01", 1, false])).toBeGreaterThan(0);
+  });
+});

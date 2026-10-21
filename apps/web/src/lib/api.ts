@@ -5,6 +5,8 @@ import type {
   ObservationsResponse,
   RequestedFrequency,
   Source,
+  StateDashboard,
+  StateIndicators,
 } from "@/types/api";
 import type { DateRange } from "@/lib/period";
 
@@ -90,4 +92,30 @@ export function fetchSources(signal?: AbortSignal): Promise<Source[]> {
 /** Latest value and 12-month change of every national dashboard indicator, in one request. */
 export function fetchNationalDashboard(signal?: AbortSignal): Promise<NationalDashboard> {
   return getJson<NationalDashboard>(`${API_BASE_URL}/api/v1/dashboard/national`, signal);
+}
+
+function statePath(uf: string): string {
+  return `${API_BASE_URL}/api/v1/states/${encodeURIComponent(uf)}`;
+}
+
+export function stateIndicatorsUrl(uf: string, range: DateRange): string {
+  const params = new URLSearchParams();
+  if (range.start) params.set("start_date", range.start);
+  if (range.end) params.set("end_date", range.end);
+  const query = params.toString();
+  return `${statePath(uf)}/indicators${query ? `?${query}` : ""}`;
+}
+
+/** Every state indicator of a UF (metadata, availability and series in the range), in one request. */
+export function fetchStateIndicators(
+  uf: string,
+  range: DateRange,
+  signal?: AbortSignal,
+): Promise<StateIndicators> {
+  return getJson<StateIndicators>(stateIndicatorsUrl(uf, range), signal);
+}
+
+/** Latest value and change versus the same period a year earlier of each state indicator. */
+export function fetchStateDashboard(uf: string, signal?: AbortSignal): Promise<StateDashboard> {
+  return getJson<StateDashboard>(`${statePath(uf)}/dashboard`, signal);
 }

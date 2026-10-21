@@ -14,7 +14,13 @@ import { useEffect, useRef, useState } from "react";
 import type { Frequency, Observation } from "@/types/api";
 
 import { buildTimeSeriesOption, type ChartPalette } from "./chart-option";
-import { afterOptionUpdate, dataExtent, registerChart, type SyncedChartMeta } from "./chart-sync";
+import {
+  afterOptionUpdate,
+  dataExtent,
+  granularityOf,
+  registerChart,
+  type SyncedChartMeta,
+} from "./chart-sync";
 
 echarts.use([LineChart, GridComponent, TooltipComponent, DataZoomComponent, AriaComponent, CanvasRenderer]);
 
@@ -53,6 +59,8 @@ interface Props {
   observations: Observation[];
   /** Textual summary of the series, used as the chart's accessible name. */
   summary: string;
+  /** Values accumulate from January: the line is broken at each year boundary. */
+  resetsEachYear?: boolean;
 }
 
 export function TimeSeriesChart({
@@ -64,6 +72,7 @@ export function TimeSeriesChart({
   domain,
   observations,
   summary,
+  resetsEachYear = false,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
@@ -99,11 +108,12 @@ export function TimeSeriesChart({
         step,
         domain,
         description: summary,
+        resetsEachYear,
       }),
       { notMerge: true },
     );
-    // Original monthly series are dated on the 1st but stand for the whole month.
-    const granularity = frequency === "monthly" && !aggregated ? "month" : "day";
+    // Original monthly (and longer) series are dated on the 1st but stand for the whole period.
+    const granularity = granularityOf(frequency, aggregated);
     const meta: SyncedChartMeta = {
       granularity,
       domainKey: domain ? `${domain.min}/${domain.max}` : null,
@@ -113,7 +123,7 @@ export function TimeSeriesChart({
       ),
     };
     afterOptionUpdate(chart, meta);
-  }, [name, unit, frequency, aggregated, observations, palette, step, domain, summary]);
+  }, [name, unit, frequency, aggregated, observations, palette, step, domain, summary, resetsEachYear]);
 
   return (
     <figure className="m-0">

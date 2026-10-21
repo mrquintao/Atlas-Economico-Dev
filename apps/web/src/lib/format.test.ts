@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { formatChange, formatDate, formatMonth, formatNumber, formatRate, parseIsoDate } from "./format";
+import {
+  formatChange,
+  formatCurrency,
+  formatDate,
+  formatMonth,
+  formatNumber,
+  formatPeriod,
+  formatRate,
+  formatValue,
+  formatValueChange,
+  parseIsoDate,
+} from "./format";
 
 describe("format", () => {
   it("uses Brazilian decimal comma", () => {
@@ -30,5 +41,38 @@ describe("format", () => {
 
   it("rejects malformed dates", () => {
     expect(() => parseIsoDate("21/10/2026")).toThrow();
+  });
+
+  it("scales amounts in reais and writes the scale out", () => {
+    expect(formatCurrency(266221395322.55)).toBe("R$ 266,22 bi");
+    expect(formatCurrency(1_234_567_890_123)).toBe("R$ 1,23 tri");
+    expect(formatCurrency(-5_120_000)).toBe("-R$ 5,12 mi");
+    expect(formatCurrency(950.5)).toBe("R$ 950,50");
+    expect(formatCurrency(0)).toBe("R$ 0,00");
+  });
+
+  it("signs differences in reais and never shows -0", () => {
+    expect(formatCurrency(1_500_000_000, true)).toBe("+R$ 1,50 bi");
+    expect(formatCurrency(-1_500_000_000, true)).toBe("-R$ 1,50 bi");
+    expect(formatCurrency(-0.001, true)).toBe("R$ 0,00");
+  });
+
+  it("picks the format from the unit", () => {
+    expect(formatValue(266221395322.55, "R$ correntes")).toBe("R$ 266,22 bi");
+    expect(formatValue(45.1, "% da RCL ajustada")).toBe("45,10% da RCL ajustada");
+    expect(formatValueChange(-2e9, "R$ correntes")).toBe("-R$ 2,00 bi");
+    // Ratios change in percentage points, never in %.
+    expect(formatValueChange(1.5, "p.p.")).toBe("+1,50 p.p.");
+  });
+
+  it("names reference periods in the frequency's own granularity", () => {
+    expect(formatPeriod("daily", "2025-03-15")).toBe("15/03/2025");
+    expect(formatPeriod("monthly", "2025-03-01")).toBe("mar/2025");
+    expect(formatPeriod("bimonthly", "2025-11-01")).toBe("6º bim./2025");
+    expect(formatPeriod("bimonthly", "2025-01-01", true)).toBe("1º bim./2025 (jan–fev)");
+    expect(formatPeriod("four_monthly", "2025-09-01", true)).toBe("3º quadr./2025 (set–dez)");
+    expect(formatPeriod("four_monthly", "2025-05-01")).toBe("2º quadr./2025");
+    expect(formatPeriod("quarterly", "2025-04-01")).toBe("2º trim./2025");
+    expect(formatPeriod("annual", "2025-01-01")).toBe("2025");
   });
 });
