@@ -1,8 +1,8 @@
 import { Card } from "@/components/ui/card";
-import { formatChange, formatDate, formatRate } from "@/lib/format";
+import { formatChange, formatRate } from "@/lib/format";
 import type { Indicator } from "@/types/api";
 
-import type { LatestSummary } from "./summary";
+import { formatReference, referenceLabel, type LatestSummary } from "./summary";
 
 interface Props {
   indicator: Indicator;
@@ -21,7 +21,7 @@ export function IndicatorCard({ indicator, latest }: Props) {
             {formatRate(latest.value, indicator.unit)}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Vigente em <time dateTime={latest.date}>{formatDate(latest.date)}</time>
+            <time dateTime={latest.date}>{referenceLabel(indicator, latest.date)}</time>
           </p>
           {latest.change12m !== null && latest.reference12m && (
             <p className="mt-3 text-sm">
@@ -29,7 +29,7 @@ export function IndicatorCard({ indicator, latest }: Props) {
                 {formatChange(latest.change12m, indicator.change_unit)}
               </span>{" "}
               <span className="text-muted-foreground">
-                em 12 meses (vs. {formatDate(latest.reference12m)})
+                em 12 meses (vs. {formatReference(indicator, latest.reference12m)})
               </span>
             </p>
           )}

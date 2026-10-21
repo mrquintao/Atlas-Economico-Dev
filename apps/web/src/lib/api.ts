@@ -1,4 +1,4 @@
-import type { ApiErrorBody, ObservationsResponse, RequestedFrequency } from "@/types/api";
+import type { ApiErrorBody, Indicator, ObservationsResponse, RequestedFrequency } from "@/types/api";
 import type { DateRange } from "@/lib/period";
 
 /** The frontend only talks to the internal API, never to official sources directly. */
@@ -38,18 +38,10 @@ export function observationsUrl(
   return `${API_BASE_URL}/api/v1/indicators/${encodeURIComponent(code)}/observations?${params}`;
 }
 
-export async function fetchObservations(
-  code: string,
-  range: DateRange,
-  frequency: RequestedFrequency,
-  signal?: AbortSignal,
-): Promise<ObservationsResponse> {
+async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(observationsUrl(code, range, frequency), {
-      signal,
-      headers: { Accept: "application/json" },
-    });
+    response = await fetch(url, { signal, headers: { Accept: "application/json" } });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") throw error;
     throw new ApiError(
@@ -68,5 +60,18 @@ export async function fetchObservations(
   if (body === null) {
     throw new ApiError("Resposta inválida da API.", response.status, "invalid_response");
   }
-  return body as ObservationsResponse;
+  return body as T;
+}
+
+export function fetchObservations(
+  code: string,
+  range: DateRange,
+  frequency: RequestedFrequency,
+  signal?: AbortSignal,
+): Promise<ObservationsResponse> {
+  return getJson<ObservationsResponse>(observationsUrl(code, range, frequency), signal);
+}
+
+export function fetchIndicators(signal?: AbortSignal): Promise<Indicator[]> {
+  return getJson<Indicator[]>(`${API_BASE_URL}/api/v1/indicators`, signal);
 }

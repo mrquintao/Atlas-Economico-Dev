@@ -17,6 +17,56 @@ import { buildTimeSeriesOption, type ChartPalette } from "./chart-option";
 
 echarts.use([LineChart, GridComponent, TooltipComponent, DataZoomComponent, AriaComponent, CanvasRenderer]);
 
+/**
+ * Synchronisation of cursor and zoom across the dashboard's charts, by date. (echarts.connect
+ * matches by data index, which fails across series of different lengths/frequencies, and
+ * combining both mechanisms makes them re-trigger each other.)
+ */
+const syncedCharts = new Set<echarts.ECharts>();
+let propagating = false;
+
+interface AxisPointerEvent {
+  axesInfo?: { axisDim: string; value: number }[];
+}
+
+function forOthers(source: echarts.ECharts, action: (chart: echarts.ECharts) => void) {
+  if (propagating) return;
+  propagating = true;
+  try {
+    for (const chart of syncedCharts) {
+      if (chart !== source && !chart.isDisposed()) action(chart);
+    }
+  } finally {
+    propagating = false;
+  }
+}
+
+function syncCursor(source: echarts.ECharts, event: AxisPointerEvent) {
+  const time = event.axesInfo?.find((a) => a.axisDim === "x")?.value;
+  forOthers(source, (chart) => {
+    if (time === undefined) {
+      chart.dispatchAction({ type: "hideTip" });
+      return;
+    }
+    const x = chart.convertToPixel({ xAxisIndex: 0 }, time);
+    if (Number.isFinite(x)) chart.dispatchAction({ type: "showTip", x, y: chart.getHeight() / 2 });
+  });
+}
+
+function syncZoom(source: echarts.ECharts) {
+  const option = source.getOption() as { dataZoom?: { start?: number; end?: number }[] };
+  const zoom = option.dataZoom?.[0];
+  if (zoom?.start === undefined || zoom.end === undefined) return;
+  // All charts share the same x-axis domain, so the same percentages are the same dates.
+  forOthers(source, (chart) =>
+    chart.dispatchAction({ type: "dataZoom", start: zoom.start, end: zoom.end }),
+  );
+}
+
+function hideOthers(source: echarts.ECharts) {
+  forOthers(source, (chart) => chart.dispatchAction({ type: "hideTip" }));
+}
+
 function readPalette(): ChartPalette {
   const css = getComputedStyle(document.documentElement);
   const v = (name: string) => css.getPropertyValue(name).trim();
@@ -46,12 +96,24 @@ interface Props {
   name: string;
   unit: string;
   frequency: Frequency;
+  aggregated: boolean;
+  step: boolean;
+  domain: { min: string; max: string } | null;
   observations: Observation[];
   /** Short textual summary for assistive technology. */
   summary: string;
 }
 
-export function TimeSeriesChart({ name, unit, frequency, observations, summary }: Props) {
+export function TimeSeriesChart({
+  name,
+  unit,
+  frequency,
+  aggregated,
+  step,
+  domain,
+  observations,
+  summary,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
   const palette = usePalette();
@@ -60,11 +122,16 @@ export function TimeSeriesChart({ name, unit, frequency, observations, summary }
     const container = containerRef.current;
     if (!container) return;
     const chart = echarts.init(container, undefined, { renderer: "canvas" });
+    syncedCharts.add(chart);
+    chart.on("updateAxisPointer", (event) => syncCursor(chart, event as AxisPointerEvent));
+    chart.on("dataZoom", () => syncZoom(chart));
+    chart.getZr().on("globalout", () => hideOthers(chart));
     chartRef.current = chart;
     const observer = new ResizeObserver(() => chart.resize());
     observer.observe(container);
     return () => {
       observer.disconnect();
+      syncedCharts.delete(chart);
       chart.dispose();
       chartRef.current = null;
     };
@@ -73,10 +140,19 @@ export function TimeSeriesChart({ name, unit, frequency, observations, summary }
   useEffect(() => {
     if (!chartRef.current || !palette) return;
     chartRef.current.setOption(
-      buildTimeSeriesOption({ name, unit, frequency, observations, palette }),
+      buildTimeSeriesOption({
+        name,
+        unit,
+        frequency,
+        aggregated,
+        observations,
+        palette,
+        step,
+        domain,
+      }),
       { notMerge: true },
     );
-  }, [name, unit, frequency, observations, palette]);
+  }, [name, unit, frequency, aggregated, observations, palette, step, domain]);
 
   return (
     <figure className="m-0">
