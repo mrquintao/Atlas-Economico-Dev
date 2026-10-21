@@ -1,4 +1,10 @@
-import type { ApiErrorBody, Indicator, ObservationsResponse, RequestedFrequency } from "@/types/api";
+import type {
+  ApiErrorBody,
+  Indicator,
+  NationalDashboard,
+  ObservationsResponse,
+  RequestedFrequency,
+} from "@/types/api";
 import type { DateRange } from "@/lib/period";
 
 /** The frontend only talks to the internal API, never to official sources directly. */
@@ -74,4 +80,9 @@ export function fetchObservations(
 
 export function fetchIndicators(signal?: AbortSignal): Promise<Indicator[]> {
   return getJson<Indicator[]>(`${API_BASE_URL}/api/v1/indicators`, signal);
+}
+
+/** Latest value and 12-month change of every national dashboard indicator, in one request. */
+export function fetchNationalDashboard(signal?: AbortSignal): Promise<NationalDashboard> {
+  return getJson<NationalDashboard>(`${API_BASE_URL}/api/v1/dashboard/national`, signal);
 }

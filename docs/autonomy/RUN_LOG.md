@@ -3,6 +3,22 @@
 Entradas curtas, da mais recente para a mais antiga: o que foi entregue, o que foi validado, as falhas e
 como foram corrigidas, e as decisões relevantes. Os detalhes ficam nos PRs, nas issues e nos ADRs.
 
+## 2026-10-21 — M3 concluída: `GET /api/v1/dashboard/national` (issue #5, PR #32)
+
+- Backend: `services/dashboard.py` (último valor e mesmo mês do ano anterior, reaproveitando
+  `load_series`; série diária lida pelo último valor de cada mês), esquema `NationalDashboardOut` com
+  `status` (`available`/`no_data`), `aggregation`, `latest` (com `partial`) e `change_12m` em `change_unit`;
+  diferença calculada em `Decimal`. `Cache-Control: public, max-age=300`; 500 declarado no OpenAPI.
+- Frontend: os três cartões usam uma única requisição (antes, uma série mensal completa por cartão);
+  `latestFromMonthly` substituída por `latestFromDashboard`.
+- Validação com dados reais (banco recriado: 10.093 dias de Selic, 237 meses de DBGG, 550 de IPCA):
+  resposta idêntica ao cálculo antigo do cartão nos 3 indicadores (sem o ruído de float do JS) e
+  conferida contra SGS 432, SGS 13762 e SIDRA 1737/2265.
+- qa-auditor: sem críticos/altos. Corrigidos: mês parcial não sinalizado (novo `latest.partial`),
+  comparação diária documentada, 500 declarado e testado, teste de equivalência com série longa,
+  consulta repetida da geografia. Registrado: retry repetido por cartão em erro (baixo).
+- Testes: 153 pytest, 53 vitest.
+
 ## 2026-10-21 — M2 concluída: IPCA 12 meses (issue #4, PR #30, merge `93decf8`)
 
 - Conector `integrations/ibge/sidra.py` (tabela 1737, variável 2265, validada na API); ingestão genérica

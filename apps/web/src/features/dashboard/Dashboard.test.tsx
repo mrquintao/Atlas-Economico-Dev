@@ -2,7 +2,13 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Indicator, Observation, ObservationsResponse } from "@/types/api";
+import type {
+  Indicator,
+  NationalDashboard,
+  NationalDashboardItem,
+  Observation,
+  ObservationsResponse,
+} from "@/types/api";
 
 import { Dashboard, storedBounds } from "./Dashboard";
 
@@ -153,6 +159,37 @@ const ipcaSeries = response(
   "monthly",
 );
 
+function dashboardItem(
+  indicator: Indicator,
+  latest: [string, number, string],
+  yearAgo: [string, number] | null,
+): NationalDashboardItem {
+  const [date, value, periodStart] = latest;
+  return {
+    indicator,
+    status: "available",
+    aggregation: { method: "none", description: "Valores na frequência original." },
+    latest: { date, value, period_start: periodStart, period_end: date, partial: false },
+    change_12m: yearAgo
+      ? {
+          value: Math.round((value - yearAgo[1]) * 100) / 100,
+          change_unit: "p.p.",
+          reference_date: yearAgo[0],
+          reference_value: yearAgo[1],
+        }
+      : null,
+  };
+}
+
+const nationalDashboard: NationalDashboard = {
+  geography: { ibge_code: "1", acronym: "BR", name: "Brasil", geographic_level: "country" },
+  indicators: [
+    dashboardItem(selic, ["2026-10-21", 13.75, "2026-10-01"], ["2025-10-31", 15]),
+    dashboardItem(dbgg, ["2026-08-01", 82.87, "2026-08-01"], ["2025-08-01", 77.31]),
+    dashboardItem(ipca, ["2026-09-01", 4.58, "2026-09-01"], ["2025-09-01", 5.17]),
+  ],
+};
+
 /** A card in the "Indicadores em destaque" section (chart panels may share the name). */
 async function findHighlight(name: string): Promise<HTMLElement> {
   const highlights = screen.getByRole("region", { name: "Indicadores em destaque" });
@@ -166,18 +203,18 @@ async function findHighlight(name: string): Promise<HTMLElement> {
 let fetchMock: ReturnType<typeof vi.fn>;
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
 
-/** Observation requests for one indicator, excluding the full-history "latest value" request. */
+/** Observation (chart) requests for one indicator. */
 function seriesRequests(code: string): URL[] {
   return fetchMock.mock.calls
     .map(([url]) => new URL(String(url)))
-    .filter((u) => u.pathname.includes(`/${code}/observations`))
-    .filter((u) => u.searchParams.has("start_date") || u.searchParams.get("frequency") !== "monthly");
+    .filter((u) => u.pathname.includes(`/${code}/observations`));
 }
 
-/** Routes the synthetic API: catalog, Selic (card = full monthly; chart = daily) and DBGG. */
+/** Routes the synthetic API: catalog, national dashboard (cards) and the chart series. */
 async function defaultFetch(url: string): Promise<Response> {
   const { pathname, searchParams } = new URL(url);
   if (pathname.endsWith("/api/v1/indicators")) return json([dbgg, ipca, selic]);
+  if (pathname.endsWith("/api/v1/dashboard/national")) return json(nationalDashboard);
   const start = searchParams.get("start_date");
   if (start === "2010-01-01") {
     return json(response(pathname.includes("DBGG") ? dbgg : selic, [], "daily"));
@@ -187,8 +224,7 @@ async function defaultFetch(url: string): Promise<Response> {
   }
   if (pathname.includes("DBGG_GDP")) return json(dbggSeries);
   if (pathname.includes("IPCA_12M")) return json(ipcaSeries);
-  const latestRequest = searchParams.get("frequency") === "monthly" && !start;
-  return json(latestRequest ? selicMonthly : selicDaily);
+  return json(searchParams.get("frequency") === "monthly" ? selicMonthly : selicDaily);
 }
 
 beforeEach(() => {
@@ -232,6 +268,34 @@ describe("Dashboard", () => {
         name: "Instituto Brasileiro de Geografia e Estatística — SIDRA 1737 (v. 2265)",
       }),
     ).toHaveAttribute("href", ipca.source_url);
+  });
+
+  it("loads every card from a single national dashboard request", async () => {
+    render(<Dashboard />);
+    await findHighlight("IPCA 12 meses");
+    const paths = fetchMock.mock.calls.map(([url]) => new URL(String(url)).pathname);
+    expect(paths.filter((p) => p.endsWith("/dashboard/national"))).toHaveLength(1);
+    // Cards no longer load full histories: every observations request is a chart request.
+    for (const u of fetchMock.mock.calls.map(([url]) => new URL(String(url)))) {
+      if (u.pathname.includes("/observations")) expect(u.searchParams.get("start_date")).not.toBeNull();
+    }
+  });
+
+  it("shows an explicit absence on a card without data", async () => {
+    fetchMock.mockImplementation(async (url: string) =>
+      new URL(url).pathname.endsWith("/dashboard/national")
+        ? json({
+            ...nationalDashboard,
+            indicators: nationalDashboard.indicators.map((i) =>
+              i.indicator.code === "IPCA_12M" ? { ...i, status: "no_data", latest: null, change_12m: null } : i,
+            ),
+          })
+        : defaultFetch(url),
+    );
+    render(<Dashboard />);
+    const card = await findHighlight("IPCA 12 meses");
+    expect(within(card).getByText("Sem dados disponíveis.")).toBeInTheDocument();
+    expect(within(card).queryByText(/^0/)).not.toBeInTheDocument();
   });
 
   it("renders one synchronised chart per indicator for the default period", async () => {
@@ -365,9 +429,7 @@ describe("Dashboard loading and error states", () => {
   it("offers retry on a failed card and recovers", async () => {
     let failCards = true;
     fetchMock.mockImplementation(async (url: string) => {
-      const u = new URL(url);
-      const cardRequest = u.searchParams.get("frequency") === "monthly" && !u.searchParams.has("start_date");
-      if (failCards && cardRequest && u.pathname.includes("SELIC")) {
+      if (failCards && new URL(url).pathname.endsWith("/dashboard/national")) {
         return json({ error: { code: "boom", message: "Cartão indisponível." } }, 503);
       }
       return defaultFetch(url);

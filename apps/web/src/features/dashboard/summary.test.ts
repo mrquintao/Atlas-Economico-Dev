@@ -1,26 +1,31 @@
 import { describe, expect, it } from "vitest";
 
-import type { Observation, ObservationsResponse } from "@/types/api";
+import type { NationalDashboardItem, ObservationsResponse } from "@/types/api";
 
-import { describeSeries, latestFromMonthly, referenceLabel, sourceSeriesLabel } from "./summary";
+import { describeSeries, latestFromDashboard, referenceLabel, sourceSeriesLabel } from "./summary";
 
 // Synthetic test data.
-function month(periodStart: string, date: string, value: number): Observation {
-  return { date, value, period_start: periodStart, period_end: periodStart, partial: false };
+function item(partial: Partial<NationalDashboardItem>): NationalDashboardItem {
+  return {
+    indicator: {} as NationalDashboardItem["indicator"],
+    status: "available",
+    aggregation: { method: "last_value_of_period", description: "Último valor do mês." },
+    latest: null,
+    change_12m: null,
+    ...partial,
+  };
 }
 
-describe("latestFromMonthly", () => {
-  it("returns null for an empty series instead of zero", () => {
-    expect(latestFromMonthly([])).toBeNull();
+const latest = { date: "2026-10-21", value: 13.75, period_start: "2026-10-01", period_end: "2026-10-31", partial: true };
+
+describe("latestFromDashboard", () => {
+  it("returns null for an indicator without data instead of zero", () => {
+    expect(latestFromDashboard(item({ status: "no_data" }))).toBeNull();
   });
 
-  it("computes the 12-month change in absolute terms", () => {
-    const result = latestFromMonthly([
-      month("2025-10-01", "2025-10-31", 15),
-      month("2026-09-01", "2026-09-30", 13.75),
-      month("2026-10-01", "2026-10-21", 13.75),
-    ]);
-    expect(result).toEqual({
+  it("uses the server-computed 12-month change", () => {
+    const change = { value: -1.25, change_unit: "p.p.", reference_date: "2025-10-31", reference_value: 15 };
+    expect(latestFromDashboard(item({ latest, change_12m: change }))).toEqual({
       value: 13.75,
       date: "2026-10-21",
       change12m: -1.25,
@@ -28,8 +33,8 @@ describe("latestFromMonthly", () => {
     });
   });
 
-  it("omits the 12-month change when that month is missing", () => {
-    expect(latestFromMonthly([month("2026-10-01", "2026-10-21", 13.75)])?.change12m).toBeNull();
+  it("omits the 12-month change when the API has no comparison", () => {
+    expect(latestFromDashboard(item({ latest }))).toMatchObject({ change12m: null, reference12m: null });
   });
 });
 

@@ -1,5 +1,5 @@
 import { formatChange, formatDate, formatMonth, formatRate } from "@/lib/format";
-import type { Indicator, Observation, ObservationsResponse } from "@/types/api";
+import type { Indicator, NationalDashboardItem, ObservationsResponse } from "@/types/api";
 
 export interface LatestSummary {
   value: number;
@@ -10,20 +10,16 @@ export interface LatestSummary {
 }
 
 /**
- * Latest value and 12-month change from a monthly (last-value-of-month) series.
- * Returns null when there are no observations.
+ * Card summary from the national dashboard endpoint, which computes the latest value and the
+ * 12-month change on the server. Returns null when the indicator has no stored data.
  */
-export function latestFromMonthly(observations: Observation[]): LatestSummary | null {
-  const last = observations.at(-1);
-  if (!last) return null;
-  const [year, month] = last.period_start.split("-");
-  const target = `${Number(year) - 1}-${month}-01`;
-  const yearAgo = observations.find((o) => o.period_start === target) ?? null;
+export function latestFromDashboard(item: NationalDashboardItem): LatestSummary | null {
+  if (!item.latest) return null;
   return {
-    value: last.value,
-    date: last.date,
-    change12m: yearAgo ? last.value - yearAgo.value : null,
-    reference12m: yearAgo ? yearAgo.date : null,
+    value: item.latest.value,
+    date: item.latest.date,
+    change12m: item.change_12m?.value ?? null,
+    reference12m: item.change_12m?.reference_date ?? null,
   };
 }
 
