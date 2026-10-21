@@ -5,7 +5,11 @@ date ranges, so the E2E tests never call the official sources and always see the
 
 - SELIC_TARGET (daily): 2004-01-01 to 2026-06-30, a step level that changes every 45 days;
 - DBGG_GDP (monthly): 2006-12 to 2026-05;
-- IPCA_12M (monthly): 2000-01 to 2026-05.
+- IPCA_12M (monthly): 2000-01 to 2026-05;
+- the nine state fiscal indicators (STATE_*, bimonthly and four-monthly) from 2023 to 2025 for
+  three UFs: SP with all nine, DF without STATE_NOMINAL_RESULT and MG with STATE_RCL and
+  STATE_DCL_RCL only (the other UFs have no state data), so the state pages show values,
+  explicit absences and the DF note.
 
 Every row is tagged `source_reference = "synthetic-e2e-fixture"` and every run carries
 `{"synthetic": true}`. The script refuses to run unless `ATLAS_E2E_SEED=1`, the database name says
@@ -81,6 +85,49 @@ def ipca_series() -> list[tuple[date, Decimal]]:
     ]
 
 
+# State fiscal indicators: (frequency in months, kind, base value). "level" grows 2% per period,
+# "ytd" accumulates from January (base x bimester of the year), "ratio" adds 0.5 per period.
+STATE_YEARS = (2023, 2024, 2025)
+STATE_INDICATORS: dict[str, tuple[int, str, Decimal]] = {
+    "STATE_RCL": (2, "level", Decimal("200000000000")),
+    "STATE_PERSONNEL_EXEC": (4, "level", Decimal("80000000000")),
+    "STATE_PERSONNEL_EXEC_RCL": (4, "ratio", Decimal("40")),
+    "STATE_INVESTMENTS": (2, "ytd", Decimal("1500000000")),
+    "STATE_PRIMARY_RESULT": (2, "ytd", Decimal("3000000000")),
+    "STATE_NOMINAL_RESULT": (2, "ytd", Decimal("-2000000000")),
+    "STATE_DC": (4, "level", Decimal("300000000000")),
+    "STATE_DCL": (4, "level", Decimal("250000000000")),
+    "STATE_DCL_RCL": (4, "ratio", Decimal("110")),
+}
+# Scale of each UF's values and the indicators it has (None = all nine).
+STATE_UFS: dict[str, tuple[Decimal, set[str] | None]] = {
+    "SP": (Decimal("1"), None),
+    "DF": (Decimal("0.2"), set(STATE_INDICATORS) - {"STATE_NOMINAL_RESULT"}),
+    "MG": (Decimal("0.5"), {"STATE_RCL", "STATE_DCL_RCL"}),
+}
+CENTS = Decimal("0.01")
+
+
+def state_series(code: str, scale: Decimal = Decimal("1")) -> list[tuple[date, date, Decimal]]:
+    """(period start, period end, value) of a state indicator, one row per bimester or
+    four-month period of 2023-2025. Ratios (% of RCL) are not scaled."""
+    months, kind, base = STATE_INDICATORS[code]
+    rows: list[tuple[date, date, Decimal]] = []
+    for year in STATE_YEARS:
+        for index, month in enumerate(range(1, 13, months)):
+            i = len(rows)
+            if kind == "level":
+                value = base * scale * (1 + Decimal("0.02") * i)
+            elif kind == "ytd":
+                value = base * scale * (index + 1)
+            else:
+                value = base + Decimal("0.5") * i
+            end_year, end_month = divmod(month + months - 1, 12)
+            end = date(year + end_year, end_month + 1, 1) - timedelta(days=1)
+            rows.append((date(year, month, 1), end, value.quantize(CENTS)))
+    return rows
+
+
 SERIES = {
     "SELIC_TARGET": selic_series,
     "DBGG_GDP": dbgg_series,
@@ -150,7 +197,47 @@ def seed(session: Session) -> dict[str, int]:
             )
         )
         counts[code] = len(points)
+    counts.update(seed_states(session))
     session.commit()
+    return counts
+
+
+def seed_states(session: Session) -> dict[str, int]:
+    """State fiscal indicators for the UFs in STATE_UFS (derived indicators: no ingestion run)."""
+    counts: dict[str, int] = {}
+    for uf, (scale, codes) in STATE_UFS.items():
+        geo = session.scalar(
+            select(GeographicUnit).where(
+                GeographicUnit.geographic_level == "state", GeographicUnit.acronym == uf
+            )
+        )
+        if geo is None:
+            raise SystemExit("Run the migrations first (UFs not seeded).")
+        for code in STATE_INDICATORS:
+            if codes is not None and code not in codes:
+                continue
+            indicator = session.scalar(select(Indicator).where(Indicator.code == code))
+            if indicator is None:
+                raise SystemExit(f"Indicator {code} missing from the catalog.")
+            rows = state_series(code, scale)
+            session.execute(
+                insert(Observation),
+                [
+                    {
+                        "indicator_id": indicator.id,
+                        "geographic_unit_id": geo.id,
+                        "reference_date": start,
+                        "period_start": start,
+                        "period_end": end,
+                        "value": value,
+                        "collected_at": COLLECTED_AT,
+                        "source_reference": SOURCE_REFERENCE,
+                        "metadata_json": {"synthetic": True},
+                    }
+                    for start, end, value in rows
+                ],
+            )
+            counts[f"{code}/{uf}"] = len(rows)
     return counts
 
 

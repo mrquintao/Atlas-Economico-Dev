@@ -11,10 +11,10 @@ import {
   LoadingState,
   RefreshingIndicator,
 } from "@/components/ui/states";
-import { useObservations } from "@/hooks/useObservations";
-import { formatChange, formatRate } from "@/lib/format";
+import { useObservations, type ResourceState } from "@/hooks/useObservations";
+import { formatValue, formatValueChange } from "@/lib/format";
 import type { DateRange } from "@/lib/period";
-import type { Indicator } from "@/types/api";
+import type { Indicator, ObservationsResponse } from "@/types/api";
 
 import type { DashboardIndicator } from "./indicators";
 import { MethodologyPanel } from "./MethodologyPanel";
@@ -66,21 +66,24 @@ export function IndicatorPanel({ config, indicator, range, domain }: Props) {
         </div>
       </CardHeader>
       <CardContent>
-        <SeriesBody series={series} config={config} domain={domain} />
+        <SeriesBody series={series} step={config.step} domain={domain} />
       </CardContent>
     </Card>
   );
 }
 
-function SeriesBody({
-  series,
-  config,
-  domain,
-}: {
-  series: ReturnType<typeof useObservations>;
-  config: DashboardIndicator;
+interface SeriesBodyProps {
+  series: ResourceState<ObservationsResponse> & { retry: () => void };
+  step: boolean;
   domain: Props["domain"];
-}) {
+  /** Year-to-date flows: the chart does not join consecutive years. */
+  resetsEachYear?: boolean;
+  /** Extra notes shown above the aggregation description (e.g. the accumulation window). */
+  notes?: string[];
+}
+
+/** Statistics, chart, aggregation note and methodology of one loaded series. */
+export function SeriesBody({ series, step, domain, resetsEachYear = false, notes = [] }: SeriesBodyProps) {
   const data = series.data;
   if (series.status === "error" && !data) {
     return <ErrorState message={series.error.message} onRetry={series.retry} />;
@@ -103,12 +106,12 @@ function SeriesBody({
       {series.status === "loading" && <RefreshingIndicator />}
       {stats ? (
         <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
-          <Stat label={`Início (${fmt(stats.first.date)})`} value={formatRate(stats.first.value, unit)} />
-          <Stat label={`Fim (${fmt(stats.last.date)})`} value={formatRate(stats.last.value, unit)} />
-          <Stat label="Variação no período" value={formatChange(stats.change, stats.change_unit)} />
+          <Stat label={`Início (${fmt(stats.first.date)})`} value={formatValue(stats.first.value, unit)} />
+          <Stat label={`Fim (${fmt(stats.last.date)})`} value={formatValue(stats.last.value, unit)} />
+          <Stat label="Variação no período" value={formatValueChange(stats.change, stats.change_unit)} />
           <Stat
             label="Mínima / máxima"
-            value={`${formatRate(stats.min.value, unit)} / ${formatRate(stats.max.value, unit)}`}
+            value={`${formatValue(stats.min.value, unit)} / ${formatValue(stats.max.value, unit)}`}
           />
         </dl>
       ) : null}
@@ -120,12 +123,18 @@ function SeriesBody({
           unit={unit}
           frequency={data.frequency}
           aggregated={aggregated}
-          step={config.step}
+          step={step}
           domain={domain}
           observations={data.observations}
           summary={describeSeries(data)}
+          resetsEachYear={resetsEachYear}
         />
       )}
+      {notes.map((note) => (
+        <p key={note} className="text-xs text-muted-foreground">
+          {note}
+        </p>
+      ))}
       <p className="text-xs text-muted-foreground">{data.aggregation.description}</p>
       <MethodologyPanel response={data} />
     </div>

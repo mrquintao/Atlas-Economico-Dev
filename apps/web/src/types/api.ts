@@ -113,6 +113,36 @@ export interface NationalDashboard {
   indicators: NationalDashboardItem[];
 }
 
+/** One state indicator of a UF (/states/{uf}/indicators): the series plus availability. */
+export interface StateIndicatorSeries extends ObservationsResponse {
+  /** "no_data": nothing stored for the UF. "available" with count 0: nothing in the range. */
+  status: "available" | "no_data";
+  /** Accumulation window of each published value (year to date, 12 months, balance). */
+  accumulation_window: string;
+}
+
+export interface StateIndicators {
+  geography: Geography;
+  start_date: string | null;
+  end_date: string | null;
+  /** Comparability caveats of the UF (e.g. the Distrito Federal). */
+  notes: string[];
+  indicators: StateIndicatorSeries[];
+}
+
+/** Latest value of a state indicator; `change_12m` compares with the same period a year earlier. */
+export interface StateDashboardItem extends NationalDashboardItem {
+  accumulation_window: string;
+  /** Basis and unit of the comparison (null without comparison). */
+  change_note: string | null;
+}
+
+export interface StateDashboard {
+  geography: Geography;
+  notes: string[];
+  indicators: StateDashboardItem[];
+}
+
 export interface ApiErrorBody {
   error: { code: string; message: string; details?: unknown };
 }

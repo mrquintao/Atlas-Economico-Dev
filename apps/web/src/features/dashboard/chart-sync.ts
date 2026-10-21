@@ -6,11 +6,28 @@
  */
 import type { ECharts } from "echarts/core";
 
+import type { Frequency } from "@/types/api";
+
 /**
- * How a chart's points are dated. "month" = one point per month, dated on the 1st (SGS
- * convention) but standing for the whole month; "day" = points dated by the actual day.
+ * How a chart's points are dated. "day" = points dated by the actual day; the others = one point
+ * per period, dated on the period's first day (SGS/SICONFI convention) but standing for the whole
+ * period: a month, a bimester (RREO), a quarter, a four-month period (RGF) or a year.
  */
-export type Granularity = "day" | "month";
+export type Granularity = "day" | "month" | "bimonthly" | "quarterly" | "four_monthly" | "annual";
+
+const PERIOD_MONTHS: Record<Exclude<Granularity, "day">, number> = {
+  month: 1,
+  bimonthly: 2,
+  quarterly: 3,
+  four_monthly: 4,
+  annual: 12,
+};
+
+/** Granularity of a plotted series: monthly values aggregated from a daily series are dated by day. */
+export function granularityOf(frequency: Frequency, aggregated: boolean): Granularity {
+  if (frequency === "daily" || aggregated) return "day";
+  return frequency === "monthly" ? "month" : frequency;
+}
 
 export interface SyncedChartMeta {
   granularity: Granularity;
@@ -26,7 +43,7 @@ export function isoToTime(iso: string): number {
   return new Date(y, m - 1, d).getTime();
 }
 
-/** Span covered by a series' first and last point; a month point covers the whole month. */
+/** Span covered by a series' first and last point; a period point covers the whole period. */
 export function dataExtent(
   dates: string[],
   granularity: Granularity,
@@ -37,24 +54,26 @@ export function dataExtent(
   const max = isoToTime(last);
   return {
     min: isoToTime(first),
-    max: granularity === "month" ? alignTime(max, "month", "day") : max,
+    max: alignTime(max, granularity, "day"),
   };
 }
 
 /**
  * Maps a hovered time (ms, local calendar) from a source chart to the time to highlight in a
- * target chart. A day maps to the month containing it (never to the nearest month); a month
- * maps to its last day, the date its end-of-month position refers to.
+ * target chart. A period point first stands for its last day (its end-of-period position); that
+ * day then maps to the target period containing it (never to the nearest one). So a day maps to
+ * its month, a month to its last day, and a four-month period to its last bimester.
  */
 export function alignTime(time: number, source: Granularity, target: Granularity): number {
-  const date = new Date(time);
-  if (target === "month") {
-    return new Date(date.getFullYear(), date.getMonth(), 1).getTime();
+  let date = new Date(time);
+  if (source !== "day") {
+    const size = PERIOD_MONTHS[source];
+    const first = Math.floor(date.getMonth() / size) * size;
+    date = new Date(date.getFullYear(), first + size, 0);
   }
-  if (source === "month") {
-    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getTime();
-  }
-  return time;
+  if (target === "day") return date.getTime();
+  const size = PERIOD_MONTHS[target];
+  return new Date(date.getFullYear(), Math.floor(date.getMonth() / size) * size, 1).getTime();
 }
 
 const charts = new Map<ECharts, SyncedChartMeta>();

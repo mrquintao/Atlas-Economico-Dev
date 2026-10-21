@@ -17,4 +17,12 @@ describe("SiteNav", () => {
     expect(screen.getByRole("link", { name: "Metodologia" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "Fontes de dados" })).toHaveAttribute("href", "/fontes");
   });
+
+  it('keeps "Estados" current on a state page', () => {
+    pathname.current = "/estados/MG";
+    render(<SiteNav />);
+    expect(screen.getByRole("link", { name: "Estados" })).toHaveAttribute("href", "/estados");
+    expect(screen.getByRole("link", { name: "Estados" })).toHaveAttribute("aria-current", "location");
+    expect(screen.getByRole("link", { name: "Brasil" })).not.toHaveAttribute("aria-current");
+  });
 });

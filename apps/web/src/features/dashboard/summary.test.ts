@@ -59,6 +59,43 @@ describe("describeSeries", () => {
     expect(text).toContain("máxima de 87,66% do PIB em out/2020");
     expect(text).not.toMatch(/\d{2}\/\d{2}\/\d{4}/);
   });
+
+  it("describes a fiscal series in its own periods and amounts in reais", () => {
+    const response = {
+      indicator: { short_name: "Receita corrente líquida" },
+      unit: "R$ correntes",
+      frequency: "bimonthly",
+      observations: [],
+      stats: {
+        first: { date: "2018-01-01", value: 150e9 },
+        last: { date: "2025-11-01", value: 266.2e9 },
+        change: 116.2e9,
+        change_unit: "R$ correntes",
+        min: { date: "2018-01-01", value: 150e9 },
+        max: { date: "2025-11-01", value: 266.2e9 },
+      },
+    } as unknown as ObservationsResponse;
+    const text = describeSeries(response);
+    expect(text).toContain("de 1º bim./2018 a 6º bim./2025");
+    expect(text).toContain("passou de R$ 150,00 bi para R$ 266,20 bi (+R$ 116,20 bi)");
+  });
+
+  it("describes a series without statistics (year-to-date flows) by its last value only", () => {
+    const point = (date: string, value: number) => ({ date, value, period_start: date, period_end: date, partial: false });
+    const response = {
+      indicator: { short_name: "Resultado primário" },
+      unit: "R$ correntes",
+      frequency: "bimonthly",
+      stats: null,
+      observations: [point("2024-01-01", 2e9), point("2025-11-01", -3.5e9)],
+    } as unknown as ObservationsResponse;
+    expect(describeSeries(response)).toBe(
+      "Resultado primário de 1º bim./2024 a 6º bim./2025: 2 valores publicados; o último é -R$ 3,50 bi.",
+    );
+    expect(describeSeries({ ...response, observations: [] })).toBe(
+      "Resultado primário: sem observações no período selecionado.",
+    );
+  });
 });
 
 describe("sourceSeriesLabel and the monthly reference prefix", () => {
