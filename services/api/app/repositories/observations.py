@@ -21,14 +21,19 @@ class ObservationRow:
 
 
 def _filters(indicator_id: int, geographic_unit_id: int, start: date | None, end: date | None):
+    """An observation matches when its reference period overlaps ``[start, end]``.
+
+    For daily series the period is the day itself, so this is a plain date filter. For monthly
+    series (dated on the 1st by the SGS) a range starting mid-month still includes that month.
+    """
     clauses = [
         Observation.indicator_id == indicator_id,
         Observation.geographic_unit_id == geographic_unit_id,
     ]
     if start is not None:
-        clauses.append(Observation.reference_date >= start)
+        clauses.append(Observation.period_end >= start)
     if end is not None:
-        clauses.append(Observation.reference_date <= end)
+        clauses.append(Observation.period_start <= end)
     return clauses
 
 

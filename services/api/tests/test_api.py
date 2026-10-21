@@ -281,3 +281,68 @@ def test_monthly_series_cannot_be_converted_to_daily(client: TestClient) -> None
 def test_catalog_lists_both_indicators(client: TestClient) -> None:
     codes = [i["code"] for i in client.get("/api/v1/indicators").json()]
     assert codes == ["DBGG_GDP", "SELIC_TARGET"]
+
+
+# --- Unknown query parameters (issue #3) ---
+
+
+@pytest.mark.parametrize(
+    ("url", "params"),
+    [
+        (URL, {"start": "2030-01-01"}),  # typo of start_date: used to return the whole series
+        (URL, {"start_date": "2024-01-01", "foo": "1"}),
+        ("/api/v1/indicators", {"page": "2"}),
+        ("/api/v1/health", {"verbose": "true"}),
+    ],
+)
+def test_unknown_query_parameters_are_rejected(
+    client: TestClient, url: str, params: dict[str, str]
+) -> None:
+    response = client.get(url, params=params)
+    assert response.status_code == 422
+    body = response.json()["error"]
+    assert body["code"] == "unknown_parameter"
+    known = {"start_date", "end_date", "geography", "frequency"}
+    assert body["details"]["unknown"] == sorted(set(params) - known)
+
+
+def test_known_query_parameters_still_accepted(client: TestClient, seeded: None) -> None:
+    params = {"start_date": "2024-02-01", "end_date": "2024-02-02", "geography": "BR",
+              "frequency": "original"}
+    assert client.get(URL, params=params).status_code == 200
+
+
+def test_docs_and_openapi_unaffected(client: TestClient) -> None:
+    assert client.get("/openapi.json").status_code == 200
+    assert client.get("/docs").status_code == 200
+
+
+# --- Monthly series are filtered by reference-period overlap (issue #3) ---
+
+
+def test_monthly_series_includes_month_overlapping_start(
+    client: TestClient, dbgg_seeded: None
+) -> None:
+    # Jan/2024 covers 01–31/01: a range starting on 15/01 overlaps it.
+    body = client.get(DBGG_URL, params={"start_date": "2024-01-15"}).json()
+    assert [o["date"] for o in body["observations"]] == ["2024-01-01", "2024-02-01", "2024-03-01"]
+    assert body["start_date"] == "2024-01-15"  # effective start never earlier than requested
+
+
+def test_monthly_series_includes_month_overlapping_end(
+    client: TestClient, dbgg_seeded: None
+) -> None:
+    body = client.get(DBGG_URL, params={"end_date": "2024-02-15"}).json()
+    assert [o["date"] for o in body["observations"]] == ["2024-01-01", "2024-02-01"]
+
+
+def test_monthly_series_excludes_months_outside_range(
+    client: TestClient, dbgg_seeded: None
+) -> None:
+    body = client.get(DBGG_URL, params={"start_date": "2024-02-01", "end_date": "2024-02-29"}).json()
+    assert [o["date"] for o in body["observations"]] == ["2024-02-01"]
+
+
+def test_daily_series_filtering_is_unchanged(client: TestClient, seeded: None) -> None:
+    body = client.get(URL, params={"start_date": "2024-02-15", "end_date": "2024-02-16"}).json()
+    assert [o["date"] for o in body["observations"]] == ["2024-02-15", "2024-02-16"]
