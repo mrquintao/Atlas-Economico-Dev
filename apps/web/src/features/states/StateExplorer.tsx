@@ -201,7 +201,7 @@ function BrazilMap({
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       toggle(acronym);
-    } else if (event.key === "Escape") {
+    } else if (event.key === "Escape" && selected !== null) {
       onSelect(null);
     }
   }
@@ -256,6 +256,18 @@ function BrazilMap({
           />
         ))}
         {selectedShape && (
+          // A light outline separates the selection from its neighbours, whatever their state.
+          <path
+            d={selectedShape.d}
+            fill="none"
+            stroke="#ffffff"
+            strokeWidth={2.5}
+            strokeLinejoin="round"
+            pointerEvents="none"
+            aria-hidden
+          />
+        )}
+        {selectedShape && (
           <text
             x={selectedShape.centroid[0]}
             y={selectedShape.centroid[1]}
@@ -293,7 +305,8 @@ function BrazilMap({
           role="tooltip"
           className="pointer-events-none absolute z-10 w-max max-w-56 -translate-x-1/2 -translate-y-full rounded-md bg-foreground px-2.5 py-1.5 text-xs text-white shadow-md"
           style={{
-            left: `${(tip.x / WIDTH) * 100}%`,
+            // Clamped so the tooltip never spills past the map on narrow screens.
+            left: `${Math.min(Math.max((tip.x / WIDTH) * 100, 14), 86)}%`,
             top: `calc(${(tip.y / HEIGHT) * 100}% - 10px)`,
           }}
         >
