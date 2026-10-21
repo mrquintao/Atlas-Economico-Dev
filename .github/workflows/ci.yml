@@ -166,9 +166,63 @@ jobs:
             sleep 2
           done
           docker compose --profile scheduler logs --no-color scheduler | grep -q scheduler_waiting
+      - name: scripts/dev.sh docker (restart the stack through the dev script)
+        shell: bash
+        run: |
+          docker compose --profile scheduler down
+          scripts/dev.sh docker --no-data
+          curl -fsS http://localhost:8000/api/v1/health
+          curl -fsS http://localhost:3000 | grep -q "Brasil em Perspectiva"
       - name: Logs on failure
         if: failure()
         run: docker compose --profile scheduler logs --no-color
       - name: Stop stack
         if: always()
         run: docker compose --profile scheduler down -v
+
+  dev-script:
+    name: Dev script (shellcheck, local smoke)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: atlas
+          POSTGRES_PASSWORD: atlas
+          POSTGRES_DB: atlas
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U atlas" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.11.32"
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: ShellCheck
+        run: shellcheck scripts/*.sh
+      - name: Local run without external data (start, check, stop)
+        shell: bash
+        run: |
+          scripts/dev.sh --no-data > dev.log 2>&1 &
+          pid=$!
+          for _ in $(seq 150); do
+            grep -q "em execução" dev.log && break
+            kill -0 "$pid" 2>/dev/null || { cat dev.log; exit 1; }
+            sleep 2
+          done
+          grep -q "em execução" dev.log || { cat dev.log; exit 1; }
+          curl -fsS http://localhost:8000/api/v1/health
+          curl -fsS http://localhost:3000 | grep -q "Brasil em Perspectiva"
+          kill -TERM "$pid"
+          wait "$pid" || true
+          cat dev.log
+          # Both servers (and their child processes) must be gone.
+          ! curl -fsS -o /dev/null http://localhost:8000/api/v1/health
+          ! curl -fsS -o /dev/null http://localhost:3000

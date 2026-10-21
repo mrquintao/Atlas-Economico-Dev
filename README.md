@@ -44,6 +44,7 @@ services/api/             Backend FastAPI
   migrations/             Alembic (schema + seed do catálogo)
   tests/                  pytest
 infra/docker/             Dockerfiles
+scripts/dev.sh            Executa o projeto localmente com um único comando (ver "Início rápido")
 scripts/ingest.sh         Coleta incremental de todos os indicadores (para cron)
 docs/                     Arquitetura, catálogo, metodologia, API, pipeline, decisões
 ```
@@ -52,6 +53,30 @@ docs/                     Arquitetura, catálogo, metodologia, API, pipeline, de
 
 - **Docker + Docker Compose** (caminho mais simples), **ou**
 - Execução local: Python 3.12, [uv](https://docs.astral.sh/uv/) ≥ 0.11, Node.js 22, PostgreSQL 16.
+
+## Início rápido
+
+Um único comando prepara e executa o projeto (Linux, macOS ou WSL):
+
+```bash
+scripts/dev.sh                    # local: verifica pré-requisitos e o PostgreSQL, cria os .env,
+                                  # instala dependências, aplica migrações, faz a primeira coleta
+                                  # (banco vazio) e sobe API (:8000) e painel (:3000). Ctrl+C encerra.
+scripts/dev.sh --db-docker        # idem, subindo só o PostgreSQL com Docker Compose
+scripts/dev.sh data               # coleta incremental dos indicadores nacionais e da malha das UFs
+scripts/dev.sh data --states 2025 # + indicadores fiscais estaduais de 2025 (SICONFI, ~10 min)
+scripts/dev.sh docker             # tudo com Docker Compose (db, api, web) + primeira coleta
+scripts/dev.sh --help
+```
+
+- O modo local espera um PostgreSQL 16 com o banco configurado em `services/api/.env` (padrão:
+  `atlas`/`atlas` em `localhost:5432/atlas`; veja "Opção B, 1. Banco de dados"), ou use `--db-docker`.
+- A primeira coleta (só num banco vazio) busca os dados oficiais: a série diária da Selic desde 1999
+  leva de 2 a 4 minutos. Se a rede falhar, o script avisa e sobe a aplicação mesmo assim; os logs
+  ficam em `.dev/logs/`. O script nunca apaga dados.
+- Portas: `API_PORT=8010 WEB_PORT=3010 scripts/dev.sh` (o painel passa a usar a API dessa porta).
+
+As seções abaixo descrevem os mesmos passos manualmente.
 
 ## Opção A — Docker Compose
 
