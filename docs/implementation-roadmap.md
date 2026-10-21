@@ -28,7 +28,7 @@ Legenda de status: ✅ concluída · 🔄 em andamento · ⏳ pendente · ⛔ bl
 |---|---|---|---|---|---|
 | S1 | Unidades geográficas: 27 UFs e 5 regiões com códigos IBGE validados | M7 | §6.5, §10 | ✅ | #11 · PR #38 |
 | S2 | Malhas IBGE: conector de geometrias (GeoJSON) e endpoint de geometrias | S1 | §6.5, §15 | ✅ | #12 · PR #39 |
-| S3 | Conector SICONFI (RREO/RGF): limite de 1 req/s, paginação, retry, coleta incremental | S1 | §6.4, §11 | ⏳ | #13 |
+| S3 | Conector SICONFI (RREO/RGF): limite de 1 req/s, paginação, retry, coleta incremental | S1 | §6.4, §11 | ✅ | #13 · PR #40 |
 | S4 | Catálogo e normalização de indicadores fiscais estaduais (RCL, DCL, DCL/RCL, pessoal, primário, nominal), validados pelo economist | S3 | §16 | ⏳ | #14 |
 | S5 | API estadual: `/states/{uf}/indicators` e `/states/{uf}/dashboard` | S4 | §12 | ⏳ | #15 |
 | S6 | Mapa interativo do Brasil (D3 Geo): coroplético acessível, ausências explícitas, filtro temporal | S2, S5 | §15 | ⏳ | #16 |
