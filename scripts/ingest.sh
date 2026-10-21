@@ -1,8 +1,8 @@
 #!/usr/bin/env sh
-# Incremental collection of all implemented indicators. Suitable for cron, e.g. daily at 21:30
-# (after the BCB publishes):  30 21 * * * /path/to/repo/scripts/ingest.sh >> /var/log/atlas-ingest.log 2>&1
+# Incremental collection of every catalog indicator, for a host cron (outside Docker), e.g.
+#   0 6 * * * /path/to/repo/scripts/ingest.sh >> /var/log/atlas-ingest.log 2>&1
+# A failing indicator does not stop the others; the exit code is 1 if any of them failed.
+# With Docker Compose, prefer the `scheduler` service (README, "Coleta automática").
 set -eu
 cd "$(dirname "$0")/../services/api"
-for indicator in SELIC_TARGET DBGG_GDP IPCA_12M; do
-  uv run python -m app.ingestion.cli ingest "$indicator"
-done
+exec uv run python -m app.ingestion.cli ingest --all
