@@ -6,13 +6,13 @@
 | Campo | Valor |
 |---|---|
 | Atualizado em | 2026-10-21 |
-| Fase atual | 1 — MVP nacional |
-| Última entrega | M6 — testes E2E com Playwright (issue #8), PR #35: 11 testes do fluxo principal sobre fixture sintética protegida, job `E2E (Playwright)` no CI e no gate de merge (ADR 0008) |
-| Próxima entrega elegível | **M7 — verificação dos critérios de aceite do MVP e release `v0.1.0` ([#9](https://github.com/mrquintao/Atlas-Economico-Dev/issues/9))** |
-| Issue ativa | nenhuma até o início da M7 |
+| Fase atual | 1 — MVP nacional (critérios do §25 verificados; falta publicar a tag `v0.1.0`) |
+| Última entrega | M7 (parcial) — verificação do §25 com evidências (`docs/releases/v0.1.0.md`) e workflow `Release` (issue #9, PR #36). A tag e a release `v0.1.0` ainda **não existem** |
+| Próxima entrega elegível | Concluir a M7: disparar `Release` (`version=v0.1.0`) na `main` com CI verde e registrar o resultado. Depois, **S1 — unidades geográficas ([#11](https://github.com/mrquintao/Atlas-Economico-Dev/issues/11))** |
+| Issue ativa | #9 até a publicação da `v0.1.0` |
 | Branch | novo branch a partir da `main` atualizada |
-| Último commit integrado na `main` | merge do PR #35 (conferir com `git log origin/main -1`) |
-| Última validação | M6: `scripts/check.sh` em clone limpo (193→201 pytest, 72 vitest, lint, format, `alembic check`, typecheck, build); E2E 11/11 em 3 execuções locais seguidas e verde no CI em 3 commits consecutivos; mutações de `chart-sync.ts` detectadas pelos testes correspondentes |
+| Último commit integrado na `main` | merge do PR #36 (conferir com `git log origin/main -1`) |
+| Última validação | M7: execução do README (Opção B) em clone limpo com banco novo e coleta real (10.093/237/550), recoleta sem duplicações, 15 amostras = fonte oficial (DBGG integral), navegador claro/escuro/mobile sem erros, contraste da navegação 7,58:1; `scripts/check.sh` e CI da `main` verdes |
 
 ## Bloqueios
 
@@ -29,9 +29,11 @@
 
 ## Próxima ação recomendada
 
-Iniciar a M7 (#9): conferir os critérios de aceite do MVP (`PROJECT_SPEC.md` §25) contra o sistema
-implementado, registrar evidências e preparar a release `v0.1.0` (tag + release notes; sem publicação
-em hospedagem pública). Na M7, medir também o contraste da navegação (achado baixo da M5, #7).
+Disparar o workflow `Release` com `version=v0.1.0` na `main` (depois de o CI do merge do PR #36 ficar
+verde), conferir a tag e a release no GitHub e registrar o link da execução (M7 ✅, Fase 2). Se o
+workflow falhar, corrigir e registrar aqui. Depois, iniciar a Fase 2 pela S1 (#11):
+27 UFs e 5 regiões com códigos IBGE validados contra a API de localidades do IBGE (economist +
+data-engineer), via migração de seed.
 
 Achados menores pendentes (registrados nas issues/PRs): M2 — lacunas de vários meses recebem uma única
 quebra no gráfico; "Todo o histórico" começa em 1980 por causa do IPCA. M3 — em erro da requisição única
@@ -39,7 +41,7 @@ do dashboard, cada cartão mostra seu próprio "Tentar novamente" (mesmo padrão
 "em 12 meses" de série diária compara com o fechamento do mesmo mês do ano anterior (documentado em
 `docs/api.md`; mudar a regra exige decisão do economist). M4 — horários perdidos do agendador não são
 recuperados; sem trava contra coletas simultâneas do mesmo indicador (ADR 0007, limitações). M5 — achados
-baixos na issue #7 (foco nas âncoras internas, contraste da navegação a medir na M7, nome do site sem link).
+baixos na issue #7 (foco nas âncoras internas, nome do site sem link; contraste medido na M7: 7,58:1, ok).
 M6 — o E2E roda com `next start`, não com o servidor `standalone` da imagem; a topologia do Compose
 segue coberta só pelo smoke test do job Docker (ADR 0008).
 

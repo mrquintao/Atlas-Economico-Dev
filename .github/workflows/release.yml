@@ -1,0 +1,61 @@
+name: Release
+
+# Creates the tag and the GitHub release of a version from `main`, with the notes in
+# docs/releases/<version>.md. Only code releases: nothing is deployed anywhere (AGENT_POLICY §7).
+# Refuses to run unless every required CI check passed on the exact commit being tagged.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version tag (vMAJOR.MINOR.PATCH), e.g. v0.1.0"
+        required: true
+
+permissions:
+  contents: write
+  checks: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Tag and publish release
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ inputs.version }}
+    steps:
+      - name: Only from main
+        shell: bash
+        run: |
+          [[ "$GITHUB_REF" == refs/heads/main ]] || { echo "Releases are created only from main (got $GITHUB_REF)"; exit 1; }
+      - uses: actions/checkout@v7
+      - name: Validate version and notes
+        shell: bash
+        run: |
+          [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid version: $VERSION"; exit 1; }
+          test -f "docs/releases/$VERSION.md" || { echo "Missing docs/releases/$VERSION.md"; exit 1; }
+          # Exit code 2 = tag absent; 0 = it exists; anything else (network, auth) is an error.
+          status=0
+          git ls-remote --exit-code --tags origin "refs/tags/$VERSION" >/dev/null || status=$?
+          [[ $status -eq 2 ]] || { echo "Tag $VERSION already exists or lookup failed (exit $status)"; exit 1; }
+          if gh release view "$VERSION" >/dev/null 2>&1; then echo "Release $VERSION already exists"; exit 1; fi
+      - name: Require green CI on this commit
+        shell: bash
+        run: |
+          checks=$(gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/check-runs?per_page=100" \
+            --jq '.check_runs[] | "\(.name)\t\(.status)\t\(.conclusion)"')
+          echo "$checks"
+          for name in "API (lint, migrations, tests)" "Web (lint, typecheck, tests, build)" \
+                      "E2E (Playwright)" "Docker Compose (build and smoke test)"; do
+            # The latest run of each check must be completed with success (pending/skipped do not count).
+            line=$(printf '%s\n' "$checks" | awk -F'\t' -v n="$name" '$1 == n' | head -n 1)
+            [[ "$line" == "$name"$'\t'"completed"$'\t'"success" ]] || { echo "Check not green: $name ($line)"; exit 1; }
+          done
+      - name: Create tag and release
+        run: |
+          gh release create "$VERSION" \
+            --target "${{ github.sha }}" \
+            --title "$VERSION" \
+            --notes-file "docs/releases/$VERSION.md"

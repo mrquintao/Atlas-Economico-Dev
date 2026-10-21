@@ -38,7 +38,7 @@ Especificação completa: [`PROJECT_SPEC.md`](PROJECT_SPEC.md). Instruções par
 ```
 apps/web/                 Frontend Next.js (src/app, src/features/{dashboard,catalog}, src/lib, src/hooks…)
 services/api/             Backend FastAPI
-  app/integrations/bcb/   Conector do SGS/BCData (janelas, retry, validação)
+  app/integrations/       Conectores BCB/SGS e IBGE/SIDRA (janelas, retry, validação)
   app/ingestion/          Pipeline idempotente + CLI de coleta
   app/api/v1/             Endpoints REST
   migrations/             Alembic (schema + seed do catálogo)
@@ -64,6 +64,10 @@ docker compose exec api python -m app.ingestion.cli ingest IPCA_12M             
 docker compose exec api python -m app.ingestion.cli ingest --all                  # todos, incremental
 ```
 
+- Frontend: http://localhost:3000 (painel nacional; catálogo em `/metodologia` e `/fontes`)
+- API: http://localhost:8000 · documentação OpenAPI interativa em http://localhost:8000/docs
+- PostgreSQL: `127.0.0.1:5432` (acessível apenas a partir do computador local; a API usa a rede interna do Compose).
+
 ### Coleta automática
 
 O serviço opcional `scheduler` mantém os dados atualizados, sem filas nem serviços pagos:
@@ -80,11 +84,7 @@ docker compose exec scheduler python -m app.ingestion.scheduler --check   # vali
 - O painel "Sobre o indicador e a metodologia" mostra a última coleta bem-sucedida e avisa quando a
   última tentativa falhou. Detalhes em [docs/data-pipeline.md](docs/data-pipeline.md#coleta-automática).
 
-- Frontend: http://localhost:3000 (painel nacional; catálogo em `/metodologia` e `/fontes`)
-- API / OpenAPI: http://localhost:8000
-- PostgreSQL: `127.0.0.1:5432` (acessível apenas a partir do computador local; a API usa a rede interna do Compose).
-
-> **Segurança:** os valores `atlas/atlas` são exemplos para desenvolvimento. Nunca reutilize essas credenciais nem este Compose sem adaptação em um servidor público./docs
+> **Segurança:** os valores `atlas/atlas` são exemplos para desenvolvimento. Nunca reutilize essas credenciais nem este Compose sem adaptação em um servidor público.
 
 ## Opção B — Execução local
 
@@ -107,7 +107,7 @@ uv run alembic upgrade head                # migrações + seed (BCB, IBGE, Bras
 uv run python -m app.ingestion.cli ingest SELIC_TARGET --full   # coleta inicial do histórico completo
 uv run python -m app.ingestion.cli ingest DBGG_GDP               # dívida bruta/PIB (série mensal)
 uv run python -m app.ingestion.cli ingest IPCA_12M               # IPCA 12 meses (IBGE/SIDRA)
-uv run uvicorn app.main:app --reload --port 8000
+uv run uvicorn app.main:app --reload --port 8000   # API em :8000, OpenAPI em http://localhost:8000/docs
 ```
 
 Coletas seguintes são incrementais: séries diárias re-buscam os últimos 90 dias e séries mensais
@@ -160,6 +160,7 @@ unitários rodam. Nenhum teste acessa a internet. O CI (GitHub Actions) roda tud
 - [Endpoints da API](docs/api.md)
 - [Pipeline de ingestão](docs/data-pipeline.md)
 - [Testes E2E](docs/testing-e2e.md)
+- [Releases e verificação dos critérios de aceite](docs/releases/)
 - [Decisões técnicas (ADRs)](docs/adr/)
 
 ## Fontes de dados
