@@ -55,14 +55,17 @@ docs/                     Arquitetura, catálogo, metodologia, API, pipeline, de
 ## Opção A — Docker Compose
 
 ```bash
-cp .env.example .env                       # ajuste credenciais se quiser
+cp .env.example .env                       # configure as credenciais de desenvolvimento
 docker compose up --build -d               # db + api (aplica migrações ao iniciar) + web
 docker compose exec api python -m app.ingestion.cli ingest SELIC_TARGET --full   # coleta inicial (~1–2 min)
 docker compose exec api python -m app.ingestion.cli ingest DBGG_GDP               # série mensal (segundos)
 ```
 
 - Frontend: http://localhost:3000
-- API / OpenAPI: http://localhost:8000/docs
+- API / OpenAPI: http://localhost:8000
+- PostgreSQL: `127.0.0.1:5432` (acessível apenas a partir do computador local; a API usa a rede interna do Compose).
+
+> **Segurança:** os valores `atlas/atlas` são exemplos para desenvolvimento. Nunca reutilize essas credenciais nem este Compose sem adaptação em um servidor público./docs
 
 ## Opção B — Execução local
 
@@ -145,3 +148,7 @@ unitários rodam. Nenhum teste acessa a internet. O CI (GitHub Actions) roda tud
 
 Dados reais apenas · transparência metodológica · integridade das definições ·
 variações de taxas em pontos percentuais (p.p.) · neutralidade política (correlação ≠ causalidade).
+
+## Licença
+
+Distribuído sob a [licença MIT](LICENSE). Consulte também a [auditoria de segurança pré-publicação](docs/security/publication-audit.md).
