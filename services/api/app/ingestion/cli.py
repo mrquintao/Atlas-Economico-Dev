@@ -14,11 +14,19 @@ import sys
 from dataclasses import asdict
 from datetime import date
 
+from sqlalchemy import select
+
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.db.session import get_session_factory
-from app.ingestion.sgs_ingestion import ingest_sgs_indicator
+from app.ingestion.series_ingestion import (
+    IngestionError,
+    ingest_sgs_indicator,
+    ingest_sidra_indicator,
+)
 from app.integrations.bcb.sgs import SGSClient
+from app.integrations.ibge.sidra import SIDRAClient
+from app.models import Indicator
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -33,10 +41,18 @@ def main(argv: list[str] | None = None) -> int:
 
     settings = get_settings()
     configure_logging(settings.log_level, settings.log_json)
-    with get_session_factory()() as session, SGSClient(settings) as client:
-        summary = ingest_sgs_indicator(
-            session, client, args.indicator, start=args.start, end=args.end, full=args.full
-        )
+    options = {"start": args.start, "end": args.end, "full": args.full}
+    with get_session_factory()() as session:
+        indicator = session.scalar(select(Indicator).where(Indicator.code == args.indicator))
+        if indicator is None:
+            raise IngestionError(f"Unknown indicator: {args.indicator}")
+        # Dispatch by data source: BCB -> SGS, IBGE -> SIDRA.
+        if indicator.source.acronym == "IBGE":
+            with SIDRAClient(settings) as sidra:
+                summary = ingest_sidra_indicator(session, sidra, args.indicator, **options)
+        else:
+            with SGSClient(settings) as sgs:
+                summary = ingest_sgs_indicator(session, sgs, args.indicator, **options)
     print(json.dumps(asdict(summary), default=str, ensure_ascii=False, indent=2))
     return 0
 

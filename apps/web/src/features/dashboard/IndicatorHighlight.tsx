@@ -23,7 +23,13 @@ export function IndicatorHighlight({ config }: { config: DashboardIndicator }) {
   );
 
   if (latest.data) {
-    return <IndicatorCard indicator={latest.data.indicator} latest={summary} />;
+    return (
+      <IndicatorCard
+        indicator={latest.data.indicator}
+        latest={summary}
+        referencePrefix={config.referencePrefix}
+      />
+    );
   }
   // Same accessible name as the loaded card, so the region is identifiable in every state.
   const headingId = `card-${config.code}`;

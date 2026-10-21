@@ -8,7 +8,12 @@ uv run python -m app.ingestion.cli ingest SELIC_TARGET           # incremental
 uv run python -m app.ingestion.cli ingest SELIC_TARGET --full    # todo o histórico oficial
 uv run python -m app.ingestion.cli ingest SELIC_TARGET --start 2020-01-01 --end 2020-12-31
 uv run python -m app.ingestion.cli ingest DBGG_GDP               # mensal: sempre a série inteira
+uv run python -m app.ingestion.cli ingest IPCA_12M               # IBGE/SIDRA: sempre a série inteira
 ```
+
+A CLI escolhe o conector pela fonte do indicador (`data_sources.acronym`): `BCB` → SGS
+(`app/integrations/bcb/sgs.py`), `IBGE` → SIDRA (`app/integrations/ibge/sidra.py`). Idempotência,
+revisões e `ingestion_runs` são os mesmos para todas as fontes (`app/ingestion/series_ingestion.py`).
 
 A CLI imprime um resumo JSON (stdout); logs estruturados em JSON vão para stderr.
 Agendamento simples: `scripts/ingest.sh` via cron (sem filas ou orquestradores, de propósito).
@@ -51,6 +56,28 @@ Comportamentos observados (21/10/2026) e tratamento:
 
 Rate limit: intervalo mínimo de 0,5 s entre requisições (`BCB_MIN_REQUEST_INTERVAL_SECONDS`).
 
+## Conector IBGE/SIDRA — endpoint efetivamente usado
+
+```
+GET https://apisidra.ibge.gov.br/values/t/{tabela}/n1/all/v/{variável}/p/{AAAAMM}-{AAAAMM}/f/c
+```
+
+`source_series_code` guarda `tabela/variável` (ex.: `1737/2265`); `source_reference` das observações
+é `sidra.t1737.v2265`. Comportamentos observados (21/10/2026) e tratamento:
+
+| Situação | Resposta do SIDRA | Tratamento |
+|---|---|---|
+| Sucesso | `200` JSON: 1º item = cabeçalho (`"V": "Valor"`), demais `{"MC","V","D2C","D3C",…}` | Validação do cabeçalho, da variável (`D2C`), da unidade (`MC = 2`, %) e do mês (`D3C` = `AAAAMM`) |
+| Valor inexistente | `"V": "..."` (ou `..`, `-`, `X`) | Ausência: descartado e contado, nunca zero |
+| Período sem dados (ex.: meses futuros) | `200` só com o cabeçalho | Janela vazia |
+| Parâmetro inválido | `400` | Erro permanente, sem retry |
+| `429`/`5xx`/erro de rede/timeout/`200` não JSON | — | Retry com backoff exponencial |
+
+Uma única requisição traz a série inteira (~550 meses, ~1 s). Rate limit próprio:
+`IBGE_MIN_REQUEST_INTERVAL_SECONDS` (0,5 s). O cabeçalho é validado (formato de códigos, nível Brasil,
+período mensal), assim como a variável, a unidade e o território de cada linha; linhas sem valor
+chegam com unidade vazia (`"MC": ""`) e são descartadas antes da checagem de unidade.
+
 ## Verificação real (20–21/10/2026)
 
 - Coleta completa: 28 janelas de 1 ano, 05/03/1999 até a data da coleta; uma linha por dia corrido,
@@ -69,3 +96,9 @@ Rate limit: intervalo mínimo de 0,5 s entre requisições (`BCB_MIN_REQUEST_INT
 
 - Coleta real: 1 requisição, **237 observações** de dez/2006 a ago/2026 (sem lacunas); reexecução:
   `inserted 0, updated 0, unchanged 237`. Amostras conferidas: ver [catálogo](indicators.md).
+
+### IPCA_12M (21/10/2026)
+
+- Coleta real: 1 requisição, **550 observações** de dez/1980 a set/2026 (sem lacunas a partir de
+  dez/1980); reexecução: `inserted 0, updated 0, unchanged 550`. Amostras e recálculo independente
+  a partir da variação mensal: ver [catálogo](indicators.md).

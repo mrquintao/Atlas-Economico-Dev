@@ -51,8 +51,24 @@ export function formatReference(indicator: WithFrequency, date: string): string 
 }
 
 /** How the reference date of the latest value is described on its card. */
-export function referenceLabel(indicator: WithFrequency, date: string): string {
+export function referenceLabel(
+  indicator: WithFrequency,
+  date: string,
+  monthlyPrefix = "Posição de",
+): string {
   return indicator.frequency === "daily"
     ? `Vigente em ${formatDate(date)}`
-    : `Posição de ${formatMonth(date)}`;
+    : `${monthlyPrefix} ${formatMonth(date)}`;
+}
+
+/** Name of the official series on the source link, e.g. "SGS 432" or "SIDRA 1737 (v. 2265)". */
+export function sourceSeriesLabel(
+  indicator: Pick<Indicator, "source" | "source_series_code">,
+): string {
+  const code = indicator.source_series_code;
+  if (indicator.source.acronym === "IBGE") {
+    const [table, variable] = code.split("/");
+    return variable ? `SIDRA ${table} (v. ${variable})` : `SIDRA ${code}`;
+  }
+  return `SGS ${code}`;
 }

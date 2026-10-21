@@ -3,6 +3,21 @@
 Entradas curtas, da mais recente para a mais antiga: o que foi entregue, o que foi validado, as falhas e
 como foram corrigidas, e as decisões relevantes. Os detalhes ficam nos PRs, nas issues e nos ADRs.
 
+## 2026-10-21 — M2: IPCA 12 meses (issue #4)
+
+- Conector `integrations/ibge/sidra.py` (tabela 1737, variável 2265, validada na API); ingestão genérica
+  `ingestion/series_ingestion.py` com despacho por fonte na CLI; migração 0005 (fonte IBGE, `IPCA_12M`).
+- Frontend: cartão do IPCA ("Referência: mês/ano", variação em p.p., fonte SIDRA) e terceiro gráfico
+  sincronizado. Novo: quebra explícita da linha em períodos ausentes (antes eram ligados por cima).
+- Coleta real: 550 meses (dez/1980–set/2026), reexecução `inserted 0, unchanged 550`; série inteira
+  igual ao SIDRA; recálculo a partir da variação mensal com diferença ≤ 0,009 ponto desde 1996.
+- qa-auditor: sem críticos. Corrigidos: fixture real do SIDRA (linhas `...` vêm com `"MC": ""`),
+  descrição exagerada da verificação independente, docs/README/estado desatualizados, validação do
+  cabeçalho (mensal, Brasil), duplicidade em linhas ausentes, rate limit próprio do IBGE, rótulo da
+  fonte no painel, eixo vertical que cortaria valores negativos.
+- Ambiente: a sessão não tinha `/tmp/pgdata`; PostgreSQL 16 recriado do zero (dados reais coletados
+  de novo no banco `atlas_real`).
+
 ## 2026-10-21 — M1 concluída (issue #3, PR #28)
 
 - API: `422 unknown_parameter` para parâmetros não declarados (inclusive campos de modelos de query) e

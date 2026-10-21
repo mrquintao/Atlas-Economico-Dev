@@ -3,7 +3,7 @@ from decimal import Decimal
 
 import pytest
 
-from app.ingestion.sgs_ingestion import IngestionError, period_end
+from app.ingestion.series_ingestion import IngestionError, period_end
 from app.models import Frequency
 from app.repositories.observations import ObservationRow
 from app.services.observations import compute_stats

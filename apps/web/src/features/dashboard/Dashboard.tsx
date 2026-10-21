@@ -17,7 +17,6 @@ import {
 } from "@/lib/period";
 import type { Indicator } from "@/types/api";
 
-import { PlaceholderCard } from "./IndicatorCard";
 import { IndicatorHighlight } from "./IndicatorHighlight";
 import { IndicatorPanel } from "./IndicatorPanel";
 import { DASHBOARD_INDICATORS } from "./indicators";
@@ -90,7 +89,6 @@ export function Dashboard() {
           {DASHBOARD_INDICATORS.map((config) => (
             <IndicatorHighlight key={config.code} config={config} />
           ))}
-          <PlaceholderCard title="IPCA — 12 meses" note="Em implementação: próxima etapa do MVP." />
         </div>
       </section>
 

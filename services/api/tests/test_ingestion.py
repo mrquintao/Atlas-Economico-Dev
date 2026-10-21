@@ -9,7 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
-from app.ingestion.sgs_ingestion import IngestionError, ingest_sgs_indicator
+from app.ingestion.series_ingestion import IngestionError, ingest_sgs_indicator
 from app.integrations.bcb.sgs import (
     SGSClient,
     SGSUnavailableError,
@@ -205,7 +205,7 @@ def test_empty_response_for_stored_range_is_reported(db: Session, ingest) -> Non
 def test_default_collection_date_uses_brasilia_time(
     db: Session, settings: Settings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import app.ingestion.sgs_ingestion as module
+    import app.ingestion.series_ingestion as module
 
     monkeypatch.setattr(module, "brazil_today", lambda: date(2024, 1, 5))
     fake = FakeSGS(daily(date(2024, 1, 1), 10, "11.75"))
@@ -219,7 +219,7 @@ def test_default_collection_date_uses_brasilia_time(
 def test_original_error_survives_failure_to_record_the_run(
     db: Session, ingest, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import app.ingestion.sgs_ingestion as module
+    import app.ingestion.series_ingestion as module
 
     def database_down(*_: object) -> None:
         raise RuntimeError("database down")
@@ -290,7 +290,7 @@ def test_monthly_date_not_on_first_day_is_rejected(db: Session, ingest_dbgg) -> 
 def test_frequency_without_incremental_policy_fails_clearly(
     db: Session, ingest_dbgg, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import app.ingestion.sgs_ingestion as module
+    import app.ingestion.series_ingestion as module
 
     monkeypatch.setattr(module, "INCREMENTAL_OVERLAP", {})
     with pytest.raises(IngestionError, match="No incremental policy"):

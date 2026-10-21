@@ -278,9 +278,9 @@ def test_monthly_series_cannot_be_converted_to_daily(client: TestClient) -> None
     assert response.json()["error"]["code"] == "frequency_not_supported"
 
 
-def test_catalog_lists_both_indicators(client: TestClient) -> None:
+def test_catalog_lists_all_indicators(client: TestClient) -> None:
     codes = [i["code"] for i in client.get("/api/v1/indicators").json()]
-    assert codes == ["DBGG_GDP", "SELIC_TARGET"]
+    assert codes == ["DBGG_GDP", "IPCA_12M", "SELIC_TARGET"]
 
 
 # --- Unknown query parameters (issue #3) ---

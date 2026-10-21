@@ -23,11 +23,13 @@ class Settings(BaseSettings):
         "AtlasEconomicoBrasileiro/0.1 (+https://github.com/mrquintao/atlas-economico-dev)"
     )
     bcb_sgs_base_url: str = "https://api.bcb.gov.br/dados/serie"
+    ibge_sidra_base_url: str = "https://apisidra.ibge.gov.br"
     # Window size for daily SGS series. The official limit is 10 years per request, but large
     # windows take ~30 s and frequently time out; 1-year windows answer in ~1 s.
     bcb_daily_window_years: int = Field(default=1, ge=1, le=10)
     # Minimum interval between two requests to the same source (seconds).
     bcb_min_request_interval_seconds: float = 0.5
+    ibge_min_request_interval_seconds: float = 0.5
 
 
 @lru_cache
