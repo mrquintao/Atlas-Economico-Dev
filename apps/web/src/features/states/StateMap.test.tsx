@@ -310,7 +310,7 @@ describe("StateMapPanel", () => {
     await user.keyboard("{Enter}");
     expect(sp).toHaveAttribute("aria-pressed", "true");
     expect(map.querySelector('[data-focus-ring="SP"]')).not.toBeNull();
-    expect(await screen.findByText("São Paulo selecionada: 55,00% da RCL ajustada, 1º quadr./2025 (jan–abr).")).toBeInTheDocument();
+    expect(await screen.findByText("São Paulo selecionada. Curto STATE_PERSONNEL_EXEC_RCL: 55,00% da RCL ajustada, 1º quadr./2025 (jan–abr).")).toBeInTheDocument();
 
     fireEvent.mouseMove(await findState(/^Acre:/), { clientX: 10, clientY: 10 });
     fireEvent.mouseLeave(map);

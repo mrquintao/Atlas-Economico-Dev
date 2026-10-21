@@ -39,7 +39,7 @@ export function StateDetails({ uf, data, scale, periodLabel, onSelect }: Props) 
       {/* Announces each new selection: the panel sits after the 27 UFs in the tab order. */}
       <p aria-live="polite" className="sr-only">
         {uf
-          ? `${uf.name} selecionada: ${
+          ? `${uf.name} selecionada. ${data.indicator.short_name}: ${
               mapItem?.value == null ? "sem dado" : formatValue(mapItem.value, data.indicator.unit)
             }, ${periodLabel}.`
           : ""}
