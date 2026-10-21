@@ -121,3 +121,21 @@ def required_annexes(
                 key = (selector.report_type, selector.annex, selector.power)
                 needed.setdefault(key, set()).update(covered)
     return {key: sorted(years) for key, years in needed.items()}
+
+
+# Accumulation window of each published value (docs/state-fiscal-indicators.md), as served by the
+# state endpoints next to each value.
+YEAR_TO_DATE_WINDOW = "Acumulado no ano até o bimestre (recomeça em janeiro)."
+TRAILING_12M_WINDOW = "Últimos 12 meses até o fim do período."
+BALANCE_WINDOW = "Saldo no fim do quadrimestre."
+ACCUMULATION_WINDOWS: dict[str, str] = {
+    "STATE_RCL": TRAILING_12M_WINDOW,
+    "STATE_PERSONNEL_EXEC": TRAILING_12M_WINDOW,
+    "STATE_PERSONNEL_EXEC_RCL": TRAILING_12M_WINDOW,
+    "STATE_INVESTMENTS": YEAR_TO_DATE_WINDOW,
+    "STATE_PRIMARY_RESULT": YEAR_TO_DATE_WINDOW,
+    "STATE_NOMINAL_RESULT": YEAR_TO_DATE_WINDOW,
+    "STATE_DC": BALANCE_WINDOW,
+    "STATE_DCL": BALANCE_WINDOW,
+    "STATE_DCL_RCL": "Saldo da DCL no fim do quadrimestre sobre a RCL ajustada de 12 meses.",
+}
