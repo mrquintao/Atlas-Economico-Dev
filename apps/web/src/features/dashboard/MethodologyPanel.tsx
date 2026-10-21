@@ -11,13 +11,12 @@ const FREQUENCY_LABEL: Record<string, string> = {
 };
 
 /** Shown only when the latest attempt did not succeed: the data above may be outdated. */
-export function lastRunLabel(run: IngestionRun): string {
+export function lastRunLabel(run: IngestionRun, hasSuccessfulCollection: boolean): string {
   const when = `${formatDateTime(run.started_at)} (horário de Brasília)`;
   if (run.status === "running") return `Coleta em andamento desde ${when}.`;
-  return (
-    `Falhou em ${when}. Os dados exibidos são os da última coleta bem-sucedida; ` +
-    "uma nova tentativa ocorre na próxima atualização programada."
-  );
+  return hasSuccessfulCollection
+    ? `Falhou em ${when}. Os dados exibidos são os da última coleta bem-sucedida.`
+    : `Falhou em ${when}. Ainda não há dados coletados deste indicador.`;
 }
 
 export function MethodologyPanel({ response }: { response: ObservationsResponse }) {
@@ -70,7 +69,7 @@ export function MethodologyPanel({ response }: { response: ObservationsResponse 
         {indicator.last_run && indicator.last_run.status !== "success" ? (
           <>
             <dt className="text-muted-foreground">Última tentativa</dt>
-            <dd>{lastRunLabel(indicator.last_run)}</dd>
+            <dd>{lastRunLabel(indicator.last_run, indicator.last_collected_at !== null)}</dd>
           </>
         ) : null}
       </dl>

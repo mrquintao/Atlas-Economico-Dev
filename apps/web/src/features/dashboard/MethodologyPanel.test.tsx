@@ -74,6 +74,15 @@ describe("MethodologyPanel", () => {
     expect(screen.getByText("20/10/2026, 06:00 (horário de Brasília)")).toBeInTheDocument();
   });
 
+  it("does not claim stored data when the first collection failed", () => {
+    const body = response(failed);
+    body.indicator.last_collected_at = null;
+    render(<MethodologyPanel response={body} />);
+    expect(screen.getByText("Nunca coletado")).toBeInTheDocument();
+    expect(screen.getByText(/Ainda não há dados coletados deste indicador\.$/)).toBeInTheDocument();
+    expect(screen.queryByText(/última coleta bem-sucedida/)).not.toBeInTheDocument();
+  });
+
   it("does not show a run status for an indicator never collected", () => {
     render(<MethodologyPanel response={response(null)} />);
     expect(screen.queryByText("Última tentativa")).not.toBeInTheDocument();
@@ -82,12 +91,14 @@ describe("MethodologyPanel", () => {
 
 describe("lastRunLabel", () => {
   it("describes a collection in progress", () => {
-    expect(lastRunLabel({ ...failed, status: "running", finished_at: null })).toBe(
+    expect(lastRunLabel({ ...failed, status: "running", finished_at: null }, true)).toBe(
       "Coleta em andamento desde 21/10/2026, 06:00 (horário de Brasília).",
     );
   });
 
   it("says the displayed data come from the last successful collection", () => {
-    expect(lastRunLabel(failed)).toContain("última coleta bem-sucedida");
+    expect(lastRunLabel(failed, true)).toBe(
+      "Falhou em 21/10/2026, 06:00 (horário de Brasília). Os dados exibidos são os da última coleta bem-sucedida.",
+    );
   });
 });
