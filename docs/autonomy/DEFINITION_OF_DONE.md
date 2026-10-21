@@ -8,6 +8,8 @@ verificáveis. "N/A" deve ser justificado no PR.
 - [ ] Tipagem explícita (Python e TypeScript `strict`, sem `any`); sem código morto.
 - [ ] Valores econômicos em `NUMERIC`/`Decimal`; datas ISO 8601; unidades explícitas na API.
 - [ ] Nenhum segredo no código ou no histórico.
+- [ ] Nenhuma funcionalidade ou dependência baseada em LLM (SDKs de LLM, embeddings, bancos vetoriais),
+      conforme o ADR 0004; análises e textos do produto são determinísticos e versionados.
 
 ## Testes
 - [ ] Testes novos para cada regra crítica (parsing, conversões, filtros, agregações, idempotência,

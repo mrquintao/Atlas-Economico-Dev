@@ -31,7 +31,12 @@ Não iniciar outra entrega enquanto a atual puder ser concluída com os recursos
   obter CI verde.
 - Alterações destrutivas em bancos com dados reais (`DROP`, `TRUNCATE`, `DELETE` em massa, `--full` que
   apague dados). Bancos de teste descartáveis são permitidos.
-- Infraestrutura ou serviços pagos (hospedagem, APIs de LLM, etc.) sem orçamento autorizado.
+- Infraestrutura ou serviços pagos (hospedagem etc.) sem orçamento autorizado.
+- **Qualquer funcionalidade do produto baseada em LLM** (decisão permanente, ADR 0004): assistentes ou
+  consultas em linguagem natural, chatbots, integrações com APIs de LLM, RAG, embeddings e bancos
+  vetoriais, e análises ou relatórios gerados por modelo. Nenhuma dependência desse tipo em
+  `services/api` ou `apps/web`. Funcionalidades removidas por essa decisão não são substituídas
+  automaticamente por outras.
 - Implantação pública de funcionalidade incompleta.
 - Alterar permissões ou configurações de segurança para contornar falhas.
 - Funcionalidades fora das três fases sem justificativa registrada em ADR.
@@ -71,7 +76,7 @@ preserva o histórico). Depois do merge: sincronizar a `main`, fechar a issue e 
 | `economist` | Toda série nova: metadados, unidade, metodologia, regras de agregação, amostras oficiais |
 | `data-engineer` | Conectores e ingestão complexos (ex.: SICONFI), modelagem e migrações |
 | `fullstack-developer` | Partes extensas de API/UI que possam ser feitas em paralelo |
-| `qa-auditor` | Antes de todo PR: auditoria adversarial independente |
+| `qa-auditor` | Antes de todo PR: auditoria adversarial independente (inclui verificar que nenhuma dependência ou funcionalidade de LLM entrou no produto) |
 
 O agente principal integra as contribuições e responde por elas. Agentes que editam arquivos trabalham
 em worktrees isolados ou sobre arquivos disjuntos; nunca dois agentes no mesmo arquivo ou branch ao mesmo tempo.
@@ -91,4 +96,4 @@ Ao concluir um marco (M7, S9, A8): verificar os critérios de aceite da fase, cr
 ## 8. Bloqueios conhecidos de recursos
 
 Registrados em [`STATE.md`](STATE.md). Ex.: proteção de branch e GitHub Projects não são configuráveis com
-as ferramentas do agente (exigem ação do mantenedor); a integração com LLM (A7) exige orçamento.
+as ferramentas do agente (exigem ação do mantenedor).

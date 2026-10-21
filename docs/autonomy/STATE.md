@@ -22,7 +22,11 @@
 | I1 — proteção da `main` e auto-merge nativo ([#10](https://github.com/mrquintao/Atlas-Economico-Dev/issues/10)) | As ferramentas do agente não configuram regras de branch nem as opções do repositório | Mantenedor: seguir os passos da issue #10. Até lá, o agente aplica o gate da AGENT_POLICY §3 e faz o merge com `merge_pull_request` | 2026-10-21 |
 | GitHub Projects (quadro "Atlas Econômico — Autonomous Development") | Sem ferramenta de Projects disponível para o agente | Opcional: o mantenedor cria o quadro; o backlog funciona por labels e milestones nas issues | 2026-10-21 |
 | Cores e descrições das labels | Labels criadas automaticamente pelas issues (cinza, sem descrição); não há ferramenta para editá-las | Opcional e cosmético | 2026-10-21 |
-| A7 — LLM ([#26](https://github.com/mrquintao/Atlas-Economico-Dev/issues/26)) | Serviço pago sem orçamento autorizado | Mantenedor: definir provedor e orçamento | 2026-10-21 |
+
+## Decisões permanentes de escopo
+
+- **Sem funcionalidades baseadas em LLM no produto** ([ADR 0004](../adr/0004-exclusao-de-funcionalidades-com-llm.md), 2026-10-21).
+  A antiga A7 (#26) foi cancelada; a `v1.0.0` (#27) depende de A1–A6.
 
 ## Próxima ação recomendada
 

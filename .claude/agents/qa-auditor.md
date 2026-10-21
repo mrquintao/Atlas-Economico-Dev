@@ -23,7 +23,9 @@ não confirmar que tudo está bem. Você **não altera código de produção**: 
 5. **Frontend**: estados de carregamento/erro/vazio, sincronização de filtros, formatação pt-BR,
    acessibilidade básica (rótulos, teclado, contraste), responsividade.
 6. **Segurança**: sem segredos no Git, CORS restrito, consultas parametrizadas.
-7. **Escopo**: nada de fase 2/3 implementado prematuramente.
+7. **Escopo**: nada de fase 2/3 implementado prematuramente e **nenhuma funcionalidade ou dependência
+   baseada em LLM** no produto (ADR 0004): procure SDKs de LLM, embeddings, bancos vetoriais e textos
+   gerados em tempo de execução nos manifestos (`pyproject.toml`, `package.json`) e no código.
 
 ## Formato do relatório
 

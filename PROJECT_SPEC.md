@@ -2,6 +2,14 @@
 # PROJETO: ATLAS ECONÔMICO BRASILEIRO
 ## Especificação técnica, arquitetura e instruções de implementação
 
+> **Decisão permanente de escopo (2026-10-21, mantenedor — [ADR 0004](docs/adr/0004-exclusao-de-funcionalidades-com-llm.md)):**
+> o produto **não** implementará funcionalidades que dependam de Large Language Models (LLMs): assistentes
+> ou consultas em linguagem natural, chatbots, integrações com APIs de LLM, RAG, embeddings e bancos
+> vetoriais para IA generativa, nem análises ou relatórios gerados por modelos de linguagem. Esta decisão
+> prevalece sobre qualquer trecho desta especificação em conflito (§3 item 10, §19, §23 Fase 3).
+> Todas as análises do produto usam algoritmos convencionais, cálculos verificáveis e dados oficiais.
+> O uso de ferramentas de IA **no desenvolvimento** (ex.: Claude Code) não é afetado.
+
 Você atuará como um engenheiro de software sênior, arquiteto de sistemas e especialista em engenharia de dados.
 
 Seu objetivo é me ajudar a projetar e implementar uma plataforma web de visualização, análise e exploração histórica de dados econômicos e fiscais do Brasil.
@@ -117,7 +125,7 @@ O sistema deve:
 
 9. Preparar a arquitetura para dados nacionais e estaduais.
 
-10. Permitir expansão futura para análises avançadas e IA.
+10. Permitir expansão futura para análises avançadas determinísticas (sem LLMs — ver §19, alterado em 2026-10-21).
 
 11. Priorizar precisão, auditabilidade e clareza.
 
@@ -1111,38 +1119,28 @@ Todo evento deverá possuir fonte verificável.
 Não apresentar automaticamente um evento como causa de determinado movimento econômico.
 
 ==================================================
-19. FUTURA INTEGRAÇÃO COM INTELIGÊNCIA ARTIFICIAL
+19. EXCLUSÃO DE FUNCIONALIDADES BASEADAS EM LLM
 ==================================================
 
-A IA poderá ser incorporada posteriormente.
+Alterado em 2026-10-21 por decisão permanente do mantenedor (ADR 0004). Esta seção previa uma
+futura interface de perguntas em linguagem natural; ela foi removida do escopo.
 
-Objetivo:
+O produto NÃO implementará, em nenhuma fase:
 
-Permitir que usuários façam perguntas em linguagem natural.
+- Assistente de consultas em linguagem natural.
+- Chatbots e assistentes conversacionais.
+- Integrações com APIs de LLMs (OpenAI, Anthropic, Gemini etc.).
+- RAG, embeddings e bancos vetoriais destinados a funcionalidades de IA generativa.
+- Geração de análises econômicas ou relatórios por modelos de linguagem.
+- Qualquer outra funcionalidade do produto cuja execução dependa de um LLM.
 
-Exemplos:
+Permanecem previstas, com algoritmos convencionais, cálculos verificáveis e dados oficiais:
+indicadores e séries históricas, dashboards nacionais e estaduais, mapas, comparações entre estados
+e governos, correlações e defasagens, correção monetária, grafos de relacionamentos, relatórios e
+exportações, e demais estatísticas determinísticas.
 
-"Como evoluiu a dívida pública entre 2015 e 2025?"
-
-"Compare a Selic e o IPCA no período selecionado."
-
-"Mostre os indicadores fiscais de Minas Gerais."
-
-"Qual foi a variação da dívida/PIB em determinado intervalo?"
-
-A IA deverá atuar como interface de consulta e explicação.
-
-Regras obrigatórias:
-
-- Não inventar valores.
-- Consultar dados armazenados e validados.
-- Executar cálculos por funções determinísticas.
-- Apresentar fontes.
-- Informar períodos utilizados.
-- Identificar ausência de dados.
-- Separar observação estatística de interpretação.
-
-Não implementar integração com LLM no primeiro MVP.
+A restrição aplica-se à arquitetura e às funcionalidades do produto, não às ferramentas usadas
+durante o desenvolvimento.
 
 ==================================================
 20. PADRÕES DE QUALIDADE
@@ -1303,7 +1301,8 @@ Entregas:
 6. Grafos interativos
 7. Correlações estatísticas
 8. Relatórios exportáveis
-9. IA para consultas em linguagem natural
+
+(O item "9. IA para consultas em linguagem natural" foi removido do escopo em 2026-10-21 — ver §19.)
 
 ==================================================
 24. O QUE NÃO DEVE SER IMPLEMENTADO AGORA
@@ -1317,7 +1316,7 @@ Evitar no MVP:
 - Filas distribuídas
 - Sistemas complexos de autenticação
 - Contas de usuários
-- Inteligência artificial
+- Inteligência artificial (funcionalidades com LLM estão excluídas permanentemente — ver §19)
 - Modelos preditivos
 - Análises eleitorais
 - Grafos econômicos completos

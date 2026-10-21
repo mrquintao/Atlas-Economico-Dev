@@ -22,7 +22,12 @@ com rastreabilidade completa de cada número exibido.
 5. **Variações de taxas em pontos percentuais (p.p.)**, nunca em "%". 10% → 12% = +2 p.p.
 6. **Neutralidade**: não atribuir causalidade a governos/eventos. Correlação ≠ causalidade.
 7. **Não declarar integração concluída sem verificação real** contra a fonte oficial.
-8. **Escopo incremental**: não implementar fase 2 (estados/mapa) ou fase 3 (IA, grafos) antes da hora.
+8. **Escopo incremental**: não implementar fase 2 (estados/mapa) ou fase 3 (análises avançadas, grafos)
+   antes da hora.
+9. **Sem LLMs no produto (decisão permanente, [ADR 0004](docs/adr/0004-exclusao-de-funcionalidades-com-llm.md))**:
+   nenhum assistente ou consulta em linguagem natural, chatbot, integração com APIs de LLM, RAG,
+   embeddings/bancos vetoriais ou análise e relatório gerados por modelo. Toda análise é determinística e
+   verificável. (Ferramentas de IA para *desenvolver* o projeto continuam permitidas.)
 
 ## Arquitetura (resumo)
 
@@ -108,7 +113,8 @@ As tarefas vivem em GitHub Issues (labels `phase:*`, `type:*`, `priority:*`, `au
 `agent:blocked`). Registre cada execução em [`docs/autonomy/RUN_LOG.md`](docs/autonomy/RUN_LOG.md).
 Proibições inegociáveis: force push, reescrita de histórico, push direto na `main`, segredos no Git,
 bypass ou desativação de checks e testes, operações destrutivas em dados reais, serviços pagos sem
-orçamento e implantação pública de funcionalidade incompleta.
+orçamento, implantação pública de funcionalidade incompleta e qualquer funcionalidade do produto
+baseada em LLM.
 
 ## Fluxo com agentes
 

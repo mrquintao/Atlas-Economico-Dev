@@ -46,10 +46,16 @@ Legenda de status: ✅ concluída · 🔄 em andamento · ⏳ pendente · ⛔ bl
 | A4 | Explorador de relacionamentos (grafo com tipos de vínculo) | A3 | §17 | ⏳ | #23 |
 | A5 | Comparações entre governos/períodos, com neutralidade e sem atribuição causal | A1 | §4.4, §23 F3 | ⏳ | #24 |
 | A6 | Relatórios exportáveis (CSV e PDF) | M7 | §23 F3 | ⏳ | #25 |
-| A7 | Consultas em linguagem natural (LLM com ferramentas determinísticas) — requer orçamento de LLM | A3, A6 | §19 | ⛔ | #26 |
-| A8 | Release `v1.0.0` | A1–A7 | §23, §29 | ⏳ | #27 |
+| A8 | Release `v1.0.0` | A1–A6 | §23, §29 | ⏳ | #27 |
 
-## Fora do escopo (§24)
+Todas as análises da Fase 3 usam algoritmos convencionais e cálculos verificáveis.
 
-Neo4j, microserviços, Kubernetes, filas distribuídas, contas de usuário, modelos preditivos, análises
-eleitorais e coleta de todos os municípios — não serão implementados sem registro e justificativa em ADR.
+## Fora do escopo
+
+- **Permanente — funcionalidades baseadas em LLM** ([ADR 0004](adr/0004-exclusao-de-funcionalidades-com-llm.md)):
+  assistente ou consultas em linguagem natural, chatbots, integrações com APIs de LLM, RAG, embeddings e
+  bancos vetoriais, e análises ou relatórios gerados por modelo. A antiga entrega A7 (issue #26) foi
+  cancelada sem substituição.
+- **§24:** Neo4j, microserviços, Kubernetes, filas distribuídas, contas de usuário, modelos preditivos,
+  análises eleitorais e coleta de todos os municípios. Não serão implementados sem registro e
+  justificativa em ADR.
