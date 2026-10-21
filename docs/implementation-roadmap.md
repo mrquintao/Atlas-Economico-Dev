@@ -26,7 +26,7 @@ Legenda de status: ✅ concluída · 🔄 em andamento · ⏳ pendente · ⛔ bl
 
 | ID | Entrega | Depende de | Spec | Status | Issue |
 |---|---|---|---|---|---|
-| S1 | Unidades geográficas: 27 UFs e 5 regiões com códigos IBGE validados | M7 | §6.5, §10 | ⏳ | #11 |
+| S1 | Unidades geográficas: 27 UFs e 5 regiões com códigos IBGE validados | M7 | §6.5, §10 | ✅ | #11 · PR #38 |
 | S2 | Malhas IBGE: conector de geometrias (GeoJSON) e endpoint de geometrias | S1 | §6.5, §15 | ⏳ | #12 |
 | S3 | Conector SICONFI (RREO/RGF): limite de 1 req/s, paginação, retry, coleta incremental | S1 | §6.4, §11 | ⏳ | #13 |
 | S4 | Catálogo e normalização de indicadores fiscais estaduais (RCL, DCL, DCL/RCL, pessoal, primário, nominal), validados pelo economist | S3 | §16 | ⏳ | #14 |

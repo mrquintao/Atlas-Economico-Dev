@@ -23,6 +23,12 @@ class GeographyOut(BaseModel):
     geographic_level: str
 
 
+class GeographyListItem(GeographyOut):
+    """A unit with its parent in the hierarchy (country → region → state)."""
+
+    parent: GeographyOut | None
+
+
 class IngestionRunOut(BaseModel):
     """Latest collection attempt of an indicator, whatever its outcome."""
 

@@ -30,6 +30,7 @@ from app.integrations.bcb.sgs import SGSClient, SGSPoint, SGSWindowResult
 from app.integrations.ibge.sidra import SIDRAClient
 from app.models import (
     Frequency,
+    GeographicLevel,
     GeographicUnit,
     Indicator,
     IngestionRun,
@@ -157,7 +158,11 @@ def ingest_indicator(
     if indicator.source.acronym != source_acronym:
         raise IngestionError(f"{indicator_code} is not a {source_acronym} series")
     geo = session.scalar(
-        select(GeographicUnit).where(GeographicUnit.ibge_code == NATIONAL_IBGE_CODE)
+        select(GeographicUnit).where(
+            GeographicUnit.geographic_level == GeographicLevel.COUNTRY,
+            # Region 1 (Norte) shares the code, so the level is part of the key.
+            GeographicUnit.ibge_code == NATIONAL_IBGE_CODE,
+        )
     )
     if geo is None:
         raise IngestionError("National geographic unit (IBGE code 1) is not seeded")

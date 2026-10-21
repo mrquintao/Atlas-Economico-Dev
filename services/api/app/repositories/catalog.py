@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.models import (
@@ -31,17 +31,37 @@ def list_sources(session: Session) -> list[DataSource]:
     return list(session.scalars(select(DataSource).order_by(DataSource.acronym)))
 
 
-def list_geographies(session: Session) -> list[GeographicUnit]:
-    return list(session.scalars(select(GeographicUnit).order_by(GeographicUnit.ibge_code)))
+# Resolution order when a code or acronym exists at several levels ("1" is Brasil and the Norte
+# region; "SE" is Sergipe and the Sudeste region): country, then state, then region, so a bare UF
+# acronym or code always means the UF. Listings use the same order.
+LEVEL_ORDER = case(
+    {"country": 0, "state": 1, "region": 2, "municipality": 3},
+    value=GeographicUnit.geographic_level,
+)
 
 
-def get_geography(session: Session, acronym_or_code: str) -> GeographicUnit | None:
+def list_geographies(session: Session, level: str | None = None) -> list[GeographicUnit]:
+    query = select(GeographicUnit).options(joinedload(GeographicUnit.parent))
+    if level is not None:
+        query = query.where(GeographicUnit.geographic_level == level)
+    # Codes have the same length within a level, so string order is numeric order.
+    return list(session.scalars(query.order_by(LEVEL_ORDER, GeographicUnit.ibge_code)))
+
+
+def get_geography(
+    session: Session, acronym_or_code: str, level: str | None = None
+) -> GeographicUnit | None:
+    """Find a unit by acronym (case-insensitive) or IBGE code, optionally within one level.
+
+    Without a level, an ambiguous key resolves by LEVEL_ORDER.
+    """
     key = acronym_or_code.strip()
-    return session.scalar(
-        select(GeographicUnit).where(
-            (func.upper(GeographicUnit.acronym) == key.upper()) | (GeographicUnit.ibge_code == key)
-        )
+    query = select(GeographicUnit).where(
+        (func.upper(GeographicUnit.acronym) == key.upper()) | (GeographicUnit.ibge_code == key)
     )
+    if level is not None:
+        query = query.where(GeographicUnit.geographic_level == level)
+    return session.scalars(query.order_by(LEVEL_ORDER).limit(1)).first()
 
 
 def last_successful_collection(session: Session, indicator_id: int) -> datetime | None:

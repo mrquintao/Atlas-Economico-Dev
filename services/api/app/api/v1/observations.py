@@ -50,7 +50,11 @@ def get_observations(
         raise ApiError(422, "invalid_range", "start_date deve ser anterior ou igual a end_date.")
 
     indicator = get_indicator_or_404(session, code)
-    geo = catalog_repo.get_geography(session, geography)
+    # Prefer a unit at the indicator's own level ("SE" is a state and a region; "1" is Brasil and
+    # a region); any other match only feeds the geography_not_available error below.
+    geo = catalog_repo.get_geography(
+        session, geography, indicator.geographic_level
+    ) or catalog_repo.get_geography(session, geography)
     if geo is None:
         raise ApiError(
             404, "geography_not_found", f"Unidade geográfica '{geography}' não encontrada."

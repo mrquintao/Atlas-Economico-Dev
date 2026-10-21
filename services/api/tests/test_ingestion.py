@@ -5,7 +5,7 @@ from decimal import Decimal
 
 import httpx
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
@@ -16,7 +16,7 @@ from app.integrations.bcb.sgs import (
     format_sgs_date,
     parse_sgs_date,
 )
-from app.models import IngestionRun, Observation, ObservationRevision
+from app.models import GeographicUnit, IngestionRun, Observation, ObservationRevision
 from tests.conftest import sgs_json
 
 TODAY = date(2024, 1, 10)
@@ -76,6 +76,22 @@ def test_inserts_observations_and_logs_run(db: Session, ingest) -> None:
     assert run.records_inserted == 10
     assert run.finished_at is not None
     assert run.metadata_json["windows"][0]["payload_sha256"]
+
+
+def test_stores_national_series_under_brasil_not_region_with_same_code(db: Session, ingest) -> None:
+    # IBGE code 1 is both Brasil and the Norte region (migration 0006). Rewriting the Brasil row
+    # moves it after Norte in the heap, so a lookup by code alone would pick the region.
+    db.execute(text("UPDATE geographic_units SET name = name WHERE geographic_level = 'country'"))
+    db.flush()
+    ingest(FakeSGS(daily(date(2024, 1, 1), 3, "11.75")), start=date(2024, 1, 1))
+    levels = set(
+        db.scalars(
+            select(GeographicUnit.geographic_level).join(
+                Observation, Observation.geographic_unit_id == GeographicUnit.id
+            )
+        )
+    )
+    assert levels == {"country"}
 
 
 def test_rerun_is_idempotent(db: Session, ingest) -> None:

@@ -215,19 +215,8 @@ def test_rejects_invalid_parameters(client: TestClient, params: dict[str, str]) 
     assert response.json()["error"]["code"] == "validation_error"
 
 
-def test_national_series_is_not_served_for_a_state(client: TestClient, db: Session) -> None:
-    brazil = db.scalar(select(GeographicUnit).where(GeographicUnit.acronym == "BR"))
-    assert brazil is not None
-    db.add(
-        GeographicUnit(
-            ibge_code="31",
-            acronym="MG",
-            name="Minas Gerais",
-            geographic_level="state",
-            parent_id=brazil.id,
-        )
-    )
-    db.flush()
+def test_national_series_is_not_served_for_a_state(client: TestClient) -> None:
+    # MG is seeded by migration 0006.
     response = client.get(URL, params={"geography": "MG"})
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "geography_not_available"

@@ -3,6 +3,18 @@
 Entradas curtas, da mais recente para a mais antiga: o que foi entregue, o que foi validado, as falhas e
 como foram corrigidas, e as decisões relevantes. Os detalhes ficam nos PRs, nas issues e nos ADRs.
 
+## 2026-10-21 — S1: 5 regiões e 27 UFs com códigos IBGE (issue #11, PR #38)
+
+- Migração 0006 com as unidades conferidas contra `servicodados.ibge.gov.br/api/v1/localidades`
+  (5 regiões, 27 UFs; conferência independente do qa-auditor sem divergências); hierarquia
+  país → região → UF. `/geographies` ganhou o filtro `level` e o campo `parent`.
+- Achado de projeto: códigos e siglas do IBGE só são únicos por nível (`1` = Brasil e Norte; `SE` =
+  Sergipe e Sudeste). A unicidade passou a ser por nível, e a ingestão, que buscava o Brasil só pelo
+  código `1`, passou a filtrar o nível (sem isso, gravaria séries nacionais na Região Norte conforme a
+  ordem física da tabela). Teste de regressão comprovado: falha sem a correção.
+- qa-auditor: 1 médio (o teste de regressão passava sem a correção) e 4 baixos, todos corrigidos.
+- Testes: 210 pytest; `scripts/check.sh` verde.
+
 ## 2026-10-21 — Release v0.1.0 publicada (M7 concluída, issue #9)
 
 - Workflow `Release` disparado na `main` com CI verde em `ade5512`: [execução

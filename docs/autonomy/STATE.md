@@ -7,11 +7,11 @@
 |---|---|
 | Atualizado em | 2026-10-21 |
 | Fase atual | 2 — Atlas estadual (MVP nacional concluído: release `v0.1.0`) |
-| Última entrega | M7 — §25 verificado com evidências (`docs/releases/v0.1.0.md`, PR #36) e [release `v0.1.0`](https://github.com/mrquintao/Atlas-Economico-Dev/releases/tag/v0.1.0) publicada pelo workflow `Release` ([execução 39546442554](https://github.com/mrquintao/Atlas-Economico-Dev/actions/runs/39546442554)) em `ade5512` |
-| Próxima entrega elegível | **S1 — unidades geográficas: 27 UFs e 5 regiões com códigos IBGE validados ([#11](https://github.com/mrquintao/Atlas-Economico-Dev/issues/11))** |
-| Issue ativa | nenhuma até o início da S1 |
+| Última entrega | S1 — 5 regiões e 27 UFs com códigos IBGE (migração 0006, issue #11, PR #38). Antes: M7 e [release `v0.1.0`](https://github.com/mrquintao/Atlas-Economico-Dev/releases/tag/v0.1.0) em `ade5512` |
+| Próxima entrega elegível | **S3 — conector SICONFI ([#13](https://github.com/mrquintao/Atlas-Economico-Dev/issues/13))**; S2 — malhas IBGE ([#12](https://github.com/mrquintao/Atlas-Economico-Dev/issues/12)) também está liberada (ambas dependem só da S1) |
+| Issue ativa | nenhuma (comentar na issue ao iniciar, para evitar sessões concorrentes) |
 | Branch | novo branch a partir da `main` atualizada |
-| Último commit integrado na `main` | merge do PR #37 (conferir com `git log origin/main -1`); tag `v0.1.0` em `ade5512` |
+| Último commit integrado na `main` | merge do PR #38 (conferir com `git log origin/main -1`); tag `v0.1.0` em `ade5512` |
 | Última validação | M7: execução do README (Opção B) em clone limpo com banco novo e coleta real (10.093/237/550), recoleta sem duplicações, 15 amostras = fonte oficial (DBGG integral), navegador claro/escuro/mobile sem erros, contraste da navegação 7,58:1; `scripts/check.sh` e CI da `main` verdes |
 
 ## Bloqueios
@@ -29,9 +29,14 @@
 
 ## Próxima ação recomendada
 
-Iniciar a Fase 2 pela S1 (#11): 27 UFs e 5 regiões com códigos IBGE validados contra a API de
-localidades do IBGE (economist + data-engineer), via migração de seed, com hierarquia
-região → UF e testes.
+Iniciar a S3 (#13): investigar a API do SICONFI (RREO/RGF; limite de 1 req/s, paginação) com o
+economist e o data-engineer, e implementar o conector com retry e coleta incremental, testado com
+`httpx.MockTransport` e fixtures reais. Atenção: códigos e siglas do IBGE são únicos só por nível
+(`1` = Brasil e Norte; `SE` = Sergipe e Sudeste); buscar unidades sempre com o nível.
+
+Concorrência: na sessão da S1, outra sessão disparou a release `v0.1.0` um minuto antes (a segunda
+execução foi recusada pela trava de tag). Antes de começar, conferir branches e PRs abertos e
+reivindicar a issue com um comentário.
 
 Achados menores pendentes (registrados nas issues/PRs): M2 — lacunas de vários meses recebem uma única
 quebra no gráfico; "Todo o histórico" começa em 1980 por causa do IPCA. M3 — em erro da requisição única

@@ -24,7 +24,9 @@
 - **Frontend nunca chama fontes externas.** Isso permite cache, validação, controle de limites e histórico.
 - **Modelo genérico de indicadores**: novos indicadores são linhas em `indicators`; os valores
   vão todos para `observations` (chave única `indicator_id + geographic_unit_id + reference_date`).
-- **Geografia de primeira classe**: `geographic_units` com código IBGE (Brasil = `1`), pronta para UFs.
+- **Geografia de primeira classe**: `geographic_units` com código IBGE: Brasil (`1`), 5 regiões e
+  27 UFs (migração 0006, conferida contra a API de localidades do IBGE). Código e sigla são únicos
+  por nível (`1` também é a Região Norte; `SE`, Sergipe e Sudeste).
   A API recusa servir uma série nacional como se fosse estadual (`geography_not_available`).
 - **Camadas** no backend, sem abstração excessiva:
   `integrations` (HTTP + parsing) → `ingestion` (regras de persistência) → `repositories` (SQL)
@@ -37,7 +39,7 @@
 |---|---|
 | `data_sources` | Fontes oficiais (BCB…) |
 | `indicators` | Catálogo: código interno, série na fonte, unidade, unidade de variação (`p.p.`), frequência, nível geográfico, metodologia, link oficial |
-| `geographic_units` | País/UF/município com código IBGE e hierarquia (`parent_id`) |
+| `geographic_units` | País/região/UF/município com código IBGE e hierarquia (`parent_id`: país → região → UF) |
 | `observations` | Valores (`NUMERIC(24,8)`), período de referência, `collected_at`, referência da fonte |
 | `ingestion_runs` | Auditoria de cada coleta: status, contagens, erro, janelas consultadas e SHA-256 de cada payload |
 | `observation_revisions` | Valor anterior/novo quando a fonte revisa um dado já publicado |
