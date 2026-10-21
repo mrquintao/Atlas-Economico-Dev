@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     bcb_sgs_base_url: str = "https://api.bcb.gov.br/dados/serie"
     ibge_sidra_base_url: str = "https://apisidra.ibge.gov.br"
     ibge_malhas_base_url: str = "https://servicodados.ibge.gov.br/api/v3/malhas"
+    siconfi_base_url: str = "https://apidatalake.tesouro.gov.br/ords/siconfi/tt"
     # Edition (year) of the IBGE state mesh collected by `ingest-boundaries` (latest served: 2022).
     ibge_mesh_year: int = Field(default=2022, ge=2000)
     # Window size for daily SGS series. The official limit is 10 years per request, but large
@@ -33,6 +34,9 @@ class Settings(BaseSettings):
     # Minimum interval between two requests to the same source (seconds).
     bcb_min_request_interval_seconds: float = 0.5
     ibge_min_request_interval_seconds: float = 0.5
+    # SICONFI documents a limit of 1 request per second; the minimum enforces it (with a margin
+    # by default) and cannot be configured below it.
+    siconfi_min_request_interval_seconds: float = Field(default=1.1, ge=1.0)
 
     # Scheduled collection (Compose `scheduler` service): times of day, Brasília time.
     ingest_schedule: str = "06:00"

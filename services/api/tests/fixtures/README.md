@@ -13,6 +13,13 @@ Arquivos usados **somente** em testes automatizados. Nunca são carregados pela 
   2026-10-21 de `/api/v3/malhas/paises/BR?formato=application/vnd.geo+json&intrarregiao=UF&qualidade=minima&periodo=2022`,
   reduzido às feições de Amapá (`16`, MultiPolygon), Sergipe (`28`) e Distrito Federal (`53`), sem
   alteração das geometrias.
+- `siconfi_rgf_anexo02_sp_2024_q3_sample.json`, `siconfi_rreo_anexo03_sp_2024_b6_sample.json` e
+  `siconfi_extrato_sp_2024_sample.json`: trechos **reais** da API do SICONFI, copiados em 2026-10-21 de
+  `/tt/rgf?an_exercicio=2024&in_periodicidade=Q&nr_periodo=3&co_tipo_demonstrativo=RGF&no_anexo=RGF-Anexo 02&co_esfera=E&co_poder=E&id_ente=35`
+  (6 linhas da dívida consolidada e da DCL), `/tt/rreo?an_exercicio=2024&nr_periodo=6&co_tipo_demonstrativo=RREO&no_anexo=RREO-Anexo 03&co_esfera=E&id_ente=35`
+  (4 primeiras linhas) e `/tt/extrato_entregas?id_ente=35&an_referencia=2024` (entregas do RREO, do RGF
+  do Executivo e do Tribunal de Justiça e da MSC de janeiro). Valores e textos sem alteração; `count` e
+  `links` ajustados ao trecho.
 - `sgs_html_error.html`: página HTML de "Requisição inválida" devolvida de forma intermitente
   pelo gateway do BCB (trecho reduzido).
 

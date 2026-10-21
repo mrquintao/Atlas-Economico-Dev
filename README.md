@@ -63,6 +63,7 @@ docker compose exec api python -m app.ingestion.cli ingest DBGG_GDP             
 docker compose exec api python -m app.ingestion.cli ingest IPCA_12M               # IBGE/SIDRA (segundos)
 docker compose exec api python -m app.ingestion.cli ingest --all                  # todos, incremental
 docker compose exec api python -m app.ingestion.cli ingest-boundaries             # malha das 27 UFs (IBGE)
+docker compose exec api python -m app.ingestion.cli ingest-siconfi --report RGF --annex "RGF-Anexo 02" --state SP --year 2024  # SICONFI
 ```
 
 - Frontend: http://localhost:3000 (painel nacional; catálogo em `/metodologia` e `/fontes`)
@@ -109,6 +110,7 @@ uv run python -m app.ingestion.cli ingest SELIC_TARGET --full   # coleta inicial
 uv run python -m app.ingestion.cli ingest DBGG_GDP               # dívida bruta/PIB (série mensal)
 uv run python -m app.ingestion.cli ingest IPCA_12M               # IPCA 12 meses (IBGE/SIDRA)
 uv run python -m app.ingestion.cli ingest-boundaries             # malha oficial das 27 UFs (IBGE, edição 2022)
+uv run python -m app.ingestion.cli ingest-siconfi --report RREO --annex "RREO-Anexo 03" --state SP --year 2024  # anexo do SICONFI
 uv run uvicorn app.main:app --reload --port 8000   # API em :8000, OpenAPI em http://localhost:8000/docs
 ```
 

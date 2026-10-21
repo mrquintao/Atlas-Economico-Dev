@@ -12,6 +12,10 @@ uv run python -m app.ingestion.cli ingest IPCA_12M               # IBGE/SIDRA: s
 uv run python -m app.ingestion.cli ingest --all                  # todos os indicadores do catálogo
 uv run python -m app.ingestion.cli ingest-boundaries             # malha das 27 UFs (IBGE, IBGE_MESH_YEAR)
 uv run python -m app.ingestion.cli ingest-boundaries --year 2021 # outra edição da malha
+uv run python -m app.ingestion.cli ingest-siconfi --report RREO --annex "RREO-Anexo 03" \
+    --state SP --state RJ --year 2024                            # anexo do SICONFI (S3), incremental
+uv run python -m app.ingestion.cli ingest-siconfi --report RGF --annex "RGF-Anexo 02" \
+    --state SP --year 2024 --period 3 --refresh                  # força a recoleta do período
 ```
 
 A CLI escolhe o conector pela fonte do indicador (`data_sources.acronym`): `BCB` → SGS
@@ -168,6 +172,70 @@ deve sugerir que elas estejam representadas.
 Verificação real (21/10/2026): coleta da edição 2022 com 27 feições inseridas; reexecução `inserted 0,
 updated 0, unchanged 27`; as 27 geometrias servidas por `/api/v1/geographies/states/boundaries` são
 idênticas às da consulta oficial, e os 27 códigos casam com os de `/api/v1/geographies?level=state`.
+
+## Conector SICONFI — relatórios fiscais dos estados (S3)
+
+`app/integrations/tesouro/siconfi.py` consulta a API de dados abertos do SICONFI (Tesouro Nacional,
+[documentação](https://apidatalake.tesouro.gov.br/docs/siconfi/)); `app/ingestion/siconfi.py` grava os
+anexos em `fiscal_reports` (um registro por ente × relatório × exercício × período × anexo × esfera ×
+poder) e `fiscal_report_rows` (cada valor publicado, `NUMERIC(24,8)`). É a **camada bruta**: os valores
+ficam exatamente como publicados; os indicadores fiscais (RCL, DCL, DCL/RCL etc.) serão derivados dela
+na S4, com validação do economist. A coleta é manual (fora do agendador) até a S4 definir quais anexos
+alimentam indicadores. Decisões em [ADR 0009](adr/0009-conector-siconfi-camada-bruta.md).
+
+Endpoints usados:
+
+| Endpoint | Parâmetros | Uso |
+|---|---|---|
+| `GET /tt/rreo` | `an_exercicio`, `nr_periodo` (bimestre 1–6), `co_tipo_demonstrativo=RREO`, `no_anexo` (ex.: `RREO-Anexo 03`), `co_esfera` (`E` = estados), `id_ente` (código IBGE da UF) | Anexo do RREO, consolidado do ente (sem poder) |
+| `GET /tt/rgf` | os mesmos, mais `in_periodicidade` (`Q` quadrimestral; `S` semestral, municípios pequenos) e `co_poder` (`E`, `L`, `J`, `M`, `D`) | Anexo do RGF de um poder (padrão: Executivo) |
+| `GET /tt/extrato_entregas` | `id_ente`, `an_referencia` | Entregas e retificações do ente no ano (`data_status`, `status_relatorio`: `HO` homologado, `RE` retificado) |
+
+Comportamento observado (21/10/2026):
+
+| Situação | Resposta do SICONFI | Tratamento |
+|---|---|---|
+| Sucesso | `200` página ORDS: `items`, `hasMore`, `limit` (5000), `offset`, `count`, `links` | Validação de cada linha contra o pedido (exercício, período, periodicidade, anexo, esfera, poder ou `demonstrativo`, `cod_ibge`); `valor` lido do texto JSON direto para `Decimal` |
+| Mais de uma página | `hasMore: true` | Novas páginas com `offset` += linhas recebidas (`limit=5000`); página vazia com `hasMore`, `offset` diferente do pedido ou mais de 50 páginas são erro. Um anexo de uma UF cabe numa página (o maior visto: RREO-Anexo 01 do RJ, 671 linhas) |
+| Filtro ausente ou inexistente (ente, anexo, período sem dados) | `200` com `items: []` | Não é erro: "ainda não disponível". Nada é gravado e o período é tentado de novo na próxima coleta (`not_available`) |
+| Linha repetida (mesmo `rotulo`, `coluna`, `cod_conta`, `conta`) | não observada | `SiconfiPayloadError`: o anexo inteiro é recusado (protege contra paginação instável) |
+| `429`/`5xx`/erro de rede/`200` não JSON | — | Retry com backoff exponencial (`HTTP_MAX_RETRIES`, `HTTP_BACKOFF_BASE_SECONDS`) |
+| Outros códigos HTTP | — | Erro permanente, sem retry |
+
+**Limite de taxa.** A documentação oficial limita a API a 1 requisição por segundo. O cliente espaça o
+início de duas requisições em pelo menos `SICONFI_MIN_REQUEST_INTERVAL_SECONDS` (padrão 1,1 s; a
+configuração recusa valores abaixo de 1,0), inclusive entre tentativas e páginas; um teste com relógio
+simulado comprova o espaçamento.
+
+**Coleta incremental.** Para cada UF e exercício, uma requisição ao `extrato_entregas`; para cada
+período pedido:
+
+1. sem entrega listada → `not_delivered` (nenhuma requisição ao relatório);
+2. já armazenado com `delivered_at` ≥ a entrega mais recente listada → `up_to_date` (nenhuma requisição);
+3. caso contrário (ou com `--refresh`) → coleta o anexo: `inserted` (novo), `unchanged` (mesmo
+   `content_hash`) ou `updated` (retificação).
+
+A entrega mais recente de um período é o maior `data_status` entre **todos** os órgãos que entregaram
+aquele relatório (no RGF cada poder entrega o seu); isso pode recoletar um anexo sem mudança, o que é
+inofensivo, mas nunca deixa de ver uma retificação. Se o data lake ainda servir a versão anterior quando a
+nova entrega já aparece no extrato, a coleta grava o conteúdo antigo com a data nova; `--refresh` corrige.
+
+**Idempotência e revisões.** Unicidade (UF, relatório, exercício, periodicidade, período, anexo, esfera,
+poder; `NULLS NOT DISTINCT`, pois o RREO não tem poder) e, por linha, (`rotulo`, `coluna`, `cod_conta`,
+`conta`). `content_hash` é o SHA-256 das linhas canônicas (ordenadas, valores sem zeros à direita),
+independente da paginação. Numa retificação, as linhas alteradas, novas e removidas são aplicadas e
+cada mudança fica em `ingestion_runs.metadata_json.revisions` (linha, valor anterior, valor novo e hash
+anterior; até 1000 por execução, com o total em `revision_count`). Cada anexo é gravado na própria
+transação: uma falha preserva os anexos já coletados e a execução fica `failed`, com os resultados até
+ali em `metadata_json.reports`.
+
+Verificação real (21/10/2026): RREO-Anexo 03 (bimestres 1–6) e RGF-Anexo 02 (quadrimestres 1–3,
+Executivo) de 2024 para SP e RJ: 18 anexos, 5.452 linhas, 22 requisições, sempre ≤ 1/s; RREO de SP de
+2026: bimestres 1–4 gravados, 5–6 `not_delivered`. Reexecução: só as 2 requisições ao extrato, tudo
+`up_to_date`; com `--refresh`, 561 linhas `unchanged`. Três anexos conferidos linha a linha contra uma
+consulta independente à API oficial (SP RGF-Anexo 02 3º quadrimestre: 124 linhas; RJ RREO-Anexo 03 6º
+bimestre: 401; RJ RGF-Anexo 02 1º quadrimestre: 62): idênticos. Exemplo: dívida consolidada líquida do
+Executivo de SP até o 3º quadrimestre de 2024 = R$ 317.655.576.689,71.
 
 ## Verificação real (20–21/10/2026)
 

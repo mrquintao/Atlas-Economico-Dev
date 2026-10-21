@@ -1,0 +1,82 @@
+{
+ "items": [
+  {
+   "exercicio": 2024,
+   "demonstrativo": "RREO",
+   "periodo": 6,
+   "periodicidade": "B",
+   "instituicao": "Governo do Estado de São Paulo",
+   "cod_ibge": 35,
+   "uf": "SP",
+   "populacao": 46024937,
+   "anexo": "RREO-Anexo 03",
+   "esfera": "E",
+   "rotulo": "Padrão",
+   "coluna": "<MR-11>",
+   "cod_conta": "ReceitasCorrentesLiquidasExcetoTransferenciasEFUNDEB",
+   "conta": "RECEITAS CORRENTES (I)",
+   "valor": 38251989923.43
+  },
+  {
+   "exercicio": 2024,
+   "demonstrativo": "RREO",
+   "periodo": 6,
+   "periodicidade": "B",
+   "instituicao": "Governo do Estado de São Paulo",
+   "cod_ibge": 35,
+   "uf": "SP",
+   "populacao": 46024937,
+   "anexo": "RREO-Anexo 03",
+   "esfera": "E",
+   "rotulo": "Padrão",
+   "coluna": "<MR-10>",
+   "cod_conta": "ReceitasCorrentesLiquidasExcetoTransferenciasEFUNDEB",
+   "conta": "RECEITAS CORRENTES (I)",
+   "valor": 29617962827.16
+  },
+  {
+   "exercicio": 2024,
+   "demonstrativo": "RREO",
+   "periodo": 6,
+   "periodicidade": "B",
+   "instituicao": "Governo do Estado de São Paulo",
+   "cod_ibge": 35,
+   "uf": "SP",
+   "populacao": 46024937,
+   "anexo": "RREO-Anexo 03",
+   "esfera": "E",
+   "rotulo": "Padrão",
+   "coluna": "<MR-9>",
+   "cod_conta": "ReceitasCorrentesLiquidasExcetoTransferenciasEFUNDEB",
+   "conta": "RECEITAS CORRENTES (I)",
+   "valor": 28442405161.98
+  },
+  {
+   "exercicio": 2024,
+   "demonstrativo": "RREO",
+   "periodo": 6,
+   "periodicidade": "B",
+   "instituicao": "Governo do Estado de São Paulo",
+   "cod_ibge": 35,
+   "uf": "SP",
+   "populacao": 46024937,
+   "anexo": "RREO-Anexo 03",
+   "esfera": "E",
+   "rotulo": "Padrão",
+   "coluna": "<MR-8>",
+   "cod_conta": "ReceitasCorrentesLiquidasExcetoTransferenciasEFUNDEB",
+   "conta": "RECEITAS CORRENTES (I)",
+   "valor": 30467544487.48
+  }
+ ],
+ "hasMore": false,
+ "limit": 5000,
+ "offset": 0,
+ "count": 4,
+ "links": [
+  {
+   "rel": "self",
+   "href": "https://host-5hrds-scan.prosubnet.vcndados.oraclevcn.com/ords/cdwhprd/siconfi/tt/rreo?an_exercicio=2024&nr_periodo=6&co_tipo_demonstrativo=RREO&no_anexo=RREO-Anexo+03&co_esfera=E&id_ente=35"
+  }
+ ]
+}
