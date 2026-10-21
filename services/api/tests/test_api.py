@@ -307,8 +307,12 @@ def test_unknown_query_parameters_are_rejected(
 
 
 def test_known_query_parameters_still_accepted(client: TestClient, seeded: None) -> None:
-    params = {"start_date": "2024-02-01", "end_date": "2024-02-02", "geography": "BR",
-              "frequency": "original"}
+    params = {
+        "start_date": "2024-02-01",
+        "end_date": "2024-02-02",
+        "geography": "BR",
+        "frequency": "original",
+    }
     assert client.get(URL, params=params).status_code == 200
 
 
@@ -323,7 +327,7 @@ def test_docs_and_openapi_unaffected(client: TestClient) -> None:
 def test_monthly_series_includes_month_overlapping_start(
     client: TestClient, dbgg_seeded: None
 ) -> None:
-    # Jan/2024 covers 01–31/01: a range starting on 15/01 overlaps it.
+    # Jan/2024 covers 01-31/01: a range starting on 15/01 overlaps it.
     body = client.get(DBGG_URL, params={"start_date": "2024-01-15"}).json()
     assert [o["date"] for o in body["observations"]] == ["2024-01-01", "2024-02-01", "2024-03-01"]
     assert body["start_date"] == "2024-01-15"  # effective start never earlier than requested
@@ -339,7 +343,9 @@ def test_monthly_series_includes_month_overlapping_end(
 def test_monthly_series_excludes_months_outside_range(
     client: TestClient, dbgg_seeded: None
 ) -> None:
-    body = client.get(DBGG_URL, params={"start_date": "2024-02-01", "end_date": "2024-02-29"}).json()
+    body = client.get(
+        DBGG_URL, params={"start_date": "2024-02-01", "end_date": "2024-02-29"}
+    ).json()
     assert [o["date"] for o in body["observations"]] == ["2024-02-01"]
 
 

@@ -13,7 +13,8 @@ o `PROJECT_SPEC.md` nem sobre as proibições abaixo.
 3. Criar o branch a partir da `main` atualizada (`feat/<issue>-<slug>` ou `fix/<issue>-<slug>`; o branch
    de sessão designado pelo ambiente pode ser usado no lugar, desde que parta da `main` atual).
 4. Implementar verticalmente (dados → API → UI → docs), com testes, consultando os agentes (§5).
-5. Validar localmente (lint, format, typecheck, testes, build e migrações) **a partir de um clone limpo**.
+5. Validar localmente **a partir de um clone limpo** com `scripts/check.sh` (lint, format, migrações,
+   testes, typecheck e build: os mesmos gates dos jobs API e Web do CI).
 6. Validar dados contra a fonte oficial (amostras registradas na documentação).
 7. Pedir auditoria adversarial ao `qa-auditor`, corrigir os achados críticos, altos e médios (os baixos
    são corrigidos ou registrados na issue) e repetir a validação.
