@@ -51,5 +51,8 @@
 - O zoom é mantido quando um gráfico é redesenhado (ex.: troca diária/mensal) e volta ao período
   inteiro quando o período global muda.
 - Cada indicador mantém sua frequência e unidade; escalas diferentes ficam em gráficos separados.
-- Séries mensais são filtradas pela data de referência do SGS (dia 1 do mês): um período iniciado
-  em 20/10/2021 começa no ponto de nov/2021.
+- **Filtro por período de referência:** uma observação entra quando seu período (dia, para séries
+  diárias; mês inteiro, para séries mensais) se sobrepõe ao intervalo escolhido. Um intervalo iniciado
+  em 20/10/2021 inclui out/2021 na série mensal; para séries diárias nada muda. Os presets relativos
+  ("5 anos", "10 anos") começam no 1º dia do mês, e o eixo de datas começa no 1º dia do mês inicial
+  para que o ponto mensal incluído fique visível ([ADR 0005](adr/0005-filtro-por-periodo-de-referencia.md)).
