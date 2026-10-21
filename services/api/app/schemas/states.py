@@ -73,3 +73,51 @@ class StateMapOut(BaseModel):
     )
     notes: list[str] = Field(description="Ressalvas de comparabilidade entre UFs")
     states: list[StateMapValueOut] = Field(description="As 27 UFs, em ordem de sigla")
+
+
+class StateRankingItemOut(BaseModel):
+    position: int = Field(
+        description="Posição na ordem pedida; valores iguais dividem a posição (1, 2, 2, 4)"
+    )
+    geography: GeographyOut
+    value: float = Field(description="Valor publicado no período")
+
+
+class StateRankingOut(BaseModel):
+    """UFs ordered by one indicator at a single reference period; absences stay out (S8)."""
+
+    indicator: IndicatorOut
+    accumulation_window: str = Field(description="Janela de acumulação do valor publicado")
+    metric_kind: Literal["relative", "absolute"] = Field(
+        description="'relative': percentual da RCL publicado pela UF, comparável entre portes; "
+        "'absolute': valor em R$, que reflete o tamanho de cada UF"
+    )
+    order: Literal["desc", "asc"] = Field(description="'desc': do maior para o menor")
+    order_note: str = Field(description="Como a posição é definida (sem juízo de desempenho)")
+    period: StateMapPeriodOut | None = Field(
+        description="Período exibido, o mesmo para todas as UFs; nulo se não há dados"
+    )
+    default_rule: str = Field(description="Como o período padrão é escolhido")
+    available_periods: list[StateMapPeriodOut] = Field(
+        description="Períodos com ao menos uma UF com valor (entre as 27), do mais recente ao "
+        "mais antigo"
+    )
+    selected_count: int = Field(description="Número de UFs selecionadas")
+    ranked_count: int = Field(description="UFs selecionadas com valor no período")
+    ranking: list[StateRankingItemOut] = Field(description="UFs com valor, na ordem pedida")
+    missing: list[GeographyOut] = Field(
+        description="UFs selecionadas sem valor no período, fora da classificação (nunca zero)"
+    )
+    missing_note: str | None = Field(description="Aviso sobre as UFs sem dado; nulo sem ausências")
+    notes: list[str] = Field(description="Ressalvas de leitura e de comparabilidade")
+
+
+class StateComparisonOut(BaseModel):
+    """Series of one state indicator in a few UFs, each as published (S8)."""
+
+    indicator: IndicatorOut
+    accumulation_window: str = Field(description="Janela de acumulação do valor publicado")
+    start_date: dt.date | None = Field(description="Filtro inicial pedido")
+    end_date: dt.date | None = Field(description="Filtro final pedido")
+    notes: list[str] = Field(description="Ressalvas de leitura e de comparabilidade")
+    series: list[StateIndicatorSeriesOut] = Field(description="Uma série por UF, na ordem pedida")
