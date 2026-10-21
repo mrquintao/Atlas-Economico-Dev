@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     )
     bcb_sgs_base_url: str = "https://api.bcb.gov.br/dados/serie"
     ibge_sidra_base_url: str = "https://apisidra.ibge.gov.br"
+    ibge_malhas_base_url: str = "https://servicodados.ibge.gov.br/api/v3/malhas"
+    # Edition (year) of the IBGE state mesh collected by `ingest-boundaries` (latest served: 2022).
+    ibge_mesh_year: int = Field(default=2022, ge=2000)
     # Window size for daily SGS series. The official limit is 10 years per request, but large
     # windows take ~30 s and frequently time out; 1-year windows answer in ~1 s.
     bcb_daily_window_years: int = Field(default=1, ge=1, le=10)

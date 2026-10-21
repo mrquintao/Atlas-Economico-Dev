@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 from app.api.errors import register_error_handlers
 from app.api.v1.router import api_router
@@ -26,6 +27,8 @@ def create_app() -> FastAPI:
         allow_methods=["GET"],
         allow_headers=["*"],
     )
+    # State boundaries are ~100 KB of JSON (~28 KB compressed).
+    app.add_middleware(GZipMiddleware, minimum_size=1024)
     register_error_handlers(app)
     app.include_router(api_router)
     return app

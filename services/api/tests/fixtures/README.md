@@ -9,6 +9,10 @@ Arquivos usados **somente** em testes automatizados. Nunca são carregados pela 
   acumulado em 12 meses), copiada em 2026-10-21 de
   `/values/t/1737/n1/all/v/2265/p/197912,198011,198012,202608,202609/f/c`: cabeçalho, dois meses sem
   valor (`"V": "..."`, `"MC": ""`), o primeiro mês com valor e os dois últimos publicados.
+- `ibge_malhas_uf_2022_minima_sample.json`: trecho **real** da API de malhas do IBGE, copiado em
+  2026-10-21 de `/api/v3/malhas/paises/BR?formato=application/vnd.geo+json&intrarregiao=UF&qualidade=minima&periodo=2022`,
+  reduzido às feições de Amapá (`16`, MultiPolygon), Sergipe (`28`) e Distrito Federal (`53`), sem
+  alteração das geometrias.
 - `sgs_html_error.html`: página HTML de "Requisição inválida" devolvida de forma intermitente
   pelo gateway do BCB (trecho reduzido).
 

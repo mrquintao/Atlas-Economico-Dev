@@ -1,7 +1,7 @@
 from datetime import date, datetime
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class SourceOut(BaseModel):
@@ -59,3 +59,34 @@ class IndicatorOut(BaseModel):
     last_stored_date: date | None
     last_collected_at: datetime | None
     last_run: IngestionRunOut | None
+
+
+class BoundaryPropertiesOut(BaseModel):
+    ibge_code: str
+    acronym: str
+    name: str
+
+
+class BoundaryFeatureOut(BaseModel):
+    type: Literal["Feature"] = "Feature"
+    id: str = Field(description="Código IBGE da unidade")
+    properties: BoundaryPropertiesOut
+    geometry: dict[str, Any] = Field(description="Polygon ou MultiPolygon (longitude, latitude)")
+
+
+class BoundariesMetadataOut(BaseModel):
+    source: SourceOut
+    source_url: str = Field(description="Consulta oficial à API de malhas do IBGE")
+    mesh_year: int = Field(description="Edição da malha (parâmetro `periodo` do IBGE)")
+    quality: str = Field(description="Nível de generalização da malha do IBGE")
+    coordinate_decimals: int
+    simplification: str
+    collected_at: datetime
+
+
+class BoundariesOut(BaseModel):
+    """GeoJSON FeatureCollection of official IBGE boundaries, with provenance metadata."""
+
+    type: Literal["FeatureCollection"] = "FeatureCollection"
+    metadata: BoundariesMetadataOut
+    features: list[BoundaryFeatureOut]

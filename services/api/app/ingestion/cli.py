@@ -5,6 +5,8 @@ Examples:
     python -m app.ingestion.cli ingest SELIC_TARGET --full     # full official history
     python -m app.ingestion.cli ingest SELIC_TARGET --start 2020-01-01 --end 2020-12-31
     python -m app.ingestion.cli ingest --all                   # every catalog indicator
+    python -m app.ingestion.cli ingest-boundaries              # IBGE state mesh (S2)
+    python -m app.ingestion.cli ingest-boundaries --year 2021  # another mesh edition
 
 The exit code is 0 when every requested collection succeeds and 1 when any of them fails.
 """
@@ -23,7 +25,8 @@ from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.db.session import get_session_factory
 from app.ingestion.batch import BatchResult, run_batch
-from app.ingestion.series_ingestion import IngestionError
+from app.ingestion.boundaries import ingest_state_boundaries
+from app.ingestion.series_ingestion import IngestionError, format_error
 
 EXIT_OK = 0
 EXIT_FAILED = 1
@@ -39,7 +42,17 @@ def main(argv: list[str] | None = None) -> int:
     ingest.add_argument("--full", action="store_true", help="Reprocess the full history")
     ingest.add_argument("--start", type=date.fromisoformat, help="YYYY-MM-DD")
     ingest.add_argument("--end", type=date.fromisoformat, help="YYYY-MM-DD")
+    boundaries = sub.add_parser(
+        "ingest-boundaries", help="Collect the official IBGE boundaries of the 27 states"
+    )
+    boundaries.add_argument(
+        "--year", type=int, help="Mesh edition (IBGE `periodo`); default: IBGE_MESH_YEAR"
+    )
     args = parser.parse_args(argv)
+    if args.command == "ingest-boundaries":
+        if args.year is not None and not 2000 <= args.year <= brazil_today().year:
+            parser.error("--year must be between 2000 and the current year")
+        return _ingest_boundaries(args.year)
     # Reject operator mistakes here: inside the batch they would be recorded as failed runs and
     # shown publicly as collection failures although no source failed.
     if args.start and args.end and args.start > args.end:
@@ -59,6 +72,19 @@ def main(argv: list[str] | None = None) -> int:
         return EXIT_FAILED
     print(json.dumps(_report(result), default=str, ensure_ascii=False, indent=2))
     return EXIT_OK if result.ok else EXIT_FAILED
+
+
+def _ingest_boundaries(year: int | None) -> int:
+    settings = get_settings()
+    configure_logging(settings.log_level, settings.log_json)
+    try:
+        with get_session_factory()() as session:
+            summary = ingest_state_boundaries(session, settings, mesh_year=year)
+    except Exception as exc:  # recorded in ingestion_runs by the ingestion itself
+        print(f"error: {format_error(exc)}", file=sys.stderr)
+        return EXIT_FAILED
+    print(json.dumps(asdict(summary), ensure_ascii=False, indent=2))
+    return EXIT_OK
 
 
 def _report(result: BatchResult) -> list[dict[str, Any]]:

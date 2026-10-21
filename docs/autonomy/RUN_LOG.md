@@ -3,6 +3,23 @@
 Entradas curtas, da mais recente para a mais antiga: o que foi entregue, o que foi validado, as falhas e
 como foram corrigidas, e as decisões relevantes. Os detalhes ficam nos PRs, nas issues e nos ADRs.
 
+## 2026-10-21 — S2: malhas oficiais das 27 UFs (issue #12, PR #39)
+
+- A S3 (#13) estava reivindicada por outra sessão (sem branch publicado); para evitar trabalho
+  duplicado, esta sessão executou a S2, também liberada pela S1.
+- Conector da API de malhas v3 do IBGE (edição 2022, `qualidade=minima`), tabela versionada
+  `geographic_boundaries` (migração 0007), CLI `ingest-boundaries` e endpoint GeoJSON
+  `/api/v1/geographies/states/boundaries` com ETag fraco, `304` e gzip (~100 KB → ~28 KB).
+- Validação real: 27 feições casando 1:1 com `geographic_units`; recoleta idempotente; geometrias
+  servidas idênticas à fonte oficial (consulta nacional e por UF). Edições publicadas para esta
+  consulta: 2019–2022 (as demais respondem HTTP 500).
+- qa-auditor: 0 crítico/alto; 1 médio (`mesh_year` enorme gerava 500 no banco) e 7 baixos (ETag sem
+  comparação fraca/`*`, ETag forte com gzip e sem `Vary` no 304, ETag mudando a cada recoleta,
+  mensagem enganosa para edição inexistente, docstring, OpenAPI sem schema GeoJSON, `codarea` com
+  dígitos Unicode, ilhas oceânicas omitidas não documentadas): todos corrigidos com testes ou
+  documentados.
+- Testes: 255 pytest; `scripts/check.sh` verde.
+
 ## 2026-10-21 — S1: 5 regiões e 27 UFs com códigos IBGE (issue #11, PR #38)
 
 - Migração 0006 com as unidades conferidas contra `servicodados.ibge.gov.br/api/v1/localidades`

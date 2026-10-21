@@ -1,6 +1,17 @@
-from datetime import date
+from datetime import date, datetime
+from typing import Any
 
-from sqlalchemy import CheckConstraint, Date, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import (
+    CheckConstraint,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin
@@ -80,3 +91,28 @@ class GeographicUnit(Base):
     parent_id: Mapped[int | None] = mapped_column(ForeignKey("geographic_units.id"))
 
     parent: Mapped["GeographicUnit | None"] = relationship(remote_side=[id])
+
+
+class GeographicBoundary(TimestampMixin, Base):
+    """Official IBGE boundary (GeoJSON geometry) of a unit in one mesh edition and quality.
+
+    Versioned by ``mesh_year`` (the IBGE ``periodo``); re-collecting the same edition updates the
+    geometry only when the IBGE changed it (``geometry_hash``).
+    """
+
+    __tablename__ = "geographic_boundaries"
+    __table_args__ = (
+        UniqueConstraint("geographic_unit_id", "mesh_year", "quality"),
+        CheckConstraint("quality IN ('minima', 'intermediaria', 'maxima')", name="quality"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    geographic_unit_id: Mapped[int] = mapped_column(ForeignKey("geographic_units.id"))
+    mesh_year: Mapped[int] = mapped_column(Integer)
+    quality: Mapped[str] = mapped_column(String(16))
+    geometry: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    geometry_hash: Mapped[str] = mapped_column(String(64))
+    source_url: Mapped[str] = mapped_column(String(512))
+    collected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    geographic_unit: Mapped[GeographicUnit] = relationship()

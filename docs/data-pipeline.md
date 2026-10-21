@@ -10,6 +10,8 @@ uv run python -m app.ingestion.cli ingest SELIC_TARGET --start 2020-01-01 --end 
 uv run python -m app.ingestion.cli ingest DBGG_GDP               # mensal: sempre a série inteira
 uv run python -m app.ingestion.cli ingest IPCA_12M               # IBGE/SIDRA: sempre a série inteira
 uv run python -m app.ingestion.cli ingest --all                  # todos os indicadores do catálogo
+uv run python -m app.ingestion.cli ingest-boundaries             # malha das 27 UFs (IBGE, IBGE_MESH_YEAR)
+uv run python -m app.ingestion.cli ingest-boundaries --year 2021 # outra edição da malha
 ```
 
 A CLI escolhe o conector pela fonte do indicador (`data_sources.acronym`): `BCB` → SGS
@@ -125,6 +127,47 @@ Uma única requisição traz a série inteira (~550 meses, ~1 s). Rate limit pr�
 `IBGE_MIN_REQUEST_INTERVAL_SECONDS` (0,5 s). O cabeçalho é validado (formato de códigos, nível Brasil,
 período mensal), assim como a variável, a unidade e o território de cada linha; linhas sem valor
 chegam com unidade vazia (`"MC": ""`) e são descartadas antes da checagem de unidade.
+
+## Conector IBGE/Malhas — geometrias das UFs (S2)
+
+```
+GET https://servicodados.ibge.gov.br/api/v3/malhas/paises/BR?formato=application/vnd.geo+json
+    &intrarregiao=UF&qualidade=minima&periodo={edição}
+```
+
+Código: `app/integrations/ibge/malhas.py` (conector) e `app/ingestion/boundaries.py` (gravação).
+A edição vem de `--year` ou de `IBGE_MESH_YEAR` (padrão `2022`). As malhas mudam no máximo uma vez
+por ano, por isso a coleta é manual (fora do agendador). Comportamentos observados (21/10/2026):
+
+| Situação | Resposta do IBGE | Tratamento |
+|---|---|---|
+| Sucesso | `200` GeoJSON `FeatureCollection`, 27 feições com `properties.codarea` (código da UF) e `Polygon`/`MultiPolygon` | Validação de cada feição: código numérico único, anéis fechados com ≥ 4 posições, coordenadas finitas dentro do Brasil (incl. ilhas oceânicas) |
+| Edição inexistente (2023 em diante e anos anteriores a 2019, ex.: 2000, 2010, 2013, 2018) | `500` `{"statusCode":500,"message":"Internal server error"}` | Indistinguível de uma falha temporária: retry; depois das tentativas, `MalhasUnavailableError` com o aviso de que o IBGE responde 500 para edições não publicadas |
+| Edições disponíveis nesta consulta | 2019, 2020, 2021 e 2022 (conferido em 21/10/2026) | — |
+| Sem `periodo` | Edição 2022 (a mais recente) | O conector sempre envia `periodo`, para a edição gravada ser explícita |
+| `429`/`5xx`/erro de rede/`200` não JSON | — | Retry com backoff exponencial; rate limit `IBGE_MIN_REQUEST_INTERVAL_SECONDS` |
+| Outros códigos HTTP | — | Erro permanente, sem retry |
+
+Regras de gravação:
+
+- Os códigos recebidos precisam casar **1:1** com as 27 UFs de `geographic_units`; faltando ou sobrando
+  um código, nada é gravado e a execução fica `failed` em `ingestion_runs` (sem `indicator_id`,
+  `metadata_json.dataset = "state_boundaries"`). Uma falha nunca apaga a malha já armazenada.
+- Idempotência: unicidade (unidade, edição, qualidade). Recoletar a mesma edição só reescreve a
+  geometria cujo hash SHA-256 (JSON canônico) mudou; os códigos alterados ficam em
+  `metadata_json.updated_codes`, com o hash do payload bruto em `metadata_json.content_hash`.
+- Edições diferentes convivem (versionamento por `mesh_year`).
+
+Simplificação e quantização: usa-se a malha **generalizada pelo próprio IBGE** (`qualidade=minima`,
+~98 KB para as 27 UFs; `intermediaria` ~250 KB, `maxima` ~1 MB), sem simplificação adicional. As
+coordenadas são quantizadas em 4 casas decimais (~11 m), o que não altera a edição 2022 (o IBGE já as
+entrega assim). A API comprime com gzip (~28 KB). A malha generalizada **omite as pequenas ilhas
+oceânicas** (Fernando de Noronha, Trindade e Martim Vaz; longitudes de -73,99 a -34,80): o mapa não
+deve sugerir que elas estejam representadas.
+
+Verificação real (21/10/2026): coleta da edição 2022 com 27 feições inseridas; reexecução `inserted 0,
+updated 0, unchanged 27`; as 27 geometrias servidas por `/api/v1/geographies/states/boundaries` são
+idênticas às da consulta oficial, e os 27 códigos casam com os de `/api/v1/geographies?level=state`.
 
 ## Verificação real (20–21/10/2026)
 
