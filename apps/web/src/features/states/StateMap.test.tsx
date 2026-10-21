@@ -266,6 +266,9 @@ describe("StateMapPanel", () => {
     await waitFor(() => expect(latest).toHaveTextContent("Curto STATE_RCL"));
     expect(latest).toHaveTextContent("6º bim./2025 (nov–dez)");
     expect(latest).toHaveTextContent("R$ 268,00 bi");
+    // Each value carries its accumulation window, not only the reference bimester.
+    expect(latest).toHaveTextContent("Últimos 12 meses até o fim do período.");
+    expect(panel).toHaveTextContent(/da RCL ajustadaÚltimos 12 meses até o fim do período\./);
     // A missing indicator is named as missing, never shown as zero.
     expect(latest).toHaveTextContent("Sem dados nesta UF: Curto STATE_DCL_RCL.");
     expect(within(panel).getByRole("link", { name: "Abrir o painel completo da UF" })).toHaveAttribute(
@@ -294,6 +297,25 @@ describe("StateMapPanel", () => {
 
     await user.click(within(panel).getByRole("button", { name: "Limpar seleção" }));
     expect(screen.getByRole("heading", { level: 3, name: "Nenhuma UF selecionada" })).toBeInTheDocument();
+    // The clear button is gone: the focus moves to the UF picker, not to the page body.
+    expect(screen.getByRole("combobox", { name: "Ou escolha na lista" })).toHaveFocus();
+  });
+
+  it("keyboard focus keeps its own ring: on the selected UF and after the pointer leaves", async () => {
+    const user = userEvent.setup();
+    render(<StateMapPanel />);
+    const map = await screen.findByRole("group", { name: /^Mapa de / });
+    const sp = await findState(/^São Paulo:/);
+    sp.focus();
+    await user.keyboard("{Enter}");
+    expect(sp).toHaveAttribute("aria-pressed", "true");
+    expect(map.querySelector('[data-focus-ring="SP"]')).not.toBeNull();
+    expect(await screen.findByText("São Paulo selecionada: 55,00% da RCL ajustada, 1º quadr./2025 (jan–abr).")).toBeInTheDocument();
+
+    fireEvent.mouseMove(await findState(/^Acre:/), { clientX: 10, clientY: 10 });
+    fireEvent.mouseLeave(map);
+    expect(sp).toHaveFocus();
+    expect(map.querySelector('[data-focus-ring="SP"]')).not.toBeNull();
   });
 
   it("the selection survives an indicator change", async () => {

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useId } from "react";
+import { useId, useRef } from "react";
 
 import { InlineError } from "@/components/ui/states";
 import { useStateDashboard } from "@/hooks/useObservations";
@@ -29,13 +29,34 @@ interface Props {
 export function StateDetails({ uf, data, scale, periodLabel, onSelect }: Props) {
   const headingId = useId();
   const pickerId = useId();
+  const pickerRef = useRef<HTMLSelectElement>(null);
+  const mapItem = uf ? data.states.find((s) => s.geography.acronym === uf.acronym) : undefined;
   return (
     <section
       aria-labelledby={headingId}
       className="flex flex-col gap-5 rounded-lg border border-border bg-background/60 p-5"
     >
+      {/* Announces each new selection: the panel sits after the 27 UFs in the tab order. */}
+      <p aria-live="polite" className="sr-only">
+        {uf
+          ? `${uf.name} selecionada: ${
+              mapItem?.value == null ? "sem dado" : formatValue(mapItem.value, data.indicator.unit)
+            }, ${periodLabel}.`
+          : ""}
+      </p>
       {uf ? (
-        <Selected uf={uf} data={data} scale={scale} periodLabel={periodLabel} headingId={headingId} onSelect={onSelect} />
+        <Selected
+          uf={uf}
+          data={data}
+          scale={scale}
+          periodLabel={periodLabel}
+          headingId={headingId}
+          onClear={() => {
+            onSelect(null);
+            // The clear button unmounts: keep the keyboard focus inside the panel.
+            pickerRef.current?.focus();
+          }}
+        />
       ) : (
         <div className="flex flex-col gap-2">
           <h3 id={headingId} className="text-base font-semibold">
@@ -50,10 +71,11 @@ export function StateDetails({ uf, data, scale, periodLabel, onSelect }: Props) 
       <label htmlFor={pickerId} className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
         {uf ? "Escolher outra UF" : "Ou escolha na lista"}
         <select
+          ref={pickerRef}
           id={pickerId}
           value={uf?.acronym ?? ""}
           onChange={(event) => onSelect(event.target.value || null)}
-          className="rounded-md border border-border bg-card px-2 py-1.5 text-sm text-foreground"
+          className="rounded-md border border-border-strong bg-card px-2 py-1.5 text-sm text-foreground"
         >
           <option value="">Selecione uma UF</option>
           {STATES.toSorted((a, b) => a.name.localeCompare(b.name, "pt-BR")).map((state) => (
@@ -73,8 +95,8 @@ function Selected({
   scale,
   periodLabel,
   headingId,
-  onSelect,
-}: Omit<Props, "uf"> & { uf: StateUnit; headingId: string }) {
+  onClear,
+}: Omit<Props, "uf" | "onSelect"> & { uf: StateUnit; headingId: string; onClear: () => void }) {
   const { indicator } = data;
   const item = data.states.find((s) => s.geography.acronym === uf.acronym);
   const value = item?.value ?? null;
@@ -93,7 +115,7 @@ function Selected({
         </div>
         <button
           type="button"
-          onClick={() => onSelect(null)}
+          onClick={onClear}
           className="rounded-md border border-border bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
         >
           Limpar seleção
@@ -114,6 +136,7 @@ function Selected({
         ) : (
           <>
             <p className="text-3xl font-semibold tabular-nums tracking-tight">{formatValue(value, indicator.unit)}</p>
+            <p className="text-xs text-muted-foreground">{data.accumulation_window}</p>
             {index !== null && (
               <p className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Swatch color={scale.classes[index].color} />
@@ -161,13 +184,14 @@ function LatestValues({ uf }: { uf: string }) {
           </p>
         ) : (
           <dl className="flex flex-col divide-y divide-border">
-            {available.map(({ indicator, latest }) => (
+            {available.map(({ indicator, latest, accumulation_window }) => (
               <div key={indicator.code} className="flex items-baseline justify-between gap-4 py-2">
                 <dt className="text-sm">
                   {indicator.short_name}
                   <span className="block text-xs text-muted-foreground">
                     {latest && formatPeriod(indicator.frequency, latest.period_start, true)}
                   </span>
+                  <span className="block text-xs text-muted-foreground">{accumulation_window}</span>
                 </dt>
                 <dd className="shrink-0 text-right text-sm font-medium tabular-nums">
                   {latest && formatValue(latest.value, indicator.unit)}

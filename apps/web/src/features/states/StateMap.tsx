@@ -95,7 +95,7 @@ export function StateMapPanel() {
               id={indicatorId}
               value={code}
               onChange={(event) => handleIndicator(event.target.value)}
-              className="rounded-md border border-border bg-card px-2 py-1.5 text-sm text-foreground"
+              className="rounded-md border border-border-strong bg-card px-2 py-1.5 text-sm text-foreground"
             >
               {(options.length ? options : [{ code, short_name: data?.indicator.short_name ?? code }]).map(
                 (option) => (
@@ -113,7 +113,7 @@ export function StateMapPanel() {
               value={data?.period?.reference_date ?? ""}
               disabled={!data || data.available_periods.length === 0}
               onChange={(event) => setReferenceDate(event.target.value)}
-              className="rounded-md border border-border bg-card px-2 py-1.5 text-sm text-foreground disabled:opacity-60"
+              className="rounded-md border border-border-strong bg-card px-2 py-1.5 text-sm text-foreground disabled:opacity-60"
             >
               {data?.available_periods.length ? (
                 data.available_periods.map((period) => (
@@ -205,10 +205,11 @@ function MapBody({
               scale={scale}
               periodLabel={periodLabel ?? ""}
               selected={selected}
-              onSelect={(acronym) => {
+              onSelect={(acronym, viaPointer) => {
                 onSelect(acronym);
-                // Small screens: the panel sits below the map; bring it into view.
-                if (acronym && window.matchMedia?.("(max-width: 1023px)").matches) {
+                // Small screens: the panel sits below the map; bring it into view after a tap.
+                // Keyboard selections keep the page still, so focus and viewport stay together.
+                if (acronym && viaPointer && window.matchMedia?.("(max-width: 1023px)").matches) {
                   panelRef.current?.scrollIntoView?.({ block: "start", behavior: "smooth" });
                 }
               }}
@@ -269,9 +270,11 @@ function ChoroplethSvg({
   scale: MapScale;
   periodLabel: string;
   selected: string | null;
-  onSelect: (acronym: string | null) => void;
+  onSelect: (acronym: string | null, viaPointer?: boolean) => void;
 }) {
-  const [active, setActive] = useState<Hovered | null>(null);
+  // Pointer and keyboard are tracked apart: the pointer leaving the map never hides the focus.
+  const [hovered, setHovered] = useState<Hovered | null>(null);
+  const [focused, setFocused] = useState<Hovered | null>(null);
   const patternId = `no-data-${useId().replace(/:/g, "")}`;
   const { unit } = data.indicator;
   const byAcronym = useMemo(() => new Map(data.states.map((s) => [s.geography.acronym, s])), [data.states]);
@@ -304,8 +307,8 @@ function ChoroplethSvg({
     return index === null ? `url(#${patternId})` : scale.classes[index].color;
   }
 
-  function toggle(acronym: string) {
-    onSelect(selected === acronym ? null : acronym);
+  function toggle(acronym: string, viaPointer = false) {
+    onSelect(selected === acronym ? null : acronym, viaPointer);
   }
 
   function handleKey(event: KeyboardEvent<Element>, acronym: string) {
@@ -320,14 +323,16 @@ function ChoroplethSvg({
   function track(event: MouseEvent<Element>, acronym: string) {
     const box = event.currentTarget.closest("svg")?.getBoundingClientRect();
     if (!box) return;
-    setActive({
+    setHovered({
       acronym,
       x: ((event.clientX - box.left) / box.width) * WIDTH,
       y: ((event.clientY - box.top) / box.height) * HEIGHT,
     });
   }
 
-  const activeShape = active ? shapes.find((s) => s.acronym === active.acronym) : undefined;
+  const active = hovered ?? focused;
+  const hoveredShape = hovered ? shapes.find((s) => s.acronym === hovered.acronym) : undefined;
+  const focusedShape = focused ? shapes.find((s) => s.acronym === focused.acronym) : undefined;
   const selectedShape = selected ? shapes.find((s) => s.acronym === selected) : undefined;
   const activeItem = active ? byAcronym.get(active.acronym) : undefined;
   const df = shapes.find((s) => s.acronym === "DF");
@@ -339,7 +344,7 @@ function ChoroplethSvg({
         className="h-auto w-full"
         role="group"
         aria-label={`Mapa de ${data.indicator.short_name} por UF, ${periodLabel}`}
-        onMouseLeave={() => setActive(null)}
+        onMouseLeave={() => setHovered(null)}
         data-selected={selected ?? undefined}
       >
         <defs>
@@ -367,13 +372,13 @@ function ChoroplethSvg({
               stroke="#ffffff"
               strokeWidth={0.8}
               strokeLinejoin="round"
-              onClick={() => toggle(shape.acronym)}
+              onClick={() => toggle(shape.acronym, true)}
               onKeyDown={(event) => handleKey(event, shape.acronym)}
               onMouseMove={(event) => track(event, shape.acronym)}
               onFocus={() =>
-                setActive({ acronym: shape.acronym, x: shape.centroid[0], y: shape.centroid[1] })
+                setFocused({ acronym: shape.acronym, x: shape.centroid[0], y: shape.centroid[1] })
               }
-              onBlur={() => setActive(null)}
+              onBlur={() => setFocused(null)}
               className="cursor-pointer outline-none transition-[filter] hover:brightness-110"
             />
           );
@@ -394,22 +399,31 @@ function ChoroplethSvg({
             *
           </text>
         )}
-        {activeShape && activeShape !== selectedShape && (
-          <path
-            d={activeShape.d}
-            fill="none"
-            stroke="var(--foreground)"
-            strokeWidth={1.5}
-            strokeLinejoin="round"
-            pointerEvents="none"
-            aria-hidden
-          />
+        {/* Outlines are a white halo under a dark stroke: visible on every class colour. */}
+        {hoveredShape && hoveredShape !== selectedShape && (
+          <g pointerEvents="none" aria-hidden>
+            <path d={hoveredShape.d} fill="none" stroke="#ffffff" strokeWidth={3.5} strokeLinejoin="round" />
+            <path d={hoveredShape.d} fill="none" stroke="var(--foreground)" strokeWidth={1.5} strokeLinejoin="round" />
+          </g>
         )}
         {selectedShape && (
-          // White halo under a dark outline: visible on every class colour, light or dark.
           <g pointerEvents="none" aria-hidden>
             <path d={selectedShape.d} fill="none" stroke="#ffffff" strokeWidth={5} strokeLinejoin="round" />
             <path d={selectedShape.d} fill="none" stroke="var(--foreground)" strokeWidth={2.5} strokeLinejoin="round" />
+          </g>
+        )}
+        {focusedShape && (
+          // Keyboard focus: dashed accent ring, drawn last and distinct from the selection.
+          <g pointerEvents="none" aria-hidden data-focus-ring={focusedShape.acronym}>
+            <path d={focusedShape.d} fill="none" stroke="#ffffff" strokeWidth={6} strokeLinejoin="round" />
+            <path
+              d={focusedShape.d}
+              fill="none"
+              stroke="var(--accent)"
+              strokeWidth={2.5}
+              strokeDasharray="6 3"
+              strokeLinejoin="round"
+            />
           </g>
         )}
       </svg>

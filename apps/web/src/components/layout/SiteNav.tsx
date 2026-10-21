@@ -15,7 +15,7 @@ const LINKS = [
 export function SiteNav() {
   const pathname = usePathname();
   return (
-    <nav aria-label="Principal" className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+    <nav aria-label="Principal" className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:overflow-visible sm:px-0">
       <ul className="flex gap-6">
         {LINKS.map(({ href, label }) => {
           // A section stays current on its sub-pages (/estados/MG is under "Estados").
@@ -26,12 +26,13 @@ export function SiteNav() {
                 href={href}
                 aria-current={current ? (pathname === href ? "page" : "location") : undefined}
                 className={cn(
-                  // The bottom border sits on the header's border: the current section is underlined.
-                  "-mb-px flex h-12 items-center whitespace-nowrap border-b-2 text-sm transition-colors sm:h-14",
-                  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                  // An inset bar at the bottom underlines the current section; it never overflows
+                  // the scrollable nav on small screens.
+                  "flex h-12 items-center whitespace-nowrap text-sm transition-[color,box-shadow] sm:h-14",
+                  "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
                   current
-                    ? "border-accent font-medium text-foreground"
-                    : "border-transparent text-muted-foreground hover:border-border-strong hover:text-foreground",
+                    ? "font-medium text-foreground shadow-[inset_0_-2px_0_var(--accent)]"
+                    : "text-muted-foreground hover:text-foreground hover:shadow-[inset_0_-2px_0_var(--border-strong)]",
                 )}
               >
                 {label}
