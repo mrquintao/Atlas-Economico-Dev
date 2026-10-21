@@ -19,9 +19,10 @@ export default function StatesPage() {
       <div className="flex max-w-3xl flex-col gap-3">
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Estados</h1>
         <p className="text-muted-foreground">
-          Indicadores fiscais das 26 unidades estaduais e do Distrito Federal: receita corrente
-          líquida, despesa com pessoal, investimentos, resultados primário e nominal e dívida, a
-          partir dos relatórios entregues ao Tesouro Nacional (SICONFI). Escolha uma UF.
+          Indicadores fiscais dos 26 estados e do Distrito Federal: receita corrente líquida,
+          despesa com pessoal do Poder Executivo, investimentos, resultados primário e nominal e
+          dívida consolidada, como publicados nos relatórios entregues ao Tesouro Nacional
+          (SICONFI). Escolha uma UF.
         </p>
       </div>
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

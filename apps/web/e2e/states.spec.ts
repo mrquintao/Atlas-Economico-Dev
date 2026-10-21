@@ -83,7 +83,7 @@ test("DF: shows the comparability note and the missing indicator", async ({ page
     "não são diretamente comparáveis aos dos estados",
   );
   await expect(card(page, RCL)).toContainText("R$ 53,60 bi");
-  const missing = page.getByRole("region", { name: "Indicadores sem dados para Distrito Federal" });
+  const missing = page.getByRole("region", { name: "Indicadores sem dados nesta UF" });
   await expect(missing.getByRole("listitem")).toHaveText(["Resultado nominal"]);
   await expect(chart(page, "Resultado nominal")).toHaveCount(0);
 });
@@ -92,7 +92,7 @@ test("MG: only indicators with data get cards and charts; absences are explicit"
   await page.goto("/estados/MG");
   await expect(card(page, RCL)).toContainText("R$ 134,00 bi");
   await expect(page.getByRole("region", { name: "Últimos valores publicados" }).getByRole("region")).toHaveCount(2);
-  const missing = page.getByRole("region", { name: "Indicadores sem dados para Minas Gerais" });
+  const missing = page.getByRole("region", { name: "Indicadores sem dados nesta UF" });
   await expect(missing.getByRole("listitem")).toHaveCount(7);
   await expect(missing).toContainText("não são estimados nem exibidos como zero");
   await expect(chart(page, RCL)).toBeVisible();
@@ -102,7 +102,7 @@ test("MG: only indicators with data get cards and charts; absences are explicit"
 
 test("a UF without fiscal data says so instead of showing zeros", async ({ page }) => {
   await page.goto("/estados/AC");
-  await expect(page.getByText("Ainda não há dados fiscais armazenados para Acre.", { exact: false })).toBeVisible();
+  await expect(page.getByText("Ainda não há dados fiscais armazenados para esta UF.", { exact: false })).toBeVisible();
   await expect(page.getByRole("group", { name: "Período predefinido" })).toHaveCount(0);
   await expect(page.getByRole("img")).toHaveCount(0);
 });

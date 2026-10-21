@@ -1,9 +1,9 @@
 import type { EChartsCoreOption } from "echarts/core";
 
 import {
+  formatAxisNumber,
   formatDate,
   formatMonth,
-  formatNumber,
   formatPeriod,
   formatValue,
   isCurrencyUnit,
@@ -161,7 +161,7 @@ export function buildTimeSeriesOption({
       scale: false,
       // Zero baseline for rates; extends below zero only if the series has negative values.
       min: (extent: { min: number }) => Math.min(0, extent.min),
-      axisLabel: { color: palette.muted, formatter: (v: number) => formatNumber(v / scale.factor, 0) },
+      axisLabel: { color: palette.muted, formatter: (v: number) => formatAxisNumber(v / scale.factor) },
       splitLine: { lineStyle: { color: palette.grid, type: "dashed" } },
     },
     dataZoom: [

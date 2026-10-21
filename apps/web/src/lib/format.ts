@@ -50,13 +50,27 @@ export function isCurrencyUnit(unit: string): boolean {
  */
 export function formatCurrency(value: number, signed = false, decimals = DECIMALS): string {
   const magnitude = Math.abs(value);
-  const scale = CURRENCY_SCALES.find((s) => magnitude >= s.factor);
-  const scaled = scale ? magnitude / scale.factor : magnitude;
+  // The scale is chosen after rounding: 999.999.999 is "R$ 1,00 bi", never "R$ 1.000,00 mi".
+  const rounded = (factor: number) => Number((magnitude / factor).toFixed(decimals));
+  let index = CURRENCY_SCALES.findIndex((s) => magnitude >= s.factor);
+  if (index === -1) index = CURRENCY_SCALES.length;
+  // Step up while the rounded amount reaches the next scale (1.000 of this one).
+  const factorAt = (i: number) => (i < CURRENCY_SCALES.length ? CURRENCY_SCALES[i].factor : 1);
+  while (index > 0 && rounded(factorAt(index)) * factorAt(index) >= CURRENCY_SCALES[index - 1].factor) {
+    index -= 1;
+  }
+  const scale = index < CURRENCY_SCALES.length ? CURRENCY_SCALES[index] : undefined;
+  const scaled = rounded(factorAt(index));
   const number = formatNumber(scaled, decimals);
   // Same zero rule as formatChange: no sign when the rounded amount is zero.
   const isZero = number === formatNumber(0, decimals);
   const sign = isZero ? "" : value < 0 ? "-" : signed ? "+" : "";
   return `${sign}R$ ${number}${scale ? ` ${scale.suffix}` : ""}`;
+}
+
+/** An axis tick: up to two decimals, none when not needed ("0,5", "1", "1,5"). */
+export function formatAxisNumber(value: number): string {
+  return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 }).format(value);
 }
 
 /** A level in its unit: amounts in reais are scaled (formatCurrency), rates use formatRate. */

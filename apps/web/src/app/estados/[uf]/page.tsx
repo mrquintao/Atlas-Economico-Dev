@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: PageProps<"/estados/[uf]">): 
   return state
     ? {
         title: `${state.name} (${state.acronym}) — Atlas Econômico Brasileiro`,
-        description: `Indicadores fiscais de ${state.name} a partir dos relatórios entregues ao SICONFI, com fonte e metodologia.`,
+        description: `Indicadores fiscais — ${state.name} (${state.acronym}): valores dos relatórios entregues ao SICONFI, com fonte e metodologia.`,
       }
     : { title: "UF não encontrada — Atlas Econômico Brasileiro" };
 }
@@ -40,13 +40,13 @@ export default async function StatePage({ params }: PageProps<"/estados/[uf]">) 
           {state.name} ({state.acronym})
         </h1>
         <p className="text-muted-foreground">
-          Indicadores fiscais do estado calculados a partir dos relatórios da Lei de
-          Responsabilidade Fiscal (RREO e RGF) que o governo estadual entrega ao Tesouro Nacional
-          pelo SICONFI. Cada valor aparece como publicado, com período de referência, fonte e
-          metodologia. Indicadores sem dados são indicados como tal e nunca estimados.
+          Indicadores fiscais extraídos dos relatórios da Lei de Responsabilidade Fiscal (RREO e
+          RGF) que a UF entrega ao Tesouro Nacional pelo SICONFI. Cada valor aparece como
+          publicado, com período de referência, fonte e metodologia. Indicadores sem dados
+          aparecem como tal e nunca são estimados.
         </p>
       </div>
-      <StateDashboard uf={state.acronym} name={state.name} />
+      <StateDashboard uf={state.acronym} />
     </div>
   );
 }

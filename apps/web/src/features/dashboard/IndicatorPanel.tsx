@@ -12,7 +12,7 @@ import {
   RefreshingIndicator,
 } from "@/components/ui/states";
 import { useObservations, type ResourceState } from "@/hooks/useObservations";
-import { formatValue, formatValueChange } from "@/lib/format";
+import { formatValue, formatValueChange, isCurrencyUnit } from "@/lib/format";
 import type { DateRange } from "@/lib/period";
 import type { Indicator, ObservationsResponse } from "@/types/api";
 
@@ -94,6 +94,8 @@ export function SeriesBody({ series, step, domain, resetsEachYear = false, notes
   const { stats, indicator, unit } = data;
   const aggregated = data.aggregation.method !== "none";
   const fmt = (date: string) => formatReference({ frequency: data.frequency }, date);
+  // Amounts in current reais include inflation: say so, and call the change a difference.
+  const currency = isCurrencyUnit(unit);
 
   return (
     <div className="flex flex-col gap-4" aria-busy={series.status === "loading"}>
@@ -108,9 +110,11 @@ export function SeriesBody({ series, step, domain, resetsEachYear = false, notes
         <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
           <Stat label={`Início (${fmt(stats.first.date)})`} value={formatValue(stats.first.value, unit)} />
           <Stat label={`Fim (${fmt(stats.last.date)})`} value={formatValue(stats.last.value, unit)} />
-          <Stat label="Variação no período" value={formatValueChange(stats.change, stats.change_unit)} />
           <Stat
-            label="Mínima / máxima"
+            label={currency ? "Diferença no período (R$ correntes)" : "Variação no período"}
+            value={formatValueChange(stats.change, stats.change_unit)} />
+          <Stat
+            label={currency ? "Mínima / máxima (R$ correntes)" : "Mínima / máxima"}
             value={`${formatValue(stats.min.value, unit)} / ${formatValue(stats.max.value, unit)}`}
           />
         </dl>
