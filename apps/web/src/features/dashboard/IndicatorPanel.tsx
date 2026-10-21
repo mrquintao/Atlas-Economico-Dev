@@ -113,7 +113,7 @@ function SeriesBody({
         </dl>
       ) : null}
       {data.count === 0 ? (
-        <EmptyState message="Não há observações oficiais armazenadas para o período selecionado." />
+        <EmptyState message="Não há observações oficiais cujo período de referência termine no intervalo selecionado." />
       ) : (
         <TimeSeriesChart
           name={indicator.short_name}

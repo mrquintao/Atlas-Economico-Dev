@@ -285,7 +285,7 @@ describe("Dashboard loading and error states", () => {
   it("labels cards while loading and shows a status message", async () => {
     let release: () => void = () => {};
     const gate = new Promise<void>((resolve) => (release = resolve));
-        fetchMock.mockImplementation(async (url: string) => {
+    fetchMock.mockImplementation(async (url: string) => {
       await gate;
       return defaultFetch(url);
     });
@@ -303,7 +303,7 @@ describe("Dashboard loading and error states", () => {
     await screen.findByTestId("chart-Meta Selic");
     let release: () => void = () => {};
     const gate = new Promise<void>((resolve) => (release = resolve));
-        fetchMock.mockImplementation(async (url: string) => {
+    fetchMock.mockImplementation(async (url: string) => {
       await gate;
       return defaultFetch(url);
     });
@@ -316,7 +316,7 @@ describe("Dashboard loading and error states", () => {
 
   it("offers retry on a failed card and recovers", async () => {
     let failCards = true;
-        fetchMock.mockImplementation(async (url: string) => {
+    fetchMock.mockImplementation(async (url: string) => {
       const u = new URL(url);
       const cardRequest = u.searchParams.get("frequency") === "monthly" && !u.searchParams.has("start_date");
       if (failCards && cardRequest && u.pathname.includes("SELIC")) {
@@ -335,7 +335,7 @@ describe("Dashboard loading and error states", () => {
 
   it("reports a catalog failure with retry instead of failing silently", async () => {
     let failCatalog = true;
-        fetchMock.mockImplementation(async (url: string) => {
+    fetchMock.mockImplementation(async (url: string) => {
       if (failCatalog && new URL(url).pathname.endsWith("/api/v1/indicators")) {
         return json({ error: { code: "boom", message: "Catálogo fora do ar." } }, 503);
       }

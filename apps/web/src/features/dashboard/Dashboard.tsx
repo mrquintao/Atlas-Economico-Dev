@@ -112,7 +112,7 @@ export function Dashboard() {
             {catalog.status === "error" && (
               <div className="mt-3">
                 <InlineError
-                  message={`Não foi possível carregar o catálogo de indicadores (${catalog.error.message}) Os gráficos podem não ficar alinhados no mesmo eixo de datas.`}
+                  message={`Não foi possível carregar o catálogo de indicadores: ${catalog.error.message} Sem ele, os gráficos podem não ficar alinhados no mesmo eixo de datas.`}
                   onRetry={catalog.retry}
                 />
               </div>
