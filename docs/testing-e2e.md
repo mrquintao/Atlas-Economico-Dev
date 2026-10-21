@@ -46,6 +46,10 @@ Assim, nunca mistura valores sintéticos com dados oficiais.
   período; UF sem dado com rótulo "sem dado" e padrão hachurado; legenda com faixas e "Sem dado";
   tabela alternativa; dica de contexto no hover; clique e teclado (foco + Enter) abrem a UF; filtros de
   período e de indicador (período mantido entre indicadores quadrimestrais; escala divergente da DCL/RCL).
+- Comparação das UFs (S8, `e2e/compare.spec.ts`): acesso por `/estados` (status 200, sem cair no 404
+  das UFs); ranking padrão por DCL/RCL com empates na mesma posição; UFs sem dado listadas à parte;
+  aviso de valor absoluto (RCL); ordem crescente; seleção de UFs (mínimo de 2); evolução histórica com
+  UF sem dado, nota do DF e acumulado no ano.
 - Navegação para "Metodologia" e "Fontes de dados", âncoras por indicador e link do painel de metodologia.
 - **Nenhum erro no console** nem exceção não tratada em nenhum teste (fixture automática).
 
