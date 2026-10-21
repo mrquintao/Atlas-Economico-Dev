@@ -52,7 +52,8 @@ Um PR só é integrado quando **todos** os itens valem para o commit mais recent
    - `API (lint, migrations, tests)`;
    - `Web (lint, typecheck, tests, build)`;
    - `Docker Compose (build and smoke test)`;
-   - `E2E (Playwright)`.
+   - `E2E (Playwright)`;
+   - `Dev script (shellcheck, local smoke)`.
    Checks ausentes, pendentes, `skipped` ou `cancelled` **não** contam como aprovação.
 3. O PR está mergeável (sem conflitos; `mergeable_state` limpo).
 4. Não há achado crítico, alto ou médio do `qa-auditor` sem correção ou decisão registrada (no PR ou

@@ -19,3 +19,6 @@ node_modules/
 .DS_Store
 .idea/
 .vscode/
+
+# Local run logs of scripts/dev.sh
+.dev/
