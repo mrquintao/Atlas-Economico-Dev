@@ -3,6 +3,32 @@
 Entradas curtas, da mais recente para a mais antiga: o que foi entregue, o que foi validado, as falhas e
 como foram corrigidas, e as decisões relevantes. Os detalhes ficam nos PRs, nas issues e nos ADRs.
 
+## 2026-10-21 — M6 concluída: testes E2E com Playwright (issue #8, PR #35)
+
+- Fixture SINTÉTICA `services/api/tests/fixtures/e2e_seed.py`: séries determinísticas, cada linha
+  identificada. Três travas: `ATLAS_E2E_SEED=1`, nome do banco com `e2e`/`test` e banco sem
+  observações nem execuções de coleta. 8 pytest.
+- `apps/web/e2e` (`@playwright/test` 1.63.0), 11 testes:
+  - painel;
+  - presets nos três gráficos;
+  - cursor dia→mês e mês→último dia;
+  - cursor oculto fora da série;
+  - zoom sincronizado;
+  - troca diária/mensal mantendo o zoom;
+  - estado vazio e intervalo inválido;
+  - páginas de catálogo;
+  - console sem erros em todos.
+  Os testes são caixa-preta: leem os tooltips HTML do ECharts e os nomes acessíveis.
+- CI: job `E2E (Playwright)`, sem retries, no gate de merge. Sem Docker Compose (ADR 0008).
+- Mutações em `chart-sync.ts` (`alignTime`, `syncZoom`, `afterOptionUpdate`, limite de extensão do
+  cursor) são detectadas pelos testes correspondentes. 11/11 em 3 execuções locais seguidas e verde
+  no CI em 3 commits consecutivos.
+- qa-auditor: sem críticos/altos. Médio corrigido: a fixture podia gravar no banco `atlas` (dados
+  reais) se ele estivesse vazio. Baixos corrigidos: espera do *throttle* do zoom, asserções completas
+  dos presets, teste do cursor oculto, `pg_isready -d`, texto do ADR sobre `next start`.
+- Incidente local: um `pgrep -f` casou com o próprio shell e encerrou servidores e o PostgreSQL de
+  desenvolvimento; reiniciados sem perda (o banco `atlas` continua intacto).
+
 ## 2026-10-21 — M5 concluída: páginas "Metodologia" e "Fontes de dados" (issue #7, PR #34)
 
 - Frontend: `/metodologia` lista todos os indicadores de `GET /indicators` e `/fontes` as fontes de

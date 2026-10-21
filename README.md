@@ -144,6 +144,9 @@ uv run ruff check . && uv run ruff format --check .
 # Frontend
 cd apps/web
 npm run lint && npm run typecheck && npm test && npm run build
+
+# E2E (Playwright) sobre banco descartável com fixture sintética: ver docs/testing-e2e.md
+npm run test:e2e
 ```
 
 Sem `TEST_DATABASE_URL`, os testes que dependem de PostgreSQL são ignorados (skip) e apenas os
@@ -156,6 +159,7 @@ unitários rodam. Nenhum teste acessa a internet. O CI (GitHub Actions) roda tud
 - [Metodologias](docs/methodology.md)
 - [Endpoints da API](docs/api.md)
 - [Pipeline de ingestão](docs/data-pipeline.md)
+- [Testes E2E](docs/testing-e2e.md)
 - [Decisões técnicas (ADRs)](docs/adr/)
 
 ## Fontes de dados

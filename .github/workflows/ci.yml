@@ -79,6 +79,62 @@ jobs:
       - name: Build
         run: npm run build
 
+  e2e:
+    name: E2E (Playwright)
+    runs-on: ubuntu-latest
+    needs: [api, web]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: atlas
+          POSTGRES_PASSWORD: atlas
+          POSTGRES_DB: atlas_e2e
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U atlas -d atlas_e2e" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      # Disposable database with SYNTHETIC data only (services/api/tests/fixtures/e2e_seed.py);
+      # the job never calls the official sources.
+      DATABASE_URL: postgresql+psycopg://atlas:atlas@localhost:5432/atlas_e2e
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.11.32"
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Database (migrations and synthetic E2E fixture)
+        working-directory: services/api
+        run: |
+          uv sync --frozen
+          uv run alembic upgrade head
+          ATLAS_E2E_SEED=1 uv run python -m tests.fixtures.e2e_seed
+      - name: Install web dependencies and Chromium
+        working-directory: apps/web
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Build web
+        working-directory: apps/web
+        run: npm run build
+      - name: E2E tests
+        working-directory: apps/web
+        run: npm run test:e2e
+      - name: Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            apps/web/playwright-report
+            apps/web/test-results
+          retention-days: 7
+
   docker:
     name: Docker Compose (build and smoke test)
     runs-on: ubuntu-latest
