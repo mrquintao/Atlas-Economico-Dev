@@ -3,6 +3,21 @@
 Entradas curtas, da mais recente para a mais antiga: o que foi entregue, o que foi validado, as falhas e
 como foram corrigidas, e as decisões relevantes. Os detalhes ficam nos PRs, nas issues e nos ADRs.
 
+## 2026-10-21 — S5 concluída: API estadual (issue #15, PR #42)
+
+- Novos endpoints `GET /states/{uf}/indicators` (metadados, disponibilidade e séries por UF, filtros de
+  data) e `GET /states/{uf}/dashboard` (último período e diferença em relação ao mesmo período do ano
+  anterior). UF só no nível estadual (`404 state_not_found` para `BR`, regiões, municípios); nota do DF;
+  `change_note` e `accumulation_window` por indicador. Refactor: `summarize_indicator` e
+  `series_response` reutilizados pelas rotas nacional e de observações.
+- economist: comparação anual aprovada para os 9 indicadores (inclusive acumulados no ano), sem
+  variação percentual; ordem receita → despesas → resultados → dívida; redações das notas.
+- Verificação real: SICONFI 2024–2025 de SP e DF; 18 valores de 2025 iguais às amostras oficiais;
+  diferença da DCL de SP = identidade do resultado nominal; DF 3º quadr./2024 conferido na API.
+- qa-auditor: sem críticos/altos; médio (número de consultas) com decisão registrada; baixos corrigidos
+  (`change_note` nulo sem comparação, testes de UF) ou registrados na issue #15.
+- Ambiente: `/tmp/pgdata` não existia; cluster recriado (bancos `atlas`, `atlas_ci`, `atlas_test`, `atlas_e2e`).
+
 ## 2026-10-21 — S4: indicadores fiscais estaduais (issue #14, PR #41)
 
 - Economist: mapeamento de 9 indicadores (uma linha publicada cada; `cod_conta` e coluna exatos),
