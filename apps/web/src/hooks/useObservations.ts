@@ -1,12 +1,13 @@
 "use client";
 
-import { fetchIndicators, fetchNationalDashboard, fetchObservations } from "@/lib/api";
+import { fetchIndicators, fetchNationalDashboard, fetchObservations, fetchSources } from "@/lib/api";
 import type { DateRange } from "@/lib/period";
 import type {
   Indicator,
   NationalDashboard,
   ObservationsResponse,
   RequestedFrequency,
+  Source,
 } from "@/types/api";
 
 import { useResource } from "./useResource";
@@ -24,6 +25,11 @@ export function useObservations(code: string, range: DateRange, frequency: Reque
 /** Loads the indicator catalog (metadata and stored date range of each indicator). */
 export function useIndicators() {
   return useResource<Indicator[]>("indicators", fetchIndicators);
+}
+
+/** Loads the official data sources registered in the catalog. */
+export function useSources() {
+  return useResource<Source[]>("sources", fetchSources);
 }
 
 /** Loads the national dashboard summary (latest value and 12-month change per indicator). */

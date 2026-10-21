@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import Link from "next/link";
+import { SiteNav } from "@/components/layout/SiteNav";
 
 import "./globals.css";
 
@@ -27,13 +27,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           Pular para o conteúdo
         </a>
         <header className="border-b border-border">
-          <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-4 sm:px-6">
             <p className="text-sm font-bold tracking-[0.18em]">ATLAS ECONÔMICO BRASILEIRO</p>
-            <nav aria-label="Principal">
-              <Link href="/" aria-current="page" className="text-sm font-medium">
-                Brasil
-              </Link>
-            </nav>
+            <SiteNav />
           </div>
         </header>
         <main id="conteudo" className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">

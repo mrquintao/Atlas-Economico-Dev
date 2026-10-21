@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 
 import type { IngestionRun, ObservationsResponse } from "@/types/api";
 
-import { MethodologyPanel, lastRunLabel } from "./MethodologyPanel";
+import { lastRunLabel } from "@/features/catalog/IndicatorMetadata";
+
+import { MethodologyPanel } from "./MethodologyPanel";
 
 // ---- Synthetic API response (test-only data) ----
 
@@ -81,6 +83,13 @@ describe("MethodologyPanel", () => {
     expect(screen.getByText("Nunca coletado")).toBeInTheDocument();
     expect(screen.getByText(/Ainda não há dados coletados deste indicador\.$/)).toBeInTheDocument();
     expect(screen.queryByText(/última coleta bem-sucedida/)).not.toBeInTheDocument();
+  });
+
+  it("links to the indicator on the methodology page", () => {
+    render(<MethodologyPanel response={response(null)} />);
+    expect(
+      screen.getByRole("link", { name: "Ver todos os indicadores na página de metodologia" }),
+    ).toHaveAttribute("href", "/metodologia#SELIC_TARGET");
   });
 
   it("does not show a run status for an indicator never collected", () => {
