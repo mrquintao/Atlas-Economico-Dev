@@ -60,6 +60,12 @@ const selic: Indicator = {
   first_stored_date: "1999-03-05",
   last_stored_date: "2026-10-21",
   last_collected_at: "2026-10-21T00:12:42Z",
+  last_run: {
+    status: "success",
+    started_at: "2026-10-21T00:12:30Z",
+    finished_at: "2026-10-21T00:12:42Z",
+    error_type: null,
+  },
 };
 
 const dbgg: Indicator = {

@@ -6,9 +6,9 @@ from sqlalchemy.orm import Session
 
 from app.api.errors import ApiError
 from app.db.session import get_db
-from app.models import GeographicUnit, Indicator
+from app.models import GeographicUnit, Indicator, IngestionRun
 from app.repositories import catalog as repo
-from app.schemas.catalog import GeographyOut, IndicatorOut, SourceOut
+from app.schemas.catalog import GeographyOut, IndicatorOut, IngestionRunOut, SourceOut
 from app.schemas.observations import ErrorResponse
 
 router = APIRouter()
@@ -46,6 +46,18 @@ def build_indicator_out(
         first_stored_date=first,
         last_stored_date=last,
         last_collected_at=repo.last_successful_collection(session, indicator.id),
+        last_run=_run_out(repo.latest_run(session, indicator.id)),
+    )
+
+
+def _run_out(run: IngestionRun | None) -> IngestionRunOut | None:
+    if run is None:
+        return None
+    return IngestionRunOut(
+        status=run.status,  # type: ignore[arg-type]
+        started_at=run.started_at,
+        finished_at=run.finished_at,
+        error_type=run.error_message.split(":", 1)[0] if run.error_message else None,
     )
 
 

@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     bcb_min_request_interval_seconds: float = 0.5
     ibge_min_request_interval_seconds: float = 0.5
 
+    # Scheduled collection (Compose `scheduler` service): times of day, Brasília time.
+    ingest_schedule: str = "06:00"
+    # Also collect once as soon as the scheduler starts (e.g. to fill a fresh database).
+    ingest_on_start: bool = False
+
 
 @lru_cache
 def get_settings() -> Settings:

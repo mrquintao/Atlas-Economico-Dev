@@ -195,11 +195,21 @@ def test_reports_stored_dates_missing_from_source(db: Session, ingest) -> None:
     assert run.metadata_json["missing_from_source"] == ["2024-01-05"]
 
 
-def test_empty_response_for_stored_range_is_reported(db: Session, ingest) -> None:
+def test_empty_response_for_stored_range_is_a_failure(db: Session, ingest) -> None:
+    # An outage answering "no data" must not count as a successful collection.
     ingest(FakeSGS(daily(date(2024, 1, 1), 3, "11.75")), start=date(2024, 1, 1))
+    with pytest.raises(IngestionError, match=r"no records .* 3 stored observations") as info:
+        ingest(FakeSGS({}), start=date(2024, 1, 1))
+    assert count_obs(db) == 3  # stored data kept
+    runs = db.scalars(select(IngestionRun).order_by(IngestionRun.id)).all()
+    assert [r.status for r in runs] == ["success", "failed"]
+    assert info.value.ingestion_run_id == runs[1].id  # type: ignore[attr-defined]
+
+
+def test_empty_response_without_stored_data_is_not_a_failure(db: Session, ingest) -> None:
     summary = ingest(FakeSGS({}), start=date(2024, 1, 1))
-    assert len(summary.missing_from_source) == 3
-    assert count_obs(db) == 3
+    assert summary.status == "success"
+    assert summary.received == 0
 
 
 def test_default_collection_date_uses_brasilia_time(

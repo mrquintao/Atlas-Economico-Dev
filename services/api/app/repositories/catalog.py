@@ -53,6 +53,15 @@ def last_successful_collection(session: Session, indicator_id: int) -> datetime 
     )
 
 
+def latest_run(session: Session, indicator_id: int) -> IngestionRun | None:
+    return session.scalar(
+        select(IngestionRun)
+        .where(IngestionRun.indicator_id == indicator_id)
+        .order_by(IngestionRun.started_at.desc(), IngestionRun.id.desc())
+        .limit(1)
+    )
+
+
 def observation_bounds(
     session: Session, indicator_id: int, geographic_unit_id: int
 ) -> tuple[date | None, date | None]:

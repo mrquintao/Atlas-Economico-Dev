@@ -1,6 +1,8 @@
 # Ambiente local completo: PostgreSQL + API + frontend.
 #   docker compose up --build -d
-#   docker compose exec api python -m app.ingestion.cli ingest SELIC_TARGET --full
+#   docker compose exec api python -m app.ingestion.cli ingest --all
+# Coleta automática (opcional): serviço `scheduler`, no horário de INGEST_SCHEDULE (Brasília).
+#   docker compose --profile scheduler up --build -d
 services:
   db:
     image: postgres:16-alpine
@@ -33,6 +35,32 @@ services:
         condition: service_healthy
     ports:
       - "8000:8000"
+    # Healthy once migrations ran and the API answers (the scheduler waits for it).
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health', timeout=4)"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  scheduler:
+    profiles: ["scheduler"]
+    build:
+      context: .
+      dockerfile: infra/docker/api.Dockerfile
+    command: ["python", "-m", "app.ingestion.scheduler"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-atlas}:${POSTGRES_PASSWORD:-atlas}@db:5432/${POSTGRES_DB:-atlas}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # Times of day (HH:MM, comma-separated) in America/Sao_Paulo.
+      INGEST_SCHEDULE: ${INGEST_SCHEDULE:-06:00}
+      INGEST_ON_START: ${INGEST_ON_START:-false}
+    depends_on:
+      api:
+        condition: service_healthy  # migrations are applied by the API on start-up
+    restart: unless-stopped
+    # Lets a collection in progress finish (each indicator is atomic) on `docker compose stop`.
+    stop_grace_period: 2m
 
   web:
     build:

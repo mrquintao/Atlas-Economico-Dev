@@ -162,9 +162,13 @@ def ingest_indicator(
     if geo is None:
         raise IngestionError("National geographic unit (IBGE code 1) is not seeded")
 
-    range_start, range_end = _resolve_range(
-        session, indicator, geo, start=start, end=end, full=full, today=today
-    )
+    try:
+        range_start, range_end = _resolve_range(
+            session, indicator, geo, start=start, end=end, full=full, today=today
+        )
+    except IngestionError as exc:
+        record_failed_run(session, indicator, exc)
+        raise
 
     # The run record is committed up-front so that failures remain auditable.
     run = IngestionRun(
@@ -223,14 +227,19 @@ def ingest_indicator(
         try:
             session.rollback()
             run.status = IngestionStatus.FAILED
-            run.error_message = f"{type(exc).__name__}: {exc}"[:2000]
+            run.error_message = format_error(exc)
             _finish(run, summary)
             session.commit()
+            exc.ingestion_run_id = run.id  # type: ignore[attr-defined]  # for batch reports
         except Exception:
             session.rollback()
             logger.exception("ingestion_failure_not_recorded", extra=log_ctx)
         raise
 
+    if summary.received == 0:
+        # Nothing stored in the range either (e.g. a fresh database before the first
+        # publication): not an error, but worth an operator's look.
+        logger.warning("ingestion_received_no_records", extra=log_ctx)
     logger.info(
         "ingestion_finished",
         extra={
@@ -243,6 +252,39 @@ def ingest_indicator(
         },
     )
     return summary
+
+
+def record_failed_run(session: Session, indicator: Indicator, error: BaseException) -> int:
+    """Audits a failure that happened before any data was requested (e.g. invalid range).
+
+    Every attempt to collect an indicator leaves a row in ``ingestion_runs``, so the status
+    shown to users and operators never hides a failure.
+    """
+    session.rollback()
+    now = datetime.now(UTC)
+    run = IngestionRun(
+        source_id=indicator.source_id,
+        indicator_id=indicator.id,
+        started_at=now,
+        finished_at=now,
+        status=IngestionStatus.FAILED,
+        records_received=0,
+        records_inserted=0,
+        records_updated=0,
+        records_unchanged=0,
+        error_message=format_error(error),
+    )
+    session.add(run)
+    session.commit()
+    logger.error(
+        "ingestion_failed",
+        extra={"run_id": run.id, "indicator": indicator.code, "error": run.error_message},
+    )
+    return run.id
+
+
+def format_error(error: BaseException) -> str:
+    return f"{type(error).__name__}: {error}"[:2000]
 
 
 def period_end(reference_date: date, frequency: Frequency) -> date:
@@ -280,6 +322,14 @@ def _upsert(
             )
         )
     }
+    if existing and not points:
+        # An official series does not vanish: an empty answer for a range we already hold is an
+        # upstream failure, never a successful collection (it would advance "last collection").
+        first, last = min(existing), max(existing)
+        raise IngestionError(
+            f"Source returned no records for {summary.start}..{summary.end}, which holds "
+            f"{len(existing)} stored observations ({first}..{last}); stored data kept"
+        )
     returned = {point.reference_date for point in points}
     missing = sorted(d for d in existing if d not in returned)
     if missing:
