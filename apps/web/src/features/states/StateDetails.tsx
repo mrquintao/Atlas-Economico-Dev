@@ -160,7 +160,7 @@ function Selected({
 }
 
 /** Latest published value of each state indicator of the UF, in its own reference period. */
-function LatestValues({ uf }: { uf: string }) {
+export function LatestValues({ uf }: { uf: string }) {
   const dashboard = useStateDashboard(uf);
   const titleId = useId();
 

@@ -233,3 +233,41 @@ test("map: period and indicator filters", async ({ page }) => {
   await expect(map.getByRole("button", { name: /^Minas Gerais: 110,00% da RCL ajustada/ })).toBeVisible();
   await expect(page.getByText(/^Zero separa as cores/)).toBeVisible();
 });
+
+// Explorer: the geographic map at the top of /estados (same SYNTHETIC boundaries and series).
+
+test("explorer: a geographic map; clicking a UF shows its profile beside the map", async ({ page }) => {
+  await page.goto("/estados");
+  const map = page.getByRole("group", { name: "Mapa do Brasil: escolha uma UF" });
+  await expect(map.getByRole("button")).toHaveCount(27);
+  await expect(page.getByRole("heading", { level: 3, name: "Explore o mapa" })).toBeVisible();
+
+  const sp = map.getByRole("button", { name: "São Paulo" });
+  await sp.hover();
+  await expect(page.getByRole("tooltip")).toContainText("São Paulo SP");
+  await sp.click();
+  await expect(sp).toHaveAttribute("aria-pressed", "true");
+  const profile = page.getByRole("region", { name: "São Paulo SP" });
+  await expect(profile).toContainText("Região Sudeste");
+  const latest = profile.getByRole("region", { name: "Últimos valores publicados" });
+  await expect(latest).toContainText("R$ 268,00 bi");
+  await expect(latest).toContainText("Últimos 12 meses até o fim do período.");
+
+  // A UF without fiscal data says so instead of showing zeros.
+  await map.getByRole("button", { name: "Acre" }).click();
+  await expect(page.getByRole("region", { name: "Acre AC" })).toContainText(
+    "Ainda não há dados fiscais armazenados para esta UF.",
+  );
+
+  await page.getByRole("region", { name: "Acre AC" }).getByRole("link", { name: "Abrir o painel completo da UF" }).click();
+  await expect(page).toHaveURL(/\/estados\/AC$/);
+});
+
+test("explorer: the focus ring follows the keyboard, not mouse clicks", async ({ page }) => {
+  await page.goto("/estados");
+  const map = page.getByRole("group", { name: "Mapa do Brasil: escolha uma UF" });
+  await map.getByRole("button", { name: "Bahia" }).click();
+  await expect(map.locator("[data-focus-ring]")).toHaveCount(0);
+  await page.keyboard.press("Tab");
+  await expect(map.locator("[data-focus-ring]")).toHaveCount(1);
+});

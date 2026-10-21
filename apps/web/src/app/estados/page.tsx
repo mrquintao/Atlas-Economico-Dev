@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { PageHeader } from "@/components/layout/PageHeader";
+import { StateExplorer } from "@/features/states/StateExplorer";
 import { StateMapPanel } from "@/features/states/StateMap";
 import { REGION_NAMES, statePath, STATES } from "@/lib/states";
 
@@ -34,6 +35,7 @@ export default function StatesPage() {
           Comparar UFs: ranking e evolução histórica
         </Link>
       </div>
+      <StateExplorer />
       <StateMapPanel />
       <section aria-labelledby="regions" className="flex flex-col gap-4">
         <h2 id="regions" className="text-lg font-semibold">
