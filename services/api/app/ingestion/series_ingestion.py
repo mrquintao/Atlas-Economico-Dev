@@ -1,4 +1,4 @@
-"""Ingestion of BCB/SGS series into ``observations``.
+"""Ingestion of official monthly/daily series (BCB/SGS, IBGE/SIDRA) into ``observations``.
 
 Guarantees:
 - Idempotent: re-running with the same data inserts and updates nothing.
@@ -19,14 +19,15 @@ import logging
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
-from typing import Any
+from typing import Any, Protocol
 
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from app.core.clock import brazil_today
-from app.integrations.bcb.sgs import SGSClient, SGSPoint
+from app.integrations.bcb.sgs import SGSClient, SGSPoint, SGSWindowResult
+from app.integrations.ibge.sidra import SIDRAClient
 from app.models import (
     Frequency,
     GeographicUnit,
@@ -53,6 +54,24 @@ NATIONAL_IBGE_CODE = "1"
 
 class IngestionError(Exception):
     pass
+
+
+class SeriesClient(Protocol):
+    """What ingestion needs from a source connector (``SGSClient`` and ``SIDRAClient``)."""
+
+    def fetch_series(
+        self, series_code: str, start: date, end: date, *, daily: bool = ...
+    ) -> list[SGSWindowResult]: ...
+
+
+def source_reference(source_acronym: str, series_code: str) -> str:
+    """Stable pointer to the upstream series, stored on each observation."""
+    if source_acronym == "BCB":
+        return f"bcdata.sgs.{series_code}"
+    if source_acronym == "IBGE":
+        table, _, variable = series_code.partition("/")
+        return f"sidra.t{table}.v{variable}"
+    raise IngestionError(f"No source reference format for source {source_acronym}")
 
 
 @dataclass
@@ -109,10 +128,23 @@ def _resolve_range(
 
 
 def ingest_sgs_indicator(
+    session: Session, client: SGSClient, indicator_code: str, **kw: Any
+) -> IngestionSummary:
+    return ingest_indicator(session, client, indicator_code, source_acronym="BCB", **kw)
+
+
+def ingest_sidra_indicator(
+    session: Session, client: SIDRAClient, indicator_code: str, **kw: Any
+) -> IngestionSummary:
+    return ingest_indicator(session, client, indicator_code, source_acronym="IBGE", **kw)
+
+
+def ingest_indicator(
     session: Session,
-    client: SGSClient,
+    client: SeriesClient,
     indicator_code: str,
     *,
+    source_acronym: str,
     start: date | None = None,
     end: date | None = None,
     full: bool = False,
@@ -122,8 +154,8 @@ def ingest_sgs_indicator(
     indicator = session.scalar(select(Indicator).where(Indicator.code == indicator_code))
     if indicator is None:
         raise IngestionError(f"Unknown indicator: {indicator_code}")
-    if indicator.source.acronym != "BCB":
-        raise IngestionError(f"{indicator_code} is not an SGS (BCB) series")
+    if indicator.source.acronym != source_acronym:
+        raise IngestionError(f"{indicator_code} is not a {source_acronym} series")
     geo = session.scalar(
         select(GeographicUnit).where(GeographicUnit.ibge_code == NATIONAL_IBGE_CODE)
     )
@@ -262,7 +294,7 @@ def _upsert(
                 "last": missing[-1],
             },
         )
-    source_reference = f"bcdata.sgs.{indicator.source_series_code}"
+    reference = source_reference(indicator.source.acronym, indicator.source_series_code)
     new_rows: list[dict[str, Any]] = []
     for point in points:
         current = existing.get(point.reference_date)
@@ -276,7 +308,7 @@ def _upsert(
                     "period_end": period_end(point.reference_date, frequency),
                     "value": point.value,
                     "collected_at": collected_at,
-                    "source_reference": source_reference,
+                    "source_reference": reference,
                 }
             )
         elif current[1] != point.value:

@@ -28,7 +28,32 @@ interface Options {
   description: string;
 }
 
-type Datum = [string, number, boolean];
+type Datum = [string, number | null, boolean];
+
+/** Start of the period that follows ``periodStart`` (next day or next month), as ISO date. */
+function nextPeriodStart(periodStart: string, frequency: Frequency): string {
+  const d = new Date(`${periodStart}T00:00:00Z`);
+  if (frequency === "daily") d.setUTCDate(d.getUTCDate() + 1);
+  else d.setUTCMonth(d.getUTCMonth() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Chart points with an explicit break (null value) wherever a period is missing between two
+ * observations, so that gaps in the official series are drawn as gaps, never bridged.
+ */
+export function toChartData(observations: Observation[], frequency: Frequency): Datum[] {
+  const data: Datum[] = [];
+  observations.forEach((o, i) => {
+    const previous = observations[i - 1];
+    if (previous && (frequency === "daily" || frequency === "monthly")) {
+      const expected = nextPeriodStart(previous.period_start, frequency);
+      if (o.period_start > expected) data.push([expected, null, false]);
+    }
+    data.push([o.date, o.value, o.partial]);
+  });
+  return data;
+}
 
 /** Pure builder for the ECharts option of a single-indicator time series. */
 export function buildTimeSeriesOption({
@@ -42,7 +67,7 @@ export function buildTimeSeriesOption({
   domain,
   description,
 }: Options): EChartsCoreOption {
-  const data: Datum[] = observations.map((o) => [o.date, o.value, o.partial]);
+  const data = toChartData(observations, frequency);
   const isMonthly = frequency === "monthly";
 
   return {
@@ -67,6 +92,7 @@ export function buildTimeSeriesOption({
         const first = (Array.isArray(params) ? params[0] : params) as { data?: Datum } | undefined;
         if (!first?.data) return "";
         const [date, value, partial] = first.data;
+        if (value === null) return ""; // break inserted for a missing period
         const partialNote = partial ? " (mês parcial)" : "";
         const when = !isMonthly
           ? formatDate(date)

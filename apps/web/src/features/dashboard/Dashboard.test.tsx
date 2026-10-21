@@ -72,6 +72,28 @@ const dbgg: Indicator = {
   last_stored_date: "2026-08-01",
 };
 
+const ipca: Indicator = {
+  ...dbgg,
+  code: "IPCA_12M",
+  name: "IPCA - Variação acumulada em 12 meses",
+  short_name: "IPCA 12 meses",
+  description: "Inflação medida pelo IPCA, acumulada nos 12 meses até o mês de referência.",
+  unit: "%",
+  methodology: "Tabela 1737 do SIDRA, variável 2265.",
+  first_available_date: "1980-12-01",
+  source: {
+    acronym: "IBGE",
+    name: "SIDRA",
+    organization: "Instituto Brasileiro de Geografia e Estatística",
+    base_url: "https://apisidra.ibge.gov.br",
+    documentation_url: null,
+  },
+  source_series_code: "1737/2265",
+  source_url: "https://sidra.ibge.gov.br/tabela/1737",
+  first_stored_date: "1980-12-01",
+  last_stored_date: "2026-09-01",
+};
+
 function obs(date: string, value: number, periodStart = date): Observation {
   return { date, value, period_start: periodStart, period_end: date, partial: false };
 }
@@ -125,6 +147,12 @@ const dbggSeries = response(
   "monthly",
 );
 
+const ipcaSeries = response(
+  ipca,
+  [obs("2025-09-01", 5.17, "2025-09-01"), obs("2026-09-01", 4.58, "2026-09-01")],
+  "monthly",
+);
+
 /** A card in the "Indicadores em destaque" section (chart panels may share the name). */
 async function findHighlight(name: string): Promise<HTMLElement> {
   const highlights = screen.getByRole("region", { name: "Indicadores em destaque" });
@@ -149,7 +177,7 @@ function seriesRequests(code: string): URL[] {
 /** Routes the synthetic API: catalog, Selic (card = full monthly; chart = daily) and DBGG. */
 async function defaultFetch(url: string): Promise<Response> {
   const { pathname, searchParams } = new URL(url);
-  if (pathname.endsWith("/api/v1/indicators")) return json([dbgg, selic]);
+  if (pathname.endsWith("/api/v1/indicators")) return json([dbgg, ipca, selic]);
   const start = searchParams.get("start_date");
   if (start === "2010-01-01") {
     return json(response(pathname.includes("DBGG") ? dbgg : selic, [], "daily"));
@@ -158,6 +186,7 @@ async function defaultFetch(url: string): Promise<Response> {
     return json({ error: { code: "boom", message: "Falha simulada." } }, 500);
   }
   if (pathname.includes("DBGG_GDP")) return json(dbggSeries);
+  if (pathname.includes("IPCA_12M")) return json(ipcaSeries);
   const latestRequest = searchParams.get("frequency") === "monthly" && !start;
   return json(latestRequest ? selicMonthly : selicDaily);
 }
@@ -191,6 +220,20 @@ describe("Dashboard", () => {
     expect(within(card).getByText(/vs\. ago\/2025/)).toBeInTheDocument();
   });
 
+  it("shows the latest IPCA 12-month rate by reference month, with SIDRA source", async () => {
+    render(<Dashboard />);
+    const card = await findHighlight("IPCA 12 meses");
+    expect(within(card).getByText("4,58%")).toBeInTheDocument();
+    expect(within(card).getByText("Referência: set/2026")).toBeInTheDocument();
+    expect(within(card).getByText("-0,59 p.p.")).toBeInTheDocument();
+    expect(within(card).getByText(/vs\. set\/2025/)).toBeInTheDocument();
+    expect(
+      within(card).getByRole("link", {
+        name: "Instituto Brasileiro de Geografia e Estatística — SIDRA 1737 (v. 2265)",
+      }),
+    ).toHaveAttribute("href", ipca.source_url);
+  });
+
   it("renders one synchronised chart per indicator for the default period", async () => {
     render(<Dashboard />);
     const selicChart = await screen.findByTestId("chart-Meta Selic");
@@ -200,6 +243,10 @@ describe("Dashboard", () => {
     // Same x-axis domain on both: selected start .. latest stored date of any indicator.
     await waitFor(() => expect(selicChart).toHaveAttribute("data-domain", "2008-01-01/2026-10-21"));
     expect(dbggChart).toHaveAttribute("data-domain", "2008-01-01/2026-10-21");
+    // The third chart shares the same period and domain.
+    const ipcaChart = await screen.findByTestId("chart-IPCA 12 meses");
+    expect(ipcaChart).toHaveAttribute("data-domain", "2008-01-01/2026-10-21");
+    expect(seriesRequests("IPCA_12M")[0].searchParams.get("start_date")).toBe("2008-01-01");
     expect(seriesRequests("SELIC_TARGET")[0].searchParams.get("start_date")).toBe("2008-01-01");
     expect(seriesRequests("DBGG_GDP")[0].searchParams.get("start_date")).toBe("2008-01-01");
     expect(seriesRequests("DBGG_GDP")[0].searchParams.get("frequency")).toBe("original");
@@ -215,6 +262,7 @@ describe("Dashboard", () => {
     await waitFor(() => {
       expect(seriesRequests("SELIC_TARGET").at(-1)?.searchParams.get("start_date")).toBe("2021-10-01");
       expect(seriesRequests("DBGG_GDP").at(-1)?.searchParams.get("start_date")).toBe("2021-10-01");
+      expect(seriesRequests("IPCA_12M").at(-1)?.searchParams.get("start_date")).toBe("2021-10-01");
     });
     expect(screen.getByRole("button", { name: "5 anos" })).toHaveAttribute("aria-pressed", "true");
   });
@@ -245,7 +293,7 @@ describe("Dashboard", () => {
     render(<Dashboard />);
     await screen.findByTestId("chart-Meta Selic");
     fireEvent.change(screen.getByLabelText("Data inicial"), { target: { value: "2010-01-01" } });
-    expect(await screen.findAllByText(/Não há observações oficiais/)).toHaveLength(2);
+    expect(await screen.findAllByText(/Não há observações oficiais/)).toHaveLength(3);
     expect(screen.queryByTestId("chart-Meta Selic")).not.toBeInTheDocument();
   });
 
@@ -253,9 +301,9 @@ describe("Dashboard", () => {
     render(<Dashboard />);
     await screen.findByTestId("chart-Meta Selic");
     fireEvent.change(screen.getByLabelText("Data inicial"), { target: { value: "2001-01-01" } });
-    expect(await screen.findAllByText(/Falha simulada/)).toHaveLength(2);
+    expect(await screen.findAllByText(/Falha simulada/)).toHaveLength(3);
     expect(screen.getByTestId("chart-Meta Selic")).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: "Tentar novamente" })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "Tentar novamente" })).toHaveLength(3);
   });
 
   it("shows an error state with retry when the first load fails", async () => {
@@ -308,7 +356,7 @@ describe("Dashboard loading and error states", () => {
       return defaultFetch(url);
     });
     await userEvent.click(screen.getByRole("button", { name: "10 anos" }));
-    expect(await screen.findAllByText("Atualizando…")).toHaveLength(2);
+    expect(await screen.findAllByText("Atualizando…")).toHaveLength(3);
     expect(screen.getByTestId("chart-Meta Selic")).toBeInTheDocument(); // stale data stays
     release();
     await waitFor(() => expect(screen.queryByText("Atualizando…")).not.toBeInTheDocument());

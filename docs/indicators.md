@@ -3,11 +3,11 @@
 | Código interno | Nome | Fonte / série | Unidade | Variação | Frequência | Nível | Início | Status |
 |---|---|---|---|---|---|---|---|---|
 | `SELIC_TARGET` | Taxa de juros - Meta Selic definida pelo Copom | BCB SGS 432 | % a.a. | p.p. | diária (dias corridos) | Brasil | 05/03/1999 | **Implementado** |
-| `IPCA_12M` | IPCA acumulado em 12 meses | IBGE SIDRA, tabela 1737 (variável a confirmar) | % | p.p. | mensal | Brasil | — | Próxima etapa |
+| `IPCA_12M` | IPCA - Variação acumulada em 12 meses | IBGE SIDRA, tabela 1737, variável 2265 | % | p.p. | mensal (mês de referência) | Brasil | 01/12/1980 | **Implementado** |
 | `DBGG_GDP` | Dívida bruta do governo geral (% PIB) - Metodologia utilizada a partir de 2008 | BCB SGS 13762 | % do PIB | p.p. | mensal (posição de fim de mês) | Brasil | 01/12/2006 | **Implementado** |
 
 Indicadores só entram no catálogo (migração de seed) depois que seus metadados são confirmados na
-fonte oficial. Por isso `IPCA_12M` ainda não está no banco.
+fonte oficial.
 
 ## SELIC_TARGET (SGS 432)
 
@@ -35,3 +35,26 @@ fonte oficial. Por isso `IPCA_12M` ainda não está no banco.
 - **Amostras conferidas na API oficial em 21/10/2026** (economist) e no banco após a coleta:
   dez/2006 = 55,48 · dez/2008 = 55,98 · dez/2013 = 51,54 · dez/2015 = 65,50 · dez/2019 = 74,44 ·
   dez/2020 = 86,94 · dez/2022 = 71,68 · dez/2024 = 76,27 · ago/2025 = 77,31 · ago/2026 = 82,87.
+
+## IPCA_12M (SIDRA 1737, variável 2265)
+
+- **Link oficial:** https://sidra.ibge.gov.br/tabela/1737 · API: `https://apisidra.ibge.gov.br/values/t/1737/n1/all/v/2265/p/{AAAAMM}-{AAAAMM}/f/c`
+- **Fonte:** IBGE, Sistema Nacional de Índices de Preços ao Consumidor (SNIPC). Tabela 1737 = "IPCA - Série
+  histórica com número-índice, variação mensal e variações acumuladas em 3 meses, em 6 meses, no ano e
+  em 12 meses (a partir de dezembro/1979)".
+- **Variável correta:** `2265` = "IPCA - Variação acumulada em 12 meses", unidade `%` (código de unidade
+  `2`, validado na coleta). **Não confundir** com `63` (variação mensal), `69` (acumulada no ano),
+  `2263`/`2264` (3 e 6 meses) ou `2266` (número-índice, dez/1993 = 100; unidade código `30`).
+- **Data:** o código de período `AAAAMM` é o **mês de referência**; o banco guarda `reference_date` =
+  dia 1, `period_start`/`period_end` = 1º e último dia do mês de referência (ADR 0005). A janela de
+  acumulação (12 meses até o mês de referência) é descrita na metodologia, não no período.
+- **Primeira observação:** dez/1980. De dez/1979 a nov/1980 o SIDRA devolve `...` (sem 12 meses de
+  histórico); esses meses não são armazenados. Os marcadores `...`, `..`, `-` e `X` são sempre ausência.
+- **Divulgação:** mensal, cerca de 10 dias após o fim do mês de referência. Revisões são raras; a série
+  inteira (550 pontos) é recoletada a cada execução, numa só requisição.
+- **Conferência em 21/10/2026 (IPCA_12M no banco após a coleta real):** dez/1994 = 916,46 ·
+  jan/2003 = 14,47 · dez/2015 = 10,67 · dez/2021 = 10,06 · set/2025 = 5,17 · set/2026 = 4,58 (última).
+  Verificação independente: o acumulado foi recalculado como o produto das 12 variações mensais
+  (variável 63) para todos os 550 meses; 542 coincidem dentro do arredondamento de 2 casas e os
+  8 restantes (fev–set/1994, hiperinflação acima de 2.000%) diferem em até 0,14 ponto, ou menos de 0,004%
+  do valor, efeito do arredondamento das taxas mensais publicadas.

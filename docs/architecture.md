@@ -1,7 +1,7 @@
 # Arquitetura
 
 ```
- Fontes oficiais (BCB SGS; futuramente IBGE SIDRA, Tesouro, SICONFI)
+ Fontes oficiais (BCB SGS, IBGE SIDRA; futuramente Tesouro, SICONFI)
         │  HTTPS (httpx: timeout, retry com backoff, rate limit, validação)
         ▼
  services/api/app/integrations/      conectores — 1 por fonte

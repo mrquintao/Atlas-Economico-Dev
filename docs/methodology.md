@@ -41,6 +41,25 @@
   dívida bruta do FMI — são conceitos diferentes.
 - **Variações** em pontos percentuais do PIB (ex.: ago/2025 → ago/2026: 77,31 → 82,87 = +5,56 p.p.).
 
+## IPCA acumulado em 12 meses (SIDRA 1737, variável 2265)
+
+- Série **mensal**: cada ponto é a variação do IPCA nos 12 meses encerrados no **mês de referência**
+  (produto das 12 variações mensais). A data do ponto é o mês de referência; a janela de acumulação
+  começa 11 meses antes. Ao filtrar um período, o primeiro ponto mostrado pode, portanto, refletir
+  preços de meses anteriores ao início escolhido (ADR 0005).
+- Exibida sem transformação (`aggregation: none`), em linha contínua; o cartão mostra
+  "Referência: mês/ano".
+- **Não é** a variação mensal nem a acumulada no ano, que são outras variáveis da mesma tabela.
+- **Variações** em pontos percentuais (ex.: set/2025 → set/2026: 5,17% → 4,58% = −0,59 p.p.).
+- **Escala:** o histórico inclui a hiperinflação (máxima de 6.821,31% em abr/1990). O período padrão
+  do painel (desde 2008) não é afetado; períodos que incluem os anos 1980–1994 comprimem visualmente
+  os valores recentes. O menor valor da série é 1,65% (dez/1998); não há valores negativos até set/2026.
+
+## Lacunas nos gráficos
+
+Quando falta um período entre duas observações (um dia numa série diária, um mês numa mensal), o
+gráfico insere uma quebra explícita: a linha é interrompida, nunca ligada por cima da ausência.
+
 ## Painel com vários indicadores
 
 - Um **único período** (filtro global) vale para todos os gráficos, que compartilham o mesmo domínio
