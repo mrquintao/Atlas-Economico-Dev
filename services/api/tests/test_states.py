@@ -411,3 +411,31 @@ def test_map_notes(client: TestClient, db: Session) -> None:
     assert len(ratio) == 1
     assert any("Acumulado de janeiro" in n for n in notes("STATE_INVESTMENTS"))
     assert not any("Acumulado de janeiro" in n for n in notes("STATE_RCL"))
+
+
+def test_map_counts_only_state_level_units(client: TestClient, db: Session) -> None:
+    add(db, "STATE_DCL", "SP", [quadrimester(2025, 1, "1")])
+    # A stray row of another level (Brasil) must not count as a UF nor appear in the map.
+    indicator = db.scalar(select(Indicator).where(Indicator.code == "STATE_DCL"))
+    brazil = db.scalar(
+        select(GeographicUnit).where(
+            GeographicUnit.acronym == "BR", GeographicUnit.geographic_level == "country"
+        )
+    )
+    assert indicator is not None and brazil is not None
+    db.add(
+        Observation(
+            indicator_id=indicator.id,
+            geographic_unit_id=brazil.id,
+            reference_date=date(2025, 1, 1),
+            period_start=date(2025, 1, 1),
+            period_end=date(2025, 4, 30),
+            value=Decimal("99"),
+            collected_at=datetime.now(UTC),
+            source_reference="test",
+        )
+    )
+    db.flush()
+    body = client.get("/api/v1/states/map/STATE_DCL").json()
+    assert body["period"]["coverage"] == 1
+    assert len(body["states"]) == 27

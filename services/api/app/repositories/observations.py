@@ -6,7 +6,7 @@ from sqlalchemy import Date, cast, func, select
 from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.orm import Session
 
-from app.models import Observation
+from app.models import GeographicLevel, GeographicUnit, Observation
 
 _ONE_DAY = timedelta(days=1)
 _FOUR_DAYS = timedelta(days=4)
@@ -89,9 +89,13 @@ class PeriodCoverage:
     units: int
 
 
+def _state_units():
+    return select(GeographicUnit.id).where(GeographicUnit.geographic_level == GeographicLevel.STATE)
+
+
 def fetch_period_coverage(session: Session, indicator_id: int) -> list[PeriodCoverage]:
-    """Reference periods with a stored value in any unit and how many units have one, most
-    recent first."""
+    """Reference periods with a stored value in some UF and how many UFs have one, most
+    recent first. Only state-level units count (coverage is at most 27)."""
     statement = (
         select(
             Observation.reference_date,
@@ -99,19 +103,23 @@ def fetch_period_coverage(session: Session, indicator_id: int) -> list[PeriodCov
             func.max(Observation.period_end),
             func.count(),
         )
-        .where(Observation.indicator_id == indicator_id)
+        .where(
+            Observation.indicator_id == indicator_id,
+            Observation.geographic_unit_id.in_(_state_units()),
+        )
         .group_by(Observation.reference_date)
         .order_by(Observation.reference_date.desc())
     )
     return [PeriodCoverage(*row) for row in session.execute(statement)]
 
 
-def fetch_cross_section(
+def fetch_state_cross_section(
     session: Session, indicator_id: int, reference_date: date
 ) -> dict[int, Decimal]:
-    """Value of every unit at one reference date, keyed by geographic unit id."""
+    """Value of every UF at one reference date, keyed by geographic unit id."""
     statement = select(Observation.geographic_unit_id, Observation.value).where(
         Observation.indicator_id == indicator_id,
         Observation.reference_date == reference_date,
+        Observation.geographic_unit_id.in_(_state_units()),
     )
     return {unit_id: value for unit_id, value in session.execute(statement)}

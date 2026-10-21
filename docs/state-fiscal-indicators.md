@@ -132,7 +132,8 @@ estas regras:
   DCL/RCL) usam paleta divergente PuOr: zero é sempre limite de classe e cada lado tem até 3 classes por
   quantis (menos quando há poucas UFs daquele lado). Sem vermelho/verde ("bom/ruim"). O tipo de escala
   é propriedade do catálogo (`SIGNED_CODES`), nunca dos valores do período. Valores iguais ficam sempre
-  na mesma classe, e a legenda mostra o intervalo real de cada faixa e quantas UFs ela tem.
+  na mesma classe, e a legenda mostra o intervalo real de cada faixa e quantas UFs ela tem. Um valor
+  exatamente zero entra na primeira classe não negativa.
 - **Valores absolutos em R$** entram no mapa com a nota "refletem também o tamanho de cada UF"; métricas
   relativas (per capita, rankings) ficam para a S8. Indicador padrão: pessoal do Executivo / RCL (razão,
   desde 2018, nunca negativa).
@@ -144,7 +145,9 @@ estas regras:
   hover e foco mostram valor, unidade e período; uma tabela com as 27 UFs acompanha o mapa; a paleta é
   segura para daltonismo e o padrão hachurado distingue "sem dado" sem depender de cor.
 - **Malha**: geometrias oficiais do IBGE (`/geographies/states/boundaries`, S2). Sem malha coletada, a
-  página avisa e mantém a tabela.
+  página avisa e mantém a tabela. A malha segue a RFC 7946 (anel externo anti-horário); o frontend
+  reorienta os anéis para a convenção do d3-geo antes de projetar (sem alterar coordenadas), o que é
+  testado com a amostra real do IBGE e exercitado no E2E por quadrados sintéticos anti-horários.
 
 ## Fora do escopo agora
 

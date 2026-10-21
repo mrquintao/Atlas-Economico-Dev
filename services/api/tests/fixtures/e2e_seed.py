@@ -253,10 +253,13 @@ BOUNDARY_COLUMNS = 7
 
 
 def synthetic_square(index: int) -> dict:
-    """A 4-degree square on a 7-column grid over Brazil's bounding box (not a real boundary)."""
+    """A 4-degree square on a 7-column grid over Brazil's bounding box (not a real boundary).
+
+    Counter-clockwise exterior ring, as in RFC 7946 and the IBGE meshes, so the E2E tests draw
+    the same orientation as the official data."""
     row, column = divmod(index, BOUNDARY_COLUMNS)
     west, north = -72 + 5 * column, 4 - 5 * row
-    ring = [[west, north], [west + 4, north], [west + 4, north - 4], [west, north - 4]]
+    ring = [[west, north], [west, north - 4], [west + 4, north - 4], [west + 4, north]]
     return {"type": "Polygon", "coordinates": [[*ring, ring[0]]]}
 
 

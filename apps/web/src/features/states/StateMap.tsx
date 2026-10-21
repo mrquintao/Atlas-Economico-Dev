@@ -12,6 +12,7 @@ import { formatPeriod, formatValue } from "@/lib/format";
 import { statePath } from "@/lib/states";
 import type { BoundaryFeature, Indicator, StateBoundaries, StateMap, StateMapValue } from "@/types/api";
 
+import { rewindForD3 } from "./map-geometry";
 import { buildScale, NO_DATA_FILL, type MapScale } from "./map-scale";
 import { STATE_INDICATOR_ORDER } from "./state-indicators";
 
@@ -53,7 +54,8 @@ export function StateMapPanel() {
   const options = useMemo(() => stateIndicatorOptions(catalog.data ?? []), [catalog.data]);
 
   function handleIndicator(next: string) {
-    const current = options.find((i) => i.code === code);
+    // The period shown belongs to the indicator of the data on screen, not to the last choice.
+    const current = options.find((i) => i.code === map.data?.indicator.code);
     const target = options.find((i) => i.code === next);
     // Keep the period only when it is the same kind of period and within the stored range of
     // the new indicator; otherwise use the new indicator's default.
@@ -74,7 +76,9 @@ export function StateMapPanel() {
   const headingId = useId();
   const indicatorId = useId();
   const periodId = useId();
-  const data = map.data;
+  // After a failed request the previous data stays in the resource; never show another
+  // indicator's map under the error.
+  const data = map.status === "error" && map.data?.indicator.code !== code ? null : map.data;
   const periodNotFound = map.status === "error" && map.error.code === "period_not_found";
 
   return (
@@ -252,7 +256,9 @@ function ChoroplethSvg({
   const byAcronym = useMemo(() => new Map(data.states.map((s) => [s.geography.acronym, s])), [data.states]);
 
   const shapes = useMemo(() => {
-    const collection = { type: "FeatureCollection" as const, features: boundaries.features };
+    // The official meshes follow RFC 7946 (exterior rings counter-clockwise); d3 needs clockwise.
+    const features = boundaries.features.map((f) => ({ ...f, geometry: rewindForD3(f.geometry) }));
+    const collection = { type: "FeatureCollection" as const, features };
     const projection = geoMercator().fitExtent(
       [
         [8, 8],
@@ -261,7 +267,7 @@ function ChoroplethSvg({
       collection,
     );
     const path = geoPath(projection);
-    return boundaries.features
+    return features
       .map((feature: BoundaryFeature) => ({
         acronym: feature.properties.acronym,
         name: feature.properties.name,

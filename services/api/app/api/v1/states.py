@@ -182,7 +182,7 @@ def get_state_map(
                 f"Nenhuma UF tem valor de '{code}' no período {reference_date.isoformat()}.",
             )
     values = (
-        observations_repo.fetch_cross_section(session, indicator.id, period.reference_date)
+        observations_repo.fetch_state_cross_section(session, indicator.id, period.reference_date)
         if period
         else {}
     )

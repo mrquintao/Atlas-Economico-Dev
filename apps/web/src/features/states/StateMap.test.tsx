@@ -98,6 +98,8 @@ const BOUNDARIES: StateBoundaries = {
 
 let fetchMock: ReturnType<typeof vi.fn>;
 let boundariesStatus = 200;
+/** "CODE@date" pairs answered with 404 period_not_found (a gap of that indicator). */
+let gaps = new Set<string>();
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
 
 async function defaultFetch(url: string): Promise<Response> {
@@ -109,7 +111,11 @@ async function defaultFetch(url: string): Promise<Response> {
   }
   if (pathname.endsWith("/indicators")) return json(CATALOG);
   const code = /\/states\/map\/([^/]+)$/.exec(pathname)?.[1];
-  if (code) return json(mapFor(code, searchParams.get("reference_date")));
+  const date = searchParams.get("reference_date");
+  if (code && gaps.has(`${code}@${date}`)) {
+    return json({ error: { code: "period_not_found", message: `Nenhuma UF tem valor de '${code}' no período ${date}.` } }, 404);
+  }
+  if (code) return json(mapFor(code, date));
   return json({ error: { code: "not_found", message: "Rota inesperada." } }, 404);
 }
 
@@ -126,6 +132,7 @@ async function findState(name: RegExp): Promise<HTMLElement> {
 
 beforeEach(() => {
   boundariesStatus = 200;
+  gaps = new Set();
   push.mockClear();
   fetchMock = vi.fn(defaultFetch);
   vi.stubGlobal("fetch", fetchMock);
@@ -250,6 +257,27 @@ describe("StateMapPanel", () => {
     await user.selectOptions(select, "STATE_RCL");
     await waitFor(() => expect(mapRequests().at(-1)?.pathname).toMatch(/STATE_RCL$/));
     expect(mapRequests().at(-1)?.searchParams.has("reference_date")).toBe(false);
+  });
+
+  it("a kept period that is a gap of the new indicator: no stale map, offers the default", async () => {
+    gaps = new Set(["STATE_DCL_RCL@2025-05-01"]);
+    const user = userEvent.setup();
+    render(<StateMapPanel />);
+    const select = await screen.findByRole("combobox", { name: "Indicador" });
+    await waitFor(() => expect(within(select).getAllByRole("option")).toHaveLength(3));
+    await user.selectOptions(screen.getByRole("combobox", { name: "Período" }), "2025-05-01");
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Período" })).toHaveValue("2025-05-01"));
+
+    await user.selectOptions(select, "STATE_DCL_RCL");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Nenhuma UF tem valor de 'STATE_DCL_RCL' no período 2025-05-01.");
+    // The previous indicator's map, legend and table are not left under the error.
+    expect(screen.queryByRole("group", { name: /^Mapa de / })).not.toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+
+    await user.click(within(alert).getByRole("button", { name: "Ver o período padrão" }));
+    await waitFor(() => expect(mapRequests().at(-1)?.searchParams.has("reference_date")).toBe(false));
+    expect(await screen.findByRole("group", { name: /^Mapa de Curto STATE_DCL_RCL/ })).toBeInTheDocument();
   });
 
   it("without the official boundaries, says so and keeps the table", async () => {

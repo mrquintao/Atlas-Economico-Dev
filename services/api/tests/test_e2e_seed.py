@@ -2,6 +2,7 @@
 
 from datetime import date
 from decimal import Decimal
+from itertools import pairwise
 
 import pytest
 from sqlalchemy import func, select
@@ -63,6 +64,9 @@ def test_seeds_synthetic_boundaries_served_by_the_api(db: Session) -> None:
     assert len({b.geometry_hash for b in boundaries}) == 27
     ring = boundaries[0].geometry["coordinates"][0]
     assert ring[0] == ring[-1] and len(ring) == 5
+    # Counter-clockwise (positive shoelace area), the RFC 7946 orientation of the IBGE meshes.
+    shoelace = sum(x0 * y1 - x1 * y0 for (x0, y0), (x1, y1) in pairwise(ring))
+    assert shoelace > 0
 
 
 def test_refuses_a_database_with_boundaries(db: Session) -> None:
