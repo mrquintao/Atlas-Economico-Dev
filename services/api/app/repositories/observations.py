@@ -1,0 +1,74 @@
+from dataclasses import dataclass
+from datetime import date, timedelta
+from decimal import Decimal
+
+from sqlalchemy import Date, cast, func, select
+from sqlalchemy.dialects.postgresql import distinct_on
+from sqlalchemy.orm import Session
+
+from app.models import Observation
+
+_ONE_DAY = timedelta(days=1)
+_FOUR_DAYS = timedelta(days=4)
+
+
+@dataclass(frozen=True, slots=True)
+class ObservationRow:
+    reference_date: date
+    value: Decimal
+    period_start: date
+    period_end: date
+
+
+def _filters(indicator_id: int, geographic_unit_id: int, start: date | None, end: date | None):
+    clauses = [
+        Observation.indicator_id == indicator_id,
+        Observation.geographic_unit_id == geographic_unit_id,
+    ]
+    if start is not None:
+        clauses.append(Observation.reference_date >= start)
+    if end is not None:
+        clauses.append(Observation.reference_date <= end)
+    return clauses
+
+
+def fetch_observations(
+    session: Session,
+    indicator_id: int,
+    geographic_unit_id: int,
+    start: date | None,
+    end: date | None,
+) -> list[ObservationRow]:
+    statement = (
+        select(
+            Observation.reference_date,
+            Observation.value,
+            Observation.period_start,
+            Observation.period_end,
+        )
+        .where(*_filters(indicator_id, geographic_unit_id, start, end))
+        .order_by(Observation.reference_date)
+    )
+    return [ObservationRow(*row) for row in session.execute(statement)]
+
+
+def fetch_last_value_per_month(
+    session: Session,
+    indicator_id: int,
+    geographic_unit_id: int,
+    start: date | None,
+    end: date | None,
+) -> list[ObservationRow]:
+    """Last available observation of each calendar month (no averaging, no interpolation)."""
+    month = cast(func.date_trunc("month", Observation.reference_date), Date).label("month")
+    statement = (
+        select(month, Observation.reference_date, Observation.value)
+        .where(*_filters(indicator_id, geographic_unit_id, start, end))
+        .ext(distinct_on(month))
+        .order_by(month, Observation.reference_date.desc())
+    )
+    rows: list[ObservationRow] = []
+    for month_start, reference_date, value in session.execute(statement):
+        next_month = (month_start.replace(day=28) + _FOUR_DAYS).replace(day=1)
+        rows.append(ObservationRow(reference_date, value, month_start, next_month - _ONE_DAY))
+    return rows
