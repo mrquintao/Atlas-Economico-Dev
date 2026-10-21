@@ -79,3 +79,39 @@ def fetch_last_value_per_month(
         next_month = (month_start.replace(day=28) + _FOUR_DAYS).replace(day=1)
         rows.append(ObservationRow(reference_date, value, month_start, next_month - _ONE_DAY))
     return rows
+
+
+@dataclass(frozen=True, slots=True)
+class PeriodCoverage:
+    reference_date: date
+    period_start: date
+    period_end: date
+    units: int
+
+
+def fetch_period_coverage(session: Session, indicator_id: int) -> list[PeriodCoverage]:
+    """Reference periods with a stored value in any unit and how many units have one, most
+    recent first."""
+    statement = (
+        select(
+            Observation.reference_date,
+            func.min(Observation.period_start),
+            func.max(Observation.period_end),
+            func.count(),
+        )
+        .where(Observation.indicator_id == indicator_id)
+        .group_by(Observation.reference_date)
+        .order_by(Observation.reference_date.desc())
+    )
+    return [PeriodCoverage(*row) for row in session.execute(statement)]
+
+
+def fetch_cross_section(
+    session: Session, indicator_id: int, reference_date: date
+) -> dict[int, Decimal]:
+    """Value of every unit at one reference date, keyed by geographic unit id."""
+    statement = select(Observation.geographic_unit_id, Observation.value).where(
+        Observation.indicator_id == indicator_id,
+        Observation.reference_date == reference_date,
+    )
+    return {unit_id: value for unit_id, value in session.execute(statement)}

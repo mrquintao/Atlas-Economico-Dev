@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import Indicator, IngestionRun, Observation
+from app.models import GeographicBoundary, Indicator, IngestionRun, Observation
 from tests.fixtures import e2e_seed
 
 # SP: 4 bimonthly x 18 + 5 four-monthly x 9; DF: SP minus one bimonthly; MG: 18 + 9.
@@ -16,6 +16,7 @@ STATE_ROWS = 117 + 99 + 27
 
 def test_seeds_tagged_synthetic_series_with_consistent_periods(db: Session) -> None:
     counts = e2e_seed.seed(db)
+    assert counts.pop("boundaries") == 27
     national = {k: v for k, v in counts.items() if "/" not in k}
     assert national == {"SELIC_TARGET": 8217, "DBGG_GDP": 234, "IPCA_12M": 317}
     assert sum(v for k, v in counts.items() if "/" in k) == STATE_ROWS
@@ -52,6 +53,23 @@ def test_seeds_tagged_synthetic_series_with_consistent_periods(db: Session) -> N
     runs = db.scalars(select(IngestionRun)).all()
     assert len(runs) == 3
     assert all(r.status == "success" and (r.metadata_json or {}).get("synthetic") for r in runs)
+
+
+def test_seeds_synthetic_boundaries_served_by_the_api(db: Session) -> None:
+    e2e_seed.seed(db)
+    boundaries = db.scalars(select(GeographicBoundary)).all()
+    assert len(boundaries) == 27
+    assert {b.source_url for b in boundaries} == {e2e_seed.SOURCE_REFERENCE}
+    assert len({b.geometry_hash for b in boundaries}) == 27
+    ring = boundaries[0].geometry["coordinates"][0]
+    assert ring[0] == ring[-1] and len(ring) == 5
+
+
+def test_refuses_a_database_with_boundaries(db: Session) -> None:
+    e2e_seed.seed_boundaries(db)
+    db.flush()
+    with pytest.raises(SystemExit, match="already has geographic_boundaries rows"):
+        e2e_seed.seed(db)
 
 
 def test_series_are_deterministic() -> None:
