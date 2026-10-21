@@ -74,7 +74,9 @@ scripts/dev.sh --help
 - A primeira coleta (só num banco vazio) busca os dados oficiais: a série diária da Selic desde 1999
   leva de 2 a 4 minutos. Se a rede falhar, o script avisa e sobe a aplicação mesmo assim; os logs
   ficam em `.dev/logs/`. O script nunca apaga dados.
-- Portas: `API_PORT=8010 WEB_PORT=3010 scripts/dev.sh` (o painel passa a usar a API dessa porta).
+- Portas: `API_PORT=8010 WEB_PORT=3010 scripts/dev.sh` (o painel passa a usar a API dessa porta). O
+  modo `docker` usa as portas fixas do `docker-compose.yml` (8000 e 3000) e pode ser repetido para
+  reconstruir a stack em execução.
 
 As seções abaixo descrevem os mesmos passos manualmente.
 
