@@ -8,7 +8,9 @@ import {
   hover,
   monthIndex,
   openDashboard,
+  spanOf,
   test,
+  tooltip,
   tooltipText,
   zoomIn,
 } from "./fixtures";
@@ -40,17 +42,19 @@ test("applies each period preset to every chart", async ({ page }) => {
   await expect(page.getByLabel("Data inicial")).toHaveValue("2021-06-01");
 
   await presets.getByRole("button", { name: "10 anos" }).click();
-  await expect(chart(page, SELIC)).toHaveAccessibleName(/^Meta Selic de 01\/06\/2016 a/);
-  await expect(chart(page, DBGG)).toHaveAccessibleName(/de jun\/2016 a/);
-  await expect(chart(page, IPCA)).toHaveAccessibleName(/de jun\/2016 a/);
+  await expect(chart(page, SELIC)).toHaveAccessibleName(/^Meta Selic de 01\/06\/2016 a 30\/06\/2026/);
+  await expect(chart(page, DBGG)).toHaveAccessibleName(/de jun\/2016 a mai\/2026/);
+  await expect(chart(page, IPCA)).toHaveAccessibleName(/de jun\/2016 a mai\/2026/);
 
   await presets.getByRole("button", { name: "Todo o histórico" }).click();
-  await expect(chart(page, SELIC)).toHaveAccessibleName(/^Meta Selic de 01\/01\/2004 a/);
-  await expect(chart(page, DBGG)).toHaveAccessibleName(/de dez\/2006 a/);
-  await expect(chart(page, IPCA)).toHaveAccessibleName(/de jan\/2000 a/);
+  await expect(chart(page, SELIC)).toHaveAccessibleName(/^Meta Selic de 01\/01\/2004 a 30\/06\/2026/);
+  await expect(chart(page, DBGG)).toHaveAccessibleName(/de dez\/2006 a mai\/2026/);
+  await expect(chart(page, IPCA)).toHaveAccessibleName(/de jan\/2000 a mai\/2026/);
 
   await presets.getByRole("button", { name: "Desde 2008" }).click();
-  await expect(chart(page, SELIC)).toHaveAccessibleName(/^Meta Selic de 01\/01\/2008 a/);
+  await expect(chart(page, SELIC)).toHaveAccessibleName(/^Meta Selic de 01\/01\/2008 a 30\/06\/2026/);
+  await expect(chart(page, DBGG)).toHaveAccessibleName(/de jan\/2008 a mai\/2026/);
+  await expect(chart(page, IPCA)).toHaveAccessibleName(/de jan\/2008 a mai\/2026/);
   await expect(presets.getByRole("button", { name: "Desde 2008" })).toHaveAttribute("aria-pressed", "true");
 });
 
@@ -84,30 +88,32 @@ test("the cursor of a monthly chart shows, on the daily chart, the last day of t
   }
 });
 
-/** Dates under the 20% and 80% positions of a chart, as month indexes. */
-async function spanOf(page: Parameters<typeof hover>[0], name: string): Promise<[number, number]> {
-  const target = chart(page, name);
-  const read = (text: string) => (/\d{2}\/\d{2}\/\d{4}/.test(text) ? dayMonth(text).index : monthIndex(text));
-  await hover(page, target, 0.2);
-  const left = read(await tooltipText(target));
-  await hover(page, target, 0.8);
-  const right = read(await tooltipText(target));
-  await page.mouse.move(0, 0);
-  return [left, right];
-}
+test("hides the cursor of charts that have no data at the hovered date", async ({ page }) => {
+  await openDashboard(page);
+  const selic = chart(page, SELIC);
+  await hover(page, selic, 0.5);
+  for (const name of [DBGG, IPCA]) await expect(tooltip(chart(page, name))).toBeVisible();
+
+  // Late June 2026: Selic has data, the monthly series end in May 2026. Their cursor must hide
+  // instead of snapping to May and labelling a June date with a May value.
+  await hover(page, selic, 0.999);
+  const day = dayMonth(await tooltipText(selic));
+  expect([day.month, day.year]).toEqual([6, 2026]);
+  for (const name of [DBGG, IPCA]) await expect(tooltip(chart(page, name))).toBeHidden();
+});
 
 test("zooming one chart zooms every chart to the same dates", async ({ page }) => {
   await openDashboard(page);
-  const [before0, before1] = await spanOf(page, SELIC);
+  const [before0, before1] = await spanOf(page, chart(page, SELIC));
   await zoomIn(page, chart(page, SELIC), 0.5);
 
-  const [selic0, selic1] = await spanOf(page, SELIC);
+  const [selic0, selic1] = await spanOf(page, chart(page, SELIC));
   expect(selic1 - selic0, "zoom narrows the visible span").toBeLessThan((before1 - before0) / 2);
 
   // The same horizontal position shows the same date on the other charts (a monthly point may
   // snap to the neighbouring month).
   for (const name of [DBGG, IPCA]) {
-    const [left, right] = await spanOf(page, name);
+    const [left, right] = await spanOf(page, chart(page, name));
     expect(Math.abs(left - selic0), `${name} left`).toBeLessThanOrEqual(1);
     expect(Math.abs(right - selic1), `${name} right`).toBeLessThanOrEqual(1);
   }
@@ -115,14 +121,14 @@ test("zooming one chart zooms every chart to the same dates", async ({ page }) =
 
 test("switching the Selic chart between daily and monthly keeps the zoom", async ({ page }) => {
   await openDashboard(page);
-  const [before0, before1] = await spanOf(page, SELIC);
+  const [before0, before1] = await spanOf(page, chart(page, SELIC));
   await zoomIn(page, chart(page, SELIC), 0.5);
-  const [daily0, daily1] = await spanOf(page, SELIC);
+  const [daily0, daily1] = await spanOf(page, chart(page, SELIC));
 
   await page.getByRole("group", { name: "Frequência — Meta Selic" }).getByRole("button", { name: "Mensal" }).click();
   // The monthly view describes its period by month.
   await expect(chart(page, SELIC)).toHaveAccessibleName(/^Meta Selic de jan\/2008 a jun\/2026/);
-  const [monthly0, monthly1] = await spanOf(page, SELIC);
+  const [monthly0, monthly1] = await spanOf(page, chart(page, SELIC));
   expect(Math.abs(monthly0 - daily0)).toBeLessThanOrEqual(1);
   expect(Math.abs(monthly1 - daily1)).toBeLessThanOrEqual(1);
   expect(monthly1 - monthly0).toBeLessThan((before1 - before0) / 2);

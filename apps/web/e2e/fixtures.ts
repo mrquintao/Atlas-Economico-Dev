@@ -47,11 +47,15 @@ export async function hover(page: Page, target: Locator, fraction: number): Prom
   });
 }
 
-/** Text of a chart's ECharts tooltip (an HTML element inside the chart container). */
+/** A chart's ECharts tooltip (an HTML element inside the chart container, once shown). */
+export function tooltip(target: Locator): Locator {
+  return target.locator(":scope > div").filter({ hasText: /\d{4}/ });
+}
+
+/** Text of a chart's visible ECharts tooltip. */
 export async function tooltipText(target: Locator): Promise<string> {
-  const tooltip = target.locator(":scope > div").filter({ hasText: /\d{4}/ });
-  await expect(tooltip).toBeVisible();
-  return (await tooltip.innerText()).replace(/\s+/g, " ").trim();
+  await expect(tooltip(target)).toBeVisible();
+  return (await tooltip(target).innerText()).replace(/\s+/g, " ").trim();
 }
 
 const MONTHS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
@@ -71,13 +75,37 @@ export function monthIndex(text: string): number {
   return Number(match[2]) * 12 + MONTHS.indexOf(match[1]);
 }
 
-/** Zooms a chart in with the mouse wheel, centred at a horizontal fraction of its plot area. */
+/** Dates (month indexes) under the 20% and 80% positions of a chart's plot area. */
+export async function spanOf(page: Page, target: Locator): Promise<[number, number]> {
+  const read = (text: string) =>
+    /\d{2}\/\d{2}\/\d{4}/.test(text) ? dayMonth(text).index : monthIndex(text);
+  await hover(page, target, 0.2);
+  const left = read(await tooltipText(target));
+  await hover(page, target, 0.8);
+  const right = read(await tooltipText(target));
+  await page.mouse.move(0, 0);
+  return [left, right];
+}
+
+/**
+ * Zooms a chart in with the mouse wheel, centred at a horizontal fraction of its plot area, and
+ * waits until the zoom settles (ECharts throttles dataZoom updates).
+ */
 export async function zoomIn(page: Page, target: Locator, fraction: number): Promise<void> {
   await hover(page, target, fraction);
   for (let i = 0; i < 12; i++) {
     await page.mouse.wheel(0, -400);
   }
   await page.mouse.move(0, 0);
+  let previous = "";
+  await expect
+    .poll(async () => {
+      const current = JSON.stringify(await spanOf(page, target));
+      const stable = current === previous;
+      previous = current;
+      return stable;
+    })
+    .toBe(true);
 }
 
 /** Waits until every dashboard chart has loaded the default period. */

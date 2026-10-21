@@ -17,8 +17,9 @@ Os E2E nunca usam dados oficiais coletados nem chamam as fontes. O banco de test
 | `DBGG_GDP` | mensal | dez/2006 a mai/2026 |
 | `IPCA_12M` | mensal | jan/2000 a mai/2026 |
 
-O script só roda com `ATLAS_E2E_SEED=1` e recusa bancos que já tenham observações, de modo que nunca
-mistura valores sintéticos com dados oficiais. Use sempre um banco descartável.
+O script só roda com `ATLAS_E2E_SEED=1`, num banco cujo nome contenha `e2e` ou `test` (o banco
+`atlas`, padrão do `DATABASE_URL`, é recusado) e que ainda não tenha observações nem execuções de coleta.
+Assim, nunca mistura valores sintéticos com dados oficiais.
 
 ## O que é verificado
 
@@ -26,7 +27,8 @@ mistura valores sintéticos com dados oficiais. Use sempre um banco descartável
 - Presets (5 anos, 10 anos, desde 2008, todo o histórico) aplicados a **todos** os gráficos, conferidos
   pelo resumo textual (nome acessível) de cada gráfico.
 - Cursor sincronizado: um dia do gráfico diário mostra, nos mensais, o **mês que contém o dia**; um mês
-  dos gráficos mensais mostra, no diário, o **último dia daquele mês**.
+  dos gráficos mensais mostra, no diário, o **último dia daquele mês**; onde uma série não tem dado
+  (junho de 2026 para as mensais), o cursor dela **some** em vez de exibir o mês vizinho.
 - Zoom sincronizado: depois do zoom em um gráfico, a mesma posição horizontal mostra a mesma data nos
   demais.
 - Troca diária/mensal da Selic mantendo o zoom.
