@@ -3,6 +3,19 @@
 Entradas curtas, da mais recente para a mais antiga: o que foi entregue, o que foi validado, as falhas e
 como foram corrigidas, e as decisões relevantes. Os detalhes ficam nos PRs, nas issues e nos ADRs.
 
+## 2026-10-21 — S3 concluída: conector SICONFI (issue #13, PR #40)
+
+- Reivindicação anterior da S3 (sessão `l0gdx7`, 05:50 UTC) sem branch nem PR em 3 h: assumida às 08:49 UTC.
+- Conector `integrations/tesouro/siconfi.py` (RREO, RGF, extrato de entregas; ≤ 1 req/s, retry, paginação
+  ORDS, `Decimal` exato); camada bruta `fiscal_reports`/`fiscal_report_rows` (migração 0008, ADR 0009);
+  coleta incremental guiada pelo `extrato_entregas`; CLI `ingest-siconfi`.
+- Coleta real: SP e RJ, 2024, RREO-Anexo 03 e RGF-Anexo 02 (18 anexos, 5.452 linhas, 22 requisições); 8
+  anexos idênticos à API oficial; recoleta só pede o extrato.
+- economist: códigos de esfera corrigidos (`C`, não `D`), RGF semestral recusado, DCL é do ente; DF conferido.
+- qa-auditor: sem críticos; corrigidos H1 (retificação ainda não refletida no data lake → `awaiting_source`),
+  M1 (anexo inválido), M2 (contagens após rollback) e baixos L1, L2, L3, L4, L6, L8.
+- Ambiente: sessão sem `/tmp/pgdata`; PostgreSQL 16 recriado (`atlas` só com os anexos da S3).
+
 ## 2026-10-21 — S2: malhas oficiais das 27 UFs (issue #12, PR #39)
 
 - A S3 (#13) estava reivindicada por outra sessão (sem branch publicado); para evitar trabalho

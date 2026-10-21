@@ -7,12 +7,12 @@
 |---|---|
 | Atualizado em | 2026-10-21 |
 | Fase atual | 2 — Atlas estadual (MVP nacional concluído: release `v0.1.0`) |
-| Última entrega | S2 — malhas oficiais das 27 UFs (IBGE, edição 2022) e `GET /api/v1/geographies/states/boundaries` (migração 0007, issue #12, PR #39). Antes: S1 (#11, PR #38) e [release `v0.1.0`](https://github.com/mrquintao/Atlas-Economico-Dev/releases/tag/v0.1.0) |
-| Próxima entrega elegível | **S3 — conector SICONFI ([#13](https://github.com/mrquintao/Atlas-Economico-Dev/issues/13))**, reivindicada em 21/10 05:50 UTC por outra sessão (branch `claude/adoring-ritchie-l0gdx7`, nunca publicado até 08:00 UTC). Se não houver branch/PR ativo, retomar a S3; S4–S8 dependem dela |
+| Última entrega | S3 — conector SICONFI (RREO/RGF) e camada bruta `fiscal_reports`/`fiscal_report_rows` (migração 0008, issue #13, PR #40, ADR 0009). Antes: S2 (#12, PR #39), S1 (#11, PR #38) e [release `v0.1.0`](https://github.com/mrquintao/Atlas-Economico-Dev/releases/tag/v0.1.0) |
+| Próxima entrega elegível | **S4 — catálogo e normalização de indicadores fiscais estaduais ([#14](https://github.com/mrquintao/Atlas-Economico-Dev/issues/14))**, com o economist: escolher anexos/linhas (por `cod_conta` e coluna) para RCL, DCL, DCL/RCL, pessoal, primário e nominal; ver pontos para a S4 no ADR 0009 |
 | Issue ativa | nenhuma (comentar na issue ao iniciar, para evitar sessões concorrentes) |
 | Branch | novo branch a partir da `main` atualizada |
-| Último commit integrado na `main` | merge do PR #39 (conferir com `git log origin/main -1`); tag `v0.1.0` em `ade5512` |
-| Última validação | S2: coleta real da malha 2022 (27 feições, recoleta `unchanged 27`), 27 geometrias servidas idênticas à consulta oficial nacional e às consultas por UF (qa-auditor); `scripts/check.sh` verde (255 testes de API). M7: execução do README (Opção B) em clone limpo com banco novo e coleta real (10.093/237/550), recoleta sem duplicações, 15 amostras = fonte oficial (DBGG integral), navegador claro/escuro/mobile sem erros, contraste da navegação 7,58:1; `scripts/check.sh` e CI da `main` verdes |
+| Último commit integrado na `main` | merge do PR #40 (conferir com `git log origin/main -1`); tag `v0.1.0` em `ade5512` |
+| Última validação | S3: coleta real RREO-Anexo 03 e RGF-Anexo 02 de 2024 para SP e RJ (18 anexos, 5.452 linhas, 22 requisições ≤ 1/s); 8 anexos conferidos linha a linha contra a API oficial (autor + qa-auditor); recoleta só com o extrato; `scripts/check.sh` verde (323 testes de API, 72 vitest) |
 
 ## Bloqueios
 
@@ -29,19 +29,21 @@
 
 ## Próxima ação recomendada
 
-Conferir se a S3 (#13) tem branch ou PR ativo da outra sessão; se não tiver, iniciar a S3 (#13): investigar a API do SICONFI (RREO/RGF; limite de 1 req/s, paginação) com o
-economist e o data-engineer, e implementar o conector com retry e coleta incremental, testado com
-`httpx.MockTransport` e fixtures reais. Atenção: códigos e siglas do IBGE são únicos só por nível
-(`1` = Brasil e Norte; `SE` = Sergipe e Sudeste); buscar unidades sempre com o nível.
+Iniciar a S4 (#14) com o economist: definir, para cada indicador fiscal estadual, o anexo, o
+`cod_conta` e a coluna (por exercício/edição do MDF), coletar os anexos necessários das 27 UFs com
+`ingest-siconfi` e derivar `observations` (nível `state`) a partir de `fiscal_report_rows`. Antes de pôr o
+SICONFI no agendador, criar trava entre processos (o limitador de taxa é por processo). Atenção: códigos e
+siglas do IBGE são únicos só por nível (`1` = Brasil e Norte; `SE` = Sergipe e Sudeste).
 
 Concorrência: na sessão da S1, outra sessão disparou a release `v0.1.0` um minuto antes (a segunda
 execução foi recusada pela trava de tag). Antes de começar, conferir branches e PRs abertos e
 reivindicar a issue com um comentário.
 
-Migração mais recente: `0007` (`geographic_boundaries`). Se a S3 criou outra `0007` em paralelo,
-renumerar a dela para `0008` (`down_revision = "0007"`) antes de integrar.
+Migração mais recente: `0008` (fonte SICONFI, `fiscal_reports`, `fiscal_report_rows`).
 
-Achados menores pendentes (registrados nas issues/PRs): S2 — a malha só é coletada manualmente
+Achados menores pendentes (registrados nas issues/PRs): S3 — `Retry-After` do 429 ignorado (backoff
+já mais lento que o limite); coleta do SICONFI manual, fora do agendador; limitador de taxa por processo.
+S2 — a malha só é coletada manualmente
 (`ingest-boundaries`), fora do agendador; edições não publicadas pelo IBGE respondem 500 e passam
 pelas tentativas de retry (a mensagem final avisa). M2 — lacunas de vários meses recebem uma única
 quebra no gráfico; "Todo o histórico" começa em 1980 por causa do IPCA. M3 — em erro da requisição única
@@ -57,7 +59,7 @@ segue coberta só pelo smoke test do job Docker (ADR 0008).
 
 - PostgreSQL 16 local: `/usr/lib/postgresql/16/bin`, dados em `/tmp/pgdata` (sobrevive a reinícios;
   após um reboot: `su postgres -c "/usr/lib/postgresql/16/bin/pg_ctl -D /tmp/pgdata -l /tmp/pgdata/log -o '-p 5432 -k /tmp' start"`).
-  Bancos: `atlas` (dados reais, **não destruir**; nesta sessão da S2 o cluster foi recriado do zero: `atlas` migrado até 0007, só com a malha 2022 coletada, sem séries), `atlas_test` e `atlas_ci` (descartáveis).
+  Bancos: `atlas` (dados reais, **não destruir**; na sessão da S3 o cluster foi recriado do zero: `atlas` migrado até 0008, só com os anexos do SICONFI coletados na S3, sem séries nem malha), `atlas_test` e `atlas_ci` (descartáveis).
 - Validação local: `TEST_DATABASE_URL=postgresql+psycopg://atlas:atlas@localhost:5432/atlas_ci scripts/check.sh`.
 - E2E local: banco `atlas_e2e` com a fixture sintética (`docs/testing-e2e.md`), `npm run build` e
   `CI=1 DATABASE_URL=…/atlas_e2e PLAYWRIGHT_CHROMIUM_EXECUTABLE=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npm run test:e2e`.
