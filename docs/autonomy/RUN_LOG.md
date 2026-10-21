@@ -3,6 +3,16 @@
 Entradas curtas, da mais recente para a mais antiga: o que foi entregue, o que foi validado, as falhas e
 como foram corrigidas, e as decisões relevantes. Os detalhes ficam nos PRs, nas issues e nos ADRs.
 
+## 2026-10-21 — Release v0.1.0 publicada (M7 concluída, issue #9)
+
+- Workflow `Release` disparado na `main` com CI verde em `ade5512`: [execução
+  39546442554](https://github.com/mrquintao/Atlas-Economico-Dev/actions/runs/39546442554) criou a
+  tag e a [release `v0.1.0`](https://github.com/mrquintao/Atlas-Economico-Dev/releases/tag/v0.1.0)
+  com as notas de `docs/releases/v0.1.0.md`.
+- Uma segunda execução (39546540621, disparada 1 minuto depois) foi recusada pela verificação de tag
+  existente, sem efeito sobre a release.
+- Fase 1 concluída. Próxima: S1 (#11).
+
 ## 2026-10-21 — M7: critérios de aceite do MVP verificados; release v0.1.0 preparada (issue #9, PR #36)
 
 - Verificação do §25 em clone limpo da `main` (`1dcd398`), seguindo só a Opção B do README, com um
