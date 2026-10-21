@@ -234,8 +234,12 @@ class SGSClient:
                 start, end, url, points, skipped, hashlib.sha256(response.content).hexdigest()
             )
         if response.status_code == 404 and is_json:
-            # SGS answers 404 + {"erro": ...} when the window has no observations.
-            return SGSWindowResult(start, end, url, [], 0, None)
+            if _is_empty_window(response):
+                # SGS answers 404 + {"erro": {... "Value(s) not found"}} for a window without data.
+                return SGSWindowResult(start, end, url, [], 0, None)
+            # Any other 404 (e.g. the gateway's {"error": "endpoint not found!"} for a wrong
+            # base URL) is a failure, never "no data": it would make an outage look like success.
+            raise SGSError(f"SGS endpoint not found (HTTP 404) at {url}: {response.text[:200]}")
         if response.status_code in (400, 406) and is_json:
             raise SGSPayloadError(f"SGS rejected request {url}: {response.text[:300]}")
         if response.status_code == 400 or response.status_code in _RETRYABLE_STATUS:
@@ -254,6 +258,15 @@ class SGSClient:
         else:
             windows = [(start, end)]
         return [self.fetch_window(series_code, w_start, w_end) for w_start, w_end in windows]
+
+
+def _is_empty_window(response: httpx.Response) -> bool:
+    try:
+        payload = response.json()
+    except ValueError:
+        return False
+    error = payload.get("erro") if isinstance(payload, dict) else None
+    return isinstance(error, dict) and "not found" in str(error.get("detail", "")).lower()
 
 
 def _content_type(response: httpx.Response) -> str:

@@ -84,6 +84,16 @@ def test_404_json_means_no_data(settings: Settings) -> None:
     assert sleeps == []
 
 
+def test_404_from_wrong_endpoint_is_an_error_not_an_empty_window(settings: Settings) -> None:
+    # Real gateway answer for a wrong base path (verified 21/10/2026): must not look like "no data".
+    client, sleeps = make_client(
+        settings, lambda _: httpx.Response(404, json={"error": "endpoint not found!"})
+    )
+    with pytest.raises(SGSError, match="endpoint not found"):
+        client.fetch_window("432", date(2024, 1, 1), date(2024, 1, 10))
+    assert sleeps == []
+
+
 def test_406_json_window_too_large_is_not_retried(settings: Settings) -> None:
     calls = 0
 
