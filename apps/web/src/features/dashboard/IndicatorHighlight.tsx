@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 
 import { Card } from "@/components/ui/card";
+import { InlineError } from "@/components/ui/states";
 import { useObservations } from "@/hooks/useObservations";
 import type { DateRange } from "@/lib/period";
 
@@ -24,13 +25,24 @@ export function IndicatorHighlight({ config }: { config: DashboardIndicator }) {
   if (latest.data) {
     return <IndicatorCard indicator={latest.data.indicator} latest={summary} />;
   }
+  // Same accessible name as the loaded card, so the region is identifiable in every state.
+  const headingId = `card-${config.code}`;
   return (
-    <Card className="p-5" role={latest.status === "error" ? "alert" : undefined} aria-busy={latest.status === "loading"}>
-      <h3 className="text-sm font-medium text-muted-foreground">{config.fallbackName}</h3>
+    <Card className="p-5" aria-labelledby={headingId} aria-busy={latest.status === "loading"}>
+      <h3 id={headingId} className="text-sm font-medium text-muted-foreground">
+        {config.fallbackName}
+      </h3>
       {latest.status === "error" ? (
-        <p className="mt-2 text-sm">{latest.error.message}</p>
+        <div className="mt-2">
+          <InlineError message={latest.error.message} onRetry={latest.retry} />
+        </div>
       ) : (
-        <div className="mt-3 h-8 w-32 animate-pulse rounded bg-muted" />
+        <>
+          <div className="mt-3 h-8 w-32 animate-pulse rounded bg-muted" aria-hidden />
+          <span className="sr-only" role="status">
+            Carregando dados oficiais…
+          </span>
+        </>
       )}
     </Card>
   );

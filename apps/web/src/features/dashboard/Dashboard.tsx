@@ -3,12 +3,14 @@
 import { useMemo, useState } from "react";
 
 import { Card, CardContent } from "@/components/ui/card";
+import { InlineError } from "@/components/ui/states";
 import { useIndicators } from "@/hooks/useObservations";
 import {
   DEFAULT_PRESET,
   isValidRange,
   rangeForPreset,
   SINCE_2008_START,
+  startOfMonth,
   todayLocalIso,
   type DateRange,
   type PeriodPreset,
@@ -53,9 +55,11 @@ export function Dashboard() {
   );
   const bounds = useMemo(() => storedBounds(catalog.data ?? []), [catalog.data]);
 
-  // Same x-axis for every chart, so the same date sits at the same horizontal position.
+  // Same x-axis for every chart, so the same date sits at the same horizontal position. It
+  // starts on the 1st of the month: monthly points (dated on the 1st) of a month that overlaps
+  // the range are included by the API and must be visible.
   const domain = useMemo(() => {
-    const min = appliedRange.start ?? bounds.first;
+    const min = appliedRange.start ? startOfMonth(appliedRange.start) : bounds.first;
     const max = appliedRange.end ?? bounds.last;
     return min && max ? { min, max } : null;
   }, [appliedRange.start, appliedRange.end, bounds.first, bounds.last]);
@@ -105,6 +109,14 @@ export function Dashboard() {
               onCustomRange={handleCustomRange}
               invalidRange={invalidRange}
             />
+            {catalog.status === "error" && (
+              <div className="mt-3">
+                <InlineError
+                  message={`Não foi possível carregar o catálogo de indicadores (${catalog.error.message}) Os gráficos podem não ficar alinhados no mesmo eixo de datas.`}
+                  onRetry={catalog.retry}
+                />
+              </div>
+            )}
             <p className="mt-3 text-xs text-muted-foreground">
               O período vale para todos os gráficos abaixo, que compartilham o mesmo eixo de datas:
               o zoom e o cursor de um gráfico acompanham os demais. Cada indicador mantém sua
