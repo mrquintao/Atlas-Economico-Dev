@@ -17,7 +17,7 @@ Legenda de status: ✅ concluída · 🔄 em andamento · ⏳ pendente · ⛔ bl
 | M2 | IPCA acumulado em 12 meses (IBGE/SIDRA 1737): conector IBGE, validação metodológica, cartão e gráfico | M1 | §6.2, §5 | ✅ | PR #30 |
 | M3 | `GET /api/v1/dashboard/national` (resumo dos três indicadores) | M2 | §12 | ✅ | #5 · PR #32 |
 | M4 | Automação da coleta: agendamento simples (serviço de agendamento no Compose) e monitoramento das execuções | M2 | §3.3, §7 Automação, §11 | ✅ | #6 · PR #33 |
-| M5 | Páginas "Metodologia" e "Fontes de dados" geradas a partir do catálogo | M2 | §13, §22 | ⏳ | #7 |
+| M5 | Páginas "Metodologia" e "Fontes de dados" geradas a partir do catálogo | M2 | §13, §22 | ✅ | #7 · PR #34 |
 | M6 | Testes E2E (Playwright) do fluxo principal no CI | M2 | §7 Testes, §21.12 | ⏳ | #8 |
 | M7 | Verificação dos critérios de aceite do MVP e release `v0.1.0` | M2–M6 | §25 | ⏳ | #9 |
 | I1 | Proteção da `main` com checks obrigatórios e auto-merge nativo | — | — | ⛔ | #10 |
