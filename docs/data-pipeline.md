@@ -16,6 +16,9 @@ uv run python -m app.ingestion.cli ingest-siconfi --report RREO --annex "RREO-An
     --state SP --state RJ --year 2024                            # anexo do SICONFI (S3), incremental
 uv run python -m app.ingestion.cli ingest-siconfi --report RGF --annex "RGF-Anexo 02" \
     --state SP --year 2024 --period 3 --refresh                  # força a recoleta do período
+uv run python -m app.ingestion.cli derive-fiscal                 # indicadores fiscais estaduais (S4)
+uv run python -m app.ingestion.cli derive-fiscal --year 2025 --collect   # coleta os anexos antes
+uv run python -m app.ingestion.cli derive-fiscal --indicator STATE_DCL --state SP --year 2024
 ```
 
 A CLI escolhe o conector pela fonte do indicador (`data_sources.acronym`): `BCB` → SGS
@@ -250,6 +253,25 @@ quadrimestre de 2024 (31/12/2024), RGF-Anexo 02 publicado pelo Poder Executivo (
 `DividaConsolidadaLiquida`, coluna "Até o 3º Quadrimestre") = R$ 317.655.576.689,71, em valores
 correntes. O demonstrativo da DCL é publicado só pelo Executivo, mas abrange todos os Poderes do ente
 (MDF/STN).
+
+## Indicadores fiscais estaduais — derivação dos anexos (S4)
+
+`app/ingestion/fiscal_indicators.py` transforma linhas da camada bruta em observações estaduais
+(`observations`, nível `state`); o mapeamento de cada indicador (relatório, anexo, poder, `cod_conta`,
+coluna e exercícios) está em `app/ingestion/fiscal_catalog.py`, validado pelo economist. Decisões em
+[ADR 0010](adr/0010-indicadores-fiscais-estaduais.md); definições, parecer e amostras oficiais em
+[`state-fiscal-indicators.md`](state-fiscal-indicators.md).
+
+- `derive-fiscal` lê só o banco (nenhuma requisição ao SICONFI) e pode ser repetido; uma execução por
+  indicador em `ingestion_runs` (fonte SICONFI, `metadata_json.dataset = "siconfi_derivation"`).
+- `--collect` (exige `--year`) roda antes `ingest_siconfi_reports` para cada anexo distinto de que os
+  indicadores escolhidos precisam naqueles exercícios (padrão: todas as UFs); `--refresh` força a recoleta.
+- Por período: linha encontrada → `inserted`/`updated`/`unchanged` (mudança de valor gravada em
+  `observation_revisions`); linha ausente → `row_missing` (lacuna, valor armazenado mantido e relatado);
+  linha repetida → `ambiguous` e a execução falha sem gravar nada. Anexo não coletado → sem observação.
+- `ingest --all` e o agendador ignoram esses indicadores (não há conector de séries); `ingest STATE_RCL`
+  é recusado antes de registrar execução. O SICONFI continua fora do agendador até existir trava entre
+  processos (ADR 0009).
 
 ## Verificação real (20–21/10/2026)
 

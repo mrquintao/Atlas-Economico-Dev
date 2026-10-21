@@ -1,8 +1,9 @@
 """Where each state fiscal indicator is published in the SICONFI annexes (S4, ADR 0010).
 
-Validated by the economist against the official API (see docs/state-fiscal-indicators.md, which
-also lists the official samples used by the regression tests). Each indicator is one published
-row; an exercise outside every selector has no observation.
+Validated by the economist against the official API on 2026-10-21 (docs/state-fiscal-indicators.md
+lists the decisions and the official samples used by the regression tests). Each indicator is one
+published row, matched by exact account code and column; an exercise outside every selector has
+no observation. The ``rotulo`` is not used: it is "Padrão" since 2017 and null before.
 """
 
 from __future__ import annotations
@@ -11,10 +12,92 @@ from collections.abc import Iterable, Sequence
 
 from app.ingestion.fiscal_indicators import FiscalIndicator, RowSelector
 
+# RGF Anexo 02 republishes earlier periods; column n is read only from the report of period n.
+RGF_PERIOD_COLUMN = "Até o {period}º Quadrimestre"
+
+
+def _rgf2(account_code: str, first_exercise: int) -> RowSelector:
+    return RowSelector("RGF", "RGF-Anexo 02", "E", account_code, RGF_PERIOD_COLUMN, first_exercise)
+
+
 FISCAL_INDICATORS: dict[str, FiscalIndicator] = {
     definition.code: definition
     for definition in (
-        # Filled from the economist's mapping.
+        FiscalIndicator(
+            "STATE_RCL",
+            (
+                RowSelector(
+                    "RREO",
+                    "RREO-Anexo 03",
+                    None,
+                    "RREO3ReceitaCorrenteLiquida",
+                    "TOTAL (ÚLTIMOS 12 MESES)",
+                    2018,
+                ),
+            ),
+        ),
+        FiscalIndicator("STATE_DC", (_rgf2("DividaConsolidada", 2018),)),
+        FiscalIndicator("STATE_DCL", (_rgf2("DividaConsolidadaLiquida", 2018),)),
+        # From 2020 the published denominator is the RCL adjusted for the debt limits; earlier
+        # exercises used the plain RCL and are left out so that one definition is shown.
+        FiscalIndicator("STATE_DCL_RCL", (_rgf2("PercentualDaDCLSobreARCL", 2020),)),
+        FiscalIndicator(
+            "STATE_PERSONNEL_EXEC",
+            (RowSelector("RGF", "RGF-Anexo 01", "E", "DespesaComPessoalTotal", "Valor", 2018),),
+        ),
+        FiscalIndicator(
+            "STATE_PERSONNEL_EXEC_RCL",
+            (
+                RowSelector(
+                    "RGF",
+                    "RGF-Anexo 01",
+                    "E",
+                    "DespesaComPessoalTotal",
+                    "% sobre a RCL Ajustada",
+                    2018,
+                ),
+            ),
+        ),
+        # MDF 13th edition (2023) separated the RPPS; earlier lines are another concept.
+        FiscalIndicator(
+            "STATE_PRIMARY_RESULT",
+            (
+                RowSelector(
+                    "RREO",
+                    "RREO-Anexo 06",
+                    None,
+                    "ResultadoPrimarioSemRPPSAcimaDaLinha",
+                    "VALOR",
+                    2023,
+                ),
+            ),
+        ),
+        FiscalIndicator(
+            "STATE_NOMINAL_RESULT",
+            (
+                RowSelector(
+                    "RREO",
+                    "RREO-Anexo 06",
+                    None,
+                    "ResultadoNominalAcimaDaLinhaSemRPPS",
+                    "VALOR",
+                    2023,
+                ),
+            ),
+        ),
+        FiscalIndicator(
+            "STATE_INVESTMENTS",
+            (
+                RowSelector(
+                    "RREO",
+                    "RREO-Anexo 01",
+                    None,
+                    "Investimentos",
+                    "DESPESAS LIQUIDADAS ATÉ O BIMESTRE (h)",
+                    2018,
+                ),
+            ),
+        ),
     )
 }
 
@@ -29,6 +112,3 @@ def required_annexes(
             if any(selector.covers(exercise) for exercise in exercises):
                 needed[(selector.report_type, selector.annex, selector.power)] = None
     return list(needed)
-
-
-__all__ = ["FISCAL_INDICATORS", "RowSelector", "required_annexes"]

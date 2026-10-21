@@ -58,8 +58,8 @@ MAX_LISTED_OUTCOMES = 2000
 class RowSelector:
     """Where an indicator is published, valid for exercises ``first_exercise..last_exercise``.
 
-    ``column`` may contain ``{period}`` (e.g. ``"Até o {period}º Quadrimestre"``). ``label``
-    (the ``rotulo``) disambiguates annexes that repeat an account code in several tables.
+    ``column`` may contain ``{period}`` (e.g. ``"Até o {period}º Quadrimestre"``). Matching is
+    by exact equality: several account codes are prefixes of others.
     """
 
     report_type: str
@@ -69,7 +69,6 @@ class RowSelector:
     column: str
     first_exercise: int
     last_exercise: int | None = None
-    label: str | None = None
 
     @property
     def periodicity(self) -> str:
@@ -257,8 +256,6 @@ def _derive_selector(
             FiscalReportRow.account_code == selector.account_code,
             FiscalReportRow.column == column,
         )
-        if selector.label is not None:
-            row_query = row_query.where(FiscalReportRow.label == selector.label)
         rows = session.scalars(row_query).all()
         outcome = DerivationOutcome(unit.acronym, report.exercise, report.period, "row_missing")
         if len(rows) > 1:
