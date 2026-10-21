@@ -9,16 +9,21 @@ date ranges, so the E2E tests never call the official sources and always see the
 - the nine state fiscal indicators (STATE_*, bimonthly and four-monthly) from 2023 to 2025 for
   three UFs: SP with all nine, DF without STATE_NOMINAL_RESULT and MG with STATE_RCL and
   STATE_DCL_RCL only (the other UFs have no state data), so the state pages show values,
-  explicit absences and the DF note.
+  explicit absences and the DF note;
+- SYNTHETIC boundaries for the 27 UFs (2022 edition, quality "minima"): squares on a grid, not
+  the IBGE meshes, so the map renders without collecting them.
 
 Every row is tagged `source_reference = "synthetic-e2e-fixture"` and every run carries
 `{"synthetic": true}`. The script refuses to run unless `ATLAS_E2E_SEED=1`, the database name says
 it is a test database (contains "e2e" or "test", e.g. `atlas_e2e`) and the database has no
-observations nor collection runs yet, so it can never mix synthetic values with official data.
+observations, collection runs nor boundaries yet, so it can never mix synthetic values with
+official data.
 
     ATLAS_E2E_SEED=1 DATABASE_URL=... uv run python -m tests.fixtures.e2e_seed
 """
 
+import hashlib
+import json
 import os
 import re
 import sys
@@ -32,6 +37,7 @@ from app.db.session import get_engine
 from app.ingestion.series_ingestion import period_end
 from app.models import (
     Frequency,
+    GeographicBoundary,
     GeographicUnit,
     Indicator,
     IngestionRun,
@@ -148,7 +154,7 @@ def check_database_name(name: str | None) -> None:
 
 
 def seed(session: Session) -> dict[str, int]:
-    for model in (Observation, IngestionRun):
+    for model in (Observation, IngestionRun, GeographicBoundary):
         if session.scalar(select(func.count()).select_from(model)):
             raise SystemExit(
                 f"Refusing to seed: the database already has {model.__tablename__} rows."
@@ -198,6 +204,7 @@ def seed(session: Session) -> dict[str, int]:
         )
         counts[code] = len(points)
     counts.update(seed_states(session))
+    counts["boundaries"] = seed_boundaries(session)
     session.commit()
     return counts
 
@@ -239,6 +246,46 @@ def seed_states(session: Session) -> dict[str, int]:
             )
             counts[f"{code}/{uf}"] = len(rows)
     return counts
+
+
+BOUNDARY_MESH_YEAR = 2022
+BOUNDARY_COLUMNS = 7
+
+
+def synthetic_square(index: int) -> dict:
+    """A 4-degree square on a 7-column grid over Brazil's bounding box (not a real boundary).
+
+    Counter-clockwise exterior ring, as in RFC 7946 and the IBGE meshes, so the E2E tests draw
+    the same orientation as the official data."""
+    row, column = divmod(index, BOUNDARY_COLUMNS)
+    west, north = -72 + 5 * column, 4 - 5 * row
+    ring = [[west, north], [west, north - 4], [west + 4, north - 4], [west + 4, north]]
+    return {"type": "Polygon", "coordinates": [[*ring, ring[0]]]}
+
+
+def seed_boundaries(session: Session) -> int:
+    """One synthetic square per UF, in IBGE code order."""
+    units = session.scalars(
+        select(GeographicUnit)
+        .where(GeographicUnit.geographic_level == "state")
+        .order_by(GeographicUnit.ibge_code)
+    ).all()
+    for index, unit in enumerate(units):
+        geometry = synthetic_square(index)
+        session.add(
+            GeographicBoundary(
+                geographic_unit_id=unit.id,
+                mesh_year=BOUNDARY_MESH_YEAR,
+                quality="minima",
+                geometry=geometry,
+                geometry_hash=hashlib.sha256(
+                    json.dumps(geometry, sort_keys=True).encode()
+                ).hexdigest(),
+                source_url=SOURCE_REFERENCE,
+                collected_at=COLLECTED_AT,
+            )
+        )
+    return len(units)
 
 
 def main() -> None:

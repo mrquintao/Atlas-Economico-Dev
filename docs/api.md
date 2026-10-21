@@ -233,6 +233,36 @@ R$) ou "Diferença em pontos percentuais (p.p.) em relação ao mesmo período d
 Os indicadores podem ter últimos períodos diferentes (bimestral × quadrimestral); cada `latest` traz o
 seu `period_start`/`period_end`.
 
+## `GET /api/v1/states/map/{code}`
+
+Um indicador estadual (`STATE_*`, sem diferença de maiúsculas) nas **27 UFs em um único período de
+referência**, para o mapa coroplético de `/estados` (S6). Nunca mistura o "último valor de cada UF":
+todas as UFs são lidas no mesmo bimestre (RREO) ou quadrimestre (RGF). Código que não é estadual →
+`404 indicator_not_found`.
+
+| Parâmetro | Descrição |
+|---|---|
+| `reference_date` | Início do período (`YYYY-MM-DD`), um dos `available_periods`. Ausente → período padrão. Período sem nenhum valor → `404 period_not_found` |
+
+Resposta (`Cache-Control: public, max-age=300`):
+
+- `indicator`: metadados do catálogo (datas armazenadas consideram todas as UFs);
+- `accumulation_window`: janela de acumulação do valor publicado;
+- `scale`: `diverging` (centrada em zero) para indicadores que podem ser negativos — resultados primário
+  e nominal, DCL e DCL/RCL — e `sequential` para os demais. Propriedade do catálogo, **não** dos valores
+  do período;
+- `period`: `{reference_date, period_start, period_end, coverage}` exibido (`null` sem dados), em que
+  `coverage` é o número de UFs com valor publicado;
+- `default_rule` e `available_periods` (do mais recente ao mais antigo, cada um com `coverage`).
+  Padrão: o período mais recente com valor de **pelo menos 14 das 27 UFs**; se nenhum atingir esse
+  número, o mais recente com algum valor. Os relatórios de um período chegam aos poucos, e um mapa com
+  três UFs coloridas engana (decisão do economist);
+- `notes`: ressalvas do mapa — acumulado no ano (investimentos e resultados), valores absolutos em R$
+  (refletem o tamanho da UF; sem correção pela inflação), restos a pagar no 3º quadrimestre (pessoal) e
+  a nota do Distrito Federal;
+- `states`: as 27 UFs em ordem de sigla, com `status` (`available`/`no_data`) e `value` (`null` sem
+  dado; **nunca zero**).
+
 ### Planejados (fases futuras)
 
 `/compare`, `/events`, `/relationships`.

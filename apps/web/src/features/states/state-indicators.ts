@@ -17,3 +17,16 @@ const RESULT_CODES = new Set(["STATE_PRIMARY_RESULT", "STATE_NOMINAL_RESULT"]);
 export function signNote(code: string): string | null {
   return RESULT_CODES.has(code) ? "Positivo indica superávit; negativo, déficit." : null;
 }
+
+/** Display order of the state indicators (same as the API's STATE_DASHBOARD_CODES). */
+export const STATE_INDICATOR_ORDER = [
+  "STATE_RCL",
+  "STATE_PERSONNEL_EXEC",
+  "STATE_PERSONNEL_EXEC_RCL",
+  "STATE_INVESTMENTS",
+  "STATE_PRIMARY_RESULT",
+  "STATE_NOMINAL_RESULT",
+  "STATE_DC",
+  "STATE_DCL",
+  "STATE_DCL_RCL",
+] as const;

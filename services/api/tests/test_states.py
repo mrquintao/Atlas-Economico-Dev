@@ -271,3 +271,171 @@ def test_openapi_documents_the_state_routes(client: TestClient) -> None:
     paths = client.get("/openapi.json").json()["paths"]
     assert "/api/v1/states/{uf}/indicators" in paths
     assert "/api/v1/states/{uf}/dashboard" in paths
+
+
+# --- /states/map/{code} ---
+
+ALL_UFS = "AC AL AM AP BA CE DF ES GO MA MG MS MT PA PB PE PI PR RJ RN RO RR RS SC SE SP TO".split()  # noqa: SIM905
+
+
+def test_map_lists_the_27_ufs_with_absences_as_null(client: TestClient, db: Session) -> None:
+    add(db, "STATE_DCL_RCL", "SP", [quadrimester(2025, 1, "160.5")])
+    add(db, "STATE_DCL_RCL", "MG", [quadrimester(2025, 1, "-3.25")])
+    response = client.get("/api/v1/states/map/STATE_DCL_RCL")
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "public, max-age=300"
+    body = response.json()
+    assert body["indicator"]["code"] == "STATE_DCL_RCL"
+    assert body["scale"] == "diverging"
+    assert body["period"] == {
+        "reference_date": "2025-01-01",
+        "period_start": "2025-01-01",
+        "period_end": "2025-04-30",
+        "coverage": 2,
+    }
+    states = {s["geography"]["acronym"]: s for s in body["states"]}
+    assert [s["geography"]["acronym"] for s in body["states"]] == ALL_UFS
+    assert all(s["geography"]["geographic_level"] == "state" for s in body["states"])
+    assert states["SP"] == {**states["SP"], "status": "available", "value": 160.5}
+    assert states["MG"]["value"] == -3.25
+    # An absence is never zero.
+    assert states["AC"]["status"] == "no_data" and states["AC"]["value"] is None
+    assert sum(s["status"] == "available" for s in body["states"]) == 2
+
+
+def test_map_reads_every_uf_at_the_same_period(client: TestClient, db: Session) -> None:
+    # SP already published Q2; MG only Q1. The map never mixes the latest value of each UF.
+    add(db, "STATE_DCL_RCL", "SP", [quadrimester(2025, 1, "150"), quadrimester(2025, 2, "155")])
+    add(db, "STATE_DCL_RCL", "MG", [quadrimester(2025, 1, "180")])
+    body = client.get("/api/v1/states/map/STATE_DCL_RCL").json()
+    assert body["period"]["reference_date"] == "2025-05-01"
+    states = {s["geography"]["acronym"]: s for s in body["states"]}
+    assert states["SP"]["value"] == 155
+    assert states["MG"]["status"] == "no_data"
+    assert [p["reference_date"] for p in body["available_periods"]] == [
+        "2025-05-01",
+        "2025-01-01",
+    ]
+    assert [p["coverage"] for p in body["available_periods"]] == [1, 2]
+
+    chosen = client.get("/api/v1/states/map/STATE_DCL_RCL?reference_date=2025-01-01").json()
+    values = {s["geography"]["acronym"]: s["value"] for s in chosen["states"]}
+    assert values["SP"] == 150 and values["MG"] == 180
+
+
+def test_map_default_period_needs_14_ufs(client: TestClient, db: Session) -> None:
+    # Q1 published by 14 UFs, Q2 by only 3 so far: the default is Q1.
+    for uf in ALL_UFS[:14]:
+        add(db, "STATE_PERSONNEL_EXEC_RCL", uf, [quadrimester(2025, 1, "45")])
+    for uf in ALL_UFS[:3]:
+        add(db, "STATE_PERSONNEL_EXEC_RCL", uf, [quadrimester(2025, 2, "46")])
+    body = client.get("/api/v1/states/map/STATE_PERSONNEL_EXEC_RCL").json()
+    assert body["period"]["reference_date"] == "2025-01-01"
+    assert body["period"]["coverage"] == 14
+    assert "14 das 27" in body["default_rule"]
+    assert body["scale"] == "sequential"
+    # The less covered period stays selectable.
+    later = client.get(
+        "/api/v1/states/map/STATE_PERSONNEL_EXEC_RCL?reference_date=2025-05-01"
+    ).json()
+    assert later["period"]["coverage"] == 3
+
+
+def test_map_default_falls_back_to_latest_period(client: TestClient, db: Session) -> None:
+    add(db, "STATE_RCL", "SP", [bimester(2025, 1, "1"), bimester(2025, 2, "2")])
+    body = client.get("/api/v1/states/map/STATE_RCL").json()
+    assert body["period"]["reference_date"] == "2025-03-01"
+
+
+def test_map_without_data(client: TestClient) -> None:
+    body = client.get("/api/v1/states/map/STATE_DC").json()
+    assert body["period"] is None
+    assert body["available_periods"] == []
+    assert len(body["states"]) == 27
+    assert all(s["status"] == "no_data" and s["value"] is None for s in body["states"])
+
+
+@pytest.mark.parametrize("code", ["SELIC_TARGET", "XX", "IPCA_12M"])
+def test_map_only_serves_state_indicators(client: TestClient, code: str) -> None:
+    response = client.get(f"/api/v1/states/map/{code}")
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "indicator_not_found"
+
+
+def test_map_code_is_case_insensitive(client: TestClient) -> None:
+    assert client.get("/api/v1/states/map/state_dcl").json()["indicator"]["code"] == "STATE_DCL"
+
+
+def test_map_unknown_period_is_404(client: TestClient, db: Session) -> None:
+    add(db, "STATE_DCL", "SP", [quadrimester(2025, 1, "1")])
+    response = client.get("/api/v1/states/map/STATE_DCL?reference_date=2025-02-01")
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "period_not_found"
+    invalid = client.get("/api/v1/states/map/STATE_DCL?reference_date=2025-13-01")
+    assert invalid.status_code == 422
+
+
+def test_map_scale_comes_from_the_catalog(client: TestClient, db: Session) -> None:
+    # All values positive in the period, still diverging: the indicator can be negative.
+    add(db, "STATE_PRIMARY_RESULT", "SP", [bimester(2025, 1, "10")])
+    expected = {
+        "STATE_PRIMARY_RESULT": "diverging",
+        "STATE_NOMINAL_RESULT": "diverging",
+        "STATE_DCL": "diverging",
+        "STATE_DCL_RCL": "diverging",
+        "STATE_RCL": "sequential",
+        "STATE_DC": "sequential",
+        "STATE_PERSONNEL_EXEC": "sequential",
+        "STATE_PERSONNEL_EXEC_RCL": "sequential",
+        "STATE_INVESTMENTS": "sequential",
+    }
+    assert expected.keys() == set(STATE_DASHBOARD_CODES)
+    for code, scale in expected.items():
+        assert client.get(f"/api/v1/states/map/{code}").json()["scale"] == scale
+
+
+def test_map_notes(client: TestClient, db: Session) -> None:
+    add(db, "STATE_PERSONNEL_EXEC", "SP", [quadrimester(2025, 2, "1"), quadrimester(2025, 3, "2")])
+
+    def notes(code: str, query: str = "") -> list[str]:
+        return client.get(f"/api/v1/states/map/{code}{query}").json()["notes"]
+
+    q3 = notes("STATE_PERSONNEL_EXEC")
+    assert any("restos a pagar" in n for n in q3)
+    assert any("Valores absolutos" in n for n in q3)
+    assert q3[-1].startswith("O Distrito Federal")
+    q2 = notes("STATE_PERSONNEL_EXEC", "?reference_date=2025-05-01")
+    assert not any("restos a pagar" in n for n in q2)
+    ratio = notes("STATE_DCL_RCL")
+    assert not any("Valores absolutos" in n for n in ratio)
+    assert len(ratio) == 1
+    assert any("Acumulado de janeiro" in n for n in notes("STATE_INVESTMENTS"))
+    assert not any("Acumulado de janeiro" in n for n in notes("STATE_RCL"))
+
+
+def test_map_counts_only_state_level_units(client: TestClient, db: Session) -> None:
+    add(db, "STATE_DCL", "SP", [quadrimester(2025, 1, "1")])
+    # A stray row of another level (Brasil) must not count as a UF nor appear in the map.
+    indicator = db.scalar(select(Indicator).where(Indicator.code == "STATE_DCL"))
+    brazil = db.scalar(
+        select(GeographicUnit).where(
+            GeographicUnit.acronym == "BR", GeographicUnit.geographic_level == "country"
+        )
+    )
+    assert indicator is not None and brazil is not None
+    db.add(
+        Observation(
+            indicator_id=indicator.id,
+            geographic_unit_id=brazil.id,
+            reference_date=date(2025, 1, 1),
+            period_start=date(2025, 1, 1),
+            period_end=date(2025, 4, 30),
+            value=Decimal("99"),
+            collected_at=datetime.now(UTC),
+            source_reference="test",
+        )
+    )
+    db.flush()
+    body = client.get("/api/v1/states/map/STATE_DCL").json()
+    assert body["period"]["coverage"] == 1
+    assert len(body["states"]) == 27

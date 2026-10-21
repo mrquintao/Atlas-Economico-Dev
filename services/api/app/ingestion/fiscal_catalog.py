@@ -139,3 +139,10 @@ ACCUMULATION_WINDOWS: dict[str, str] = {
     "STATE_DCL": BALANCE_WINDOW,
     "STATE_DCL_RCL": "Saldo da DCL no fim do quadrimestre sobre a RCL ajustada de 12 meses.",
 }
+
+# Indicators whose published values can be negative (deficits; financial assets above the debt):
+# the map uses a diverging scale centred on zero for them. A catalog property, never inferred
+# from the values of a period (economist, S6).
+SIGNED_CODES = frozenset(
+    {"STATE_PRIMARY_RESULT", "STATE_NOMINAL_RESULT", "STATE_DCL", "STATE_DCL_RCL"}
+)

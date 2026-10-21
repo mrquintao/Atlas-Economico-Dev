@@ -5,8 +5,10 @@ import {
   fetchNationalDashboard,
   fetchObservations,
   fetchSources,
+  fetchStateBoundaries,
   fetchStateDashboard,
   fetchStateIndicators,
+  fetchStateMap,
 } from "@/lib/api";
 import type { DateRange } from "@/lib/period";
 import type {
@@ -15,8 +17,10 @@ import type {
   ObservationsResponse,
   RequestedFrequency,
   Source,
+  StateBoundaries,
   StateDashboard,
   StateIndicators,
+  StateMap,
 } from "@/types/api";
 
 import { useResource } from "./useResource";
@@ -59,4 +63,16 @@ export function useStateDashboard(uf: string) {
   return useResource<StateDashboard>(`states/${uf}/dashboard`, (signal) =>
     fetchStateDashboard(uf, signal),
   );
+}
+
+/** Loads one state indicator in the 27 UFs at a period (null: the API's default period). */
+export function useStateMap(code: string, referenceDate: string | null) {
+  return useResource<StateMap>(JSON.stringify(["states/map", code, referenceDate]), (signal) =>
+    fetchStateMap(code, referenceDate, signal),
+  );
+}
+
+/** Loads the official boundaries of the 27 UFs. */
+export function useStateBoundaries() {
+  return useResource<StateBoundaries>("geographies/states/boundaries", fetchStateBoundaries);
 }

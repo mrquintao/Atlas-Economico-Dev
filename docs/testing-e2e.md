@@ -17,9 +17,11 @@ Os E2E nunca usam dados oficiais coletados nem chamam as fontes. O banco de test
 | `DBGG_GDP` | mensal | dez/2006 a mai/2026 |
 | `IPCA_12M` | mensal | jan/2000 a mai/2026 |
 | 9 indicadores `STATE_*` | bimestral e quadrimestral | 2023 a 2025: SP com os nove, DF sem `STATE_NOMINAL_RESULT`, MG só com `STATE_RCL` e `STATE_DCL_RCL`; demais UFs sem dados |
+| Malha das 27 UFs | edição 2022, `minima` | **quadrados** numa grade (não é a malha do IBGE), `source_url = "synthetic-e2e-fixture"` |
 
 O script só roda com `ATLAS_E2E_SEED=1`, num banco cujo nome contenha `e2e` ou `test` (o banco
-`atlas`, padrão do `DATABASE_URL`, é recusado) e que ainda não tenha observações nem execuções de coleta.
+`atlas`, padrão do `DATABASE_URL`, é recusado) e que ainda não tenha observações, execuções de coleta
+nem malhas.
 Assim, nunca mistura valores sintéticos com dados oficiais.
 
 ## O que é verificado
@@ -40,6 +42,10 @@ Assim, nunca mistura valores sintéticos com dados oficiais.
   bimestre** do período no gráfico bimestral; período personalizado; ressalva e indicador ausente do
   DF; ausências explícitas de MG; UF sem dados (AC); `/estados/mg` → `308` para `/estados/MG`; UF
   inválida (`XX`, `BR`, `31`) → página "não encontrada" com status `404`.
+- Mapa das UFs (S6, em `e2e/states.spec.ts`): 27 UFs como links nomeados por valor, unidade e
+  período; UF sem dado com rótulo "sem dado" e padrão hachurado; legenda com faixas e "Sem dado";
+  tabela alternativa; dica de contexto no hover; clique e teclado (foco + Enter) abrem a UF; filtros de
+  período e de indicador (período mantido entre indicadores quadrimestrais; escala divergente da DCL/RCL).
 - Navegação para "Metodologia" e "Fontes de dados", âncoras por indicador e link do painel de metodologia.
 - **Nenhum erro no console** nem exceção não tratada em nenhum teste (fixture automática).
 

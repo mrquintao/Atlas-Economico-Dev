@@ -1,5 +1,7 @@
 /** Types mirroring the internal API (services/api/app/schemas). */
 
+import type { MultiPolygon, Polygon } from "geojson";
+
 export type Frequency = "daily" | "monthly" | "bimonthly" | "quarterly" | "four_monthly" | "annual";
 export type RequestedFrequency = "original" | "daily" | "monthly";
 
@@ -141,6 +143,50 @@ export interface StateDashboard {
   geography: Geography;
   notes: string[];
   indicators: StateDashboardItem[];
+}
+
+/** A reference period of the state map and how many UFs published a value for it. */
+export interface StateMapPeriod {
+  reference_date: string;
+  period_start: string;
+  period_end: string;
+  coverage: number;
+}
+
+export interface StateMapValue {
+  geography: Geography;
+  /** "no_data": no value published for the period (never zero). */
+  status: "available" | "no_data";
+  value: number | null;
+}
+
+/** One state indicator in the 27 UFs at a single reference period (/states/map/{code}). */
+export interface StateMap {
+  indicator: Indicator;
+  accumulation_window: string;
+  /** "diverging" (centred on zero) for indicators that can be negative; set by the catalog. */
+  scale: "sequential" | "diverging";
+  period: StateMapPeriod | null;
+  default_rule: string;
+  /** Most recent first. */
+  available_periods: StateMapPeriod[];
+  notes: string[];
+  /** The 27 UFs, by acronym. */
+  states: StateMapValue[];
+}
+
+export interface BoundaryFeature {
+  type: "Feature";
+  id: string;
+  properties: { ibge_code: string; acronym: string; name: string };
+  geometry: MultiPolygon | Polygon;
+}
+
+/** Official IBGE boundaries of the 27 UFs (/geographies/states/boundaries). */
+export interface StateBoundaries {
+  type: "FeatureCollection";
+  metadata: { source_url: string; mesh_year: number; collected_at: string };
+  features: BoundaryFeature[];
 }
 
 export interface ApiErrorBody {

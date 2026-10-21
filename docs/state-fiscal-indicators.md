@@ -114,6 +114,41 @@ quadrimestre: DC 311.794.212.065,99; PR 2018, 3º quadrimestre: pessoal 16.756.4
   todos iguais aos derivados. O qa-auditor conferiu ainda AC (DCL, 1º quadr.), TO (DCL/RCL, 1º a 3º
   quadr.) e PE (investimentos, 3º bim.) na camada bruta.
 
+## Mapa das UFs (S6, parecer do economist de 21/10/2026)
+
+O mapa de `/estados` (endpoint `GET /api/v1/states/map/{code}`, contrato em [`api.md`](api.md)) segue
+estas regras:
+
+- **Um período para todas as UFs.** O mapa mostra o mesmo bimestre (RREO) ou quadrimestre (RGF) para
+  as 27 UFs; nunca o último valor de cada uma. UF sem valor no período = "sem dado", em cinza hachurado,
+  fora da paleta, com item próprio na legenda: ausência não é zero.
+- **Período padrão**: o mais recente com valor de pelo menos 14 das 27 UFs (os relatórios chegam aos
+  poucos); se nenhum atingir esse número, o mais recente com algum valor. Cada período do filtro mostra
+  quantas UFs publicaram (`coverage`). Ao trocar de indicador, o período é mantido se for do mesmo tipo
+  (quadrimestre × bimestre) e estiver no intervalo armazenado do novo indicador; senão, vale o padrão.
+- **Escala**: indicadores nunca negativos (RCL, DC, pessoal em R$ e em % da RCL, investimentos) usam até
+  5 classes por **quantis** (posição), paleta sequencial viridis; intervalos iguais não servem (SP
+  achataria as outras UFs numa só classe). Indicadores com sinal (resultados primário e nominal, DCL,
+  DCL/RCL) usam paleta divergente PuOr: zero é sempre limite de classe e cada lado tem até 3 classes por
+  quantis (menos quando há poucas UFs daquele lado). Sem vermelho/verde ("bom/ruim"). O tipo de escala
+  é propriedade do catálogo (`SIGNED_CODES`), nunca dos valores do período. Valores iguais ficam sempre
+  na mesma classe, e a legenda mostra o intervalo real de cada faixa e quantas UFs ela tem. Um valor
+  exatamente zero entra na primeira classe não negativa.
+- **Valores absolutos em R$** entram no mapa com a nota "refletem também o tamanho de cada UF"; métricas
+  relativas (per capita, rankings) ficam para a S8. Indicador padrão: pessoal do Executivo / RCL (razão,
+  desde 2018, nunca negativa).
+- **DF** entra na classificação, com asterisco no mapa e na tabela e a nota de comparabilidade.
+- **Acumulados no ano**: comparar UFs no mesmo bimestre é coerente; comparar bimestres diferentes não.
+  Primário e nominal só têm períodos desde 2023; DCL/RCL, desde 2020. No 3º quadrimestre, a nota de
+  restos a pagar não processados acompanha os indicadores de pessoal.
+- **Acessibilidade**: cada UF é um link focável (Tab, Enter) com nome acessível "UF: valor, período";
+  hover e foco mostram valor, unidade e período; uma tabela com as 27 UFs acompanha o mapa; a paleta é
+  segura para daltonismo e o padrão hachurado distingue "sem dado" sem depender de cor.
+- **Malha**: geometrias oficiais do IBGE (`/geographies/states/boundaries`, S2). Sem malha coletada, a
+  página avisa e mantém a tabela. A malha segue a RFC 7946 (anel externo anti-horário); o frontend
+  reorienta os anéis para a convenção do d3-geo antes de projetar (sem alterar coordenadas), o que é
+  testado com a amostra real do IBGE e exercitado no E2E por quadrados sintéticos anti-horários.
+
 ## Fora do escopo agora
 
 Resultados de 2018–2022 (só como série própria, nunca emendada); resultados com RPPS ou abaixo da
