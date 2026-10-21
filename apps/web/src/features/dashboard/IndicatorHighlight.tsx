@@ -1,54 +1,54 @@
 "use client";
 
-import { useMemo } from "react";
-
 import { Card } from "@/components/ui/card";
 import { InlineError } from "@/components/ui/states";
-import { useObservations } from "@/hooks/useObservations";
-import type { DateRange } from "@/lib/period";
+import type { ResourceState } from "@/hooks/useObservations";
+import type { NationalDashboard } from "@/types/api";
 
 import { IndicatorCard } from "./IndicatorCard";
 import type { DashboardIndicator } from "./indicators";
-import { latestFromMonthly } from "./summary";
+import { latestFromDashboard } from "./summary";
 
-const FULL_HISTORY: DateRange = { start: null, end: null };
+interface Props {
+  config: DashboardIndicator;
+  /** Shared national dashboard request (one call for every card). */
+  dashboard: ResourceState<NationalDashboard> & { retry: () => void };
+}
 
 /** Card with the latest official value, independent of the selected period. */
-export function IndicatorHighlight({ config }: { config: DashboardIndicator }) {
-  // Monthly view: one point per month is enough for "latest" and "12-month change".
-  const latest = useObservations(config.code, FULL_HISTORY, "monthly");
-  const summary = useMemo(
-    () => (latest.data ? latestFromMonthly(latest.data.observations) : null),
-    [latest.data],
-  );
+export function IndicatorHighlight({ config, dashboard }: Props) {
+  const item = dashboard.data?.indicators.find((i) => i.indicator.code === config.code);
 
-  if (latest.data) {
+  if (item) {
     return (
       <IndicatorCard
-        indicator={latest.data.indicator}
-        latest={summary}
+        indicator={item.indicator}
+        latest={latestFromDashboard(item)}
         referencePrefix={config.referencePrefix}
       />
     );
   }
   // Same accessible name as the loaded card, so the region is identifiable in every state.
   const headingId = `card-${config.code}`;
+  const loading = dashboard.status === "loading";
   return (
-    <Card className="p-5" aria-labelledby={headingId} aria-busy={latest.status === "loading"}>
+    <Card className="p-5" aria-labelledby={headingId} aria-busy={loading}>
       <h3 id={headingId} className="text-sm font-medium text-muted-foreground">
         {config.fallbackName}
       </h3>
-      {latest.status === "error" ? (
+      {dashboard.status === "error" ? (
         <div className="mt-2">
-          <InlineError message={latest.error.message} onRetry={latest.retry} />
+          <InlineError message={dashboard.error.message} onRetry={dashboard.retry} />
         </div>
-      ) : (
+      ) : loading ? (
         <>
           <div className="mt-3 h-8 w-32 animate-pulse rounded bg-muted" aria-hidden />
           <span className="sr-only" role="status">
             Carregando dados oficiais…
           </span>
         </>
+      ) : (
+        <p className="mt-2 text-sm text-muted-foreground">Sem dados disponíveis.</p>
       )}
     </Card>
   );

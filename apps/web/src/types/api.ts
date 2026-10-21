@@ -74,6 +74,34 @@ export interface ObservationsResponse {
   observations: Observation[];
 }
 
+export interface LatestValue {
+  date: string;
+  value: number;
+  period_start: string;
+  period_end: string;
+}
+
+/** Absolute difference versus the same month one year earlier, in `change_unit`. */
+export interface Change12m {
+  value: number;
+  change_unit: string;
+  reference_date: string;
+  reference_value: number;
+}
+
+export interface NationalDashboardItem {
+  indicator: Indicator;
+  status: "available" | "no_data";
+  aggregation: { method: "none" | "last_value_of_period"; description: string };
+  latest: LatestValue | null;
+  change_12m: Change12m | null;
+}
+
+export interface NationalDashboard {
+  geography: Geography;
+  indicators: NationalDashboardItem[];
+}
+
 export interface ApiErrorBody {
   error: { code: string; message: string; details?: unknown };
 }

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { InlineError } from "@/components/ui/states";
-import { useIndicators } from "@/hooks/useObservations";
+import { useIndicators, useNationalDashboard } from "@/hooks/useObservations";
 import {
   DEFAULT_PRESET,
   isValidRange,
@@ -48,6 +48,7 @@ export function Dashboard() {
   const [appliedRange, setAppliedRange] = useState<DateRange>(range);
 
   const catalog = useIndicators();
+  const dashboard = useNationalDashboard();
   const byCode = useMemo(
     () => new Map((catalog.data ?? []).map((i) => [i.code, i])),
     [catalog.data],
@@ -87,7 +88,7 @@ export function Dashboard() {
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {DASHBOARD_INDICATORS.map((config) => (
-            <IndicatorHighlight key={config.code} config={config} />
+            <IndicatorHighlight key={config.code} config={config} dashboard={dashboard} />
           ))}
         </div>
       </section>
