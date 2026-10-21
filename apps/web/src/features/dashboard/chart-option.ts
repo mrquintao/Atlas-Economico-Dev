@@ -83,7 +83,7 @@ export function toChartData(
 }
 
 /** Scale of the y-axis labels of amounts in reais, chosen from the largest absolute value. */
-function currencyScale(observations: Observation[]): { factor: number; label: string } {
+export function currencyScale(observations: Observation[]): { factor: number; label: string } {
   const max = Math.max(0, ...observations.map((o) => Math.abs(o.value)));
   if (max >= 1e12) return { factor: 1e12, label: "trilhões" };
   if (max >= 1e9) return { factor: 1e9, label: "bilhões" };

@@ -3,12 +3,15 @@ import type {
   Indicator,
   NationalDashboard,
   ObservationsResponse,
+  RankingOrder,
   RequestedFrequency,
   Source,
   StateBoundaries,
   StateDashboard,
   StateIndicators,
+  StateComparison,
   StateMap,
+  StateRanking,
 } from "@/types/api";
 import type { DateRange } from "@/lib/period";
 
@@ -134,6 +137,49 @@ export function fetchStateMap(
   signal?: AbortSignal,
 ): Promise<StateMap> {
   return getJson<StateMap>(stateMapUrl(code, referenceDate), signal);
+}
+
+/** `ufs` null: the 27 UFs. */
+export function stateRankingUrl(
+  code: string,
+  referenceDate: string | null,
+  ufs: readonly string[] | null,
+  order: RankingOrder,
+): string {
+  const params = new URLSearchParams();
+  if (referenceDate) params.set("reference_date", referenceDate);
+  if (ufs) params.set("ufs", ufs.join(","));
+  if (order !== "desc") params.set("order", order);
+  const query = params.toString();
+  return `${API_BASE_URL}/api/v1/states/ranking/${encodeURIComponent(code)}${query ? `?${query}` : ""}`;
+}
+
+/** Selected UFs ordered by one state indicator at one period; absences listed apart. */
+export function fetchStateRanking(
+  code: string,
+  referenceDate: string | null,
+  ufs: readonly string[] | null,
+  order: RankingOrder,
+  signal?: AbortSignal,
+): Promise<StateRanking> {
+  return getJson<StateRanking>(stateRankingUrl(code, referenceDate, ufs, order), signal);
+}
+
+export function stateComparisonUrl(code: string, ufs: readonly string[], range: DateRange): string {
+  const params = new URLSearchParams({ ufs: ufs.join(",") });
+  if (range.start) params.set("start_date", range.start);
+  if (range.end) params.set("end_date", range.end);
+  return `${API_BASE_URL}/api/v1/states/compare/${encodeURIComponent(code)}?${params}`;
+}
+
+/** One state indicator in a few UFs (each series as published), in one request. */
+export function fetchStateComparison(
+  code: string,
+  ufs: readonly string[],
+  range: DateRange,
+  signal?: AbortSignal,
+): Promise<StateComparison> {
+  return getJson<StateComparison>(stateComparisonUrl(code, ufs, range), signal);
 }
 
 /** Official IBGE boundaries of the 27 UFs (GeoJSON). */

@@ -1,3 +1,5 @@
+import type { Indicator } from "@/types/api";
+
 /**
  * Presentation choices for the state fiscal indicators (S4). The list, order and metadata come
  * from the API (/states/{uf}/…); this only says how to draw each series.
@@ -30,3 +32,27 @@ export const STATE_INDICATOR_ORDER = [
   "STATE_DCL",
   "STATE_DCL_RCL",
 ] as const;
+
+type PeriodIndicator = Pick<Indicator, "frequency" | "first_stored_date" | "last_stored_date">;
+
+/**
+ * Period to keep when switching indicators (S6): the period shown, if it is the same kind of
+ * period (bimester × four-month period) and within the stored range of the new indicator;
+ * otherwise null (the API's default period).
+ */
+export function keptPeriod(
+  shown: string | null,
+  current: PeriodIndicator | undefined,
+  target: PeriodIndicator | undefined,
+): string | null {
+  const keep =
+    shown !== null &&
+    current !== undefined &&
+    target !== undefined &&
+    current.frequency === target.frequency &&
+    target.first_stored_date !== null &&
+    target.last_stored_date !== null &&
+    shown >= target.first_stored_date &&
+    shown <= target.last_stored_date;
+  return keep ? shown : null;
+}

@@ -263,6 +263,45 @@ Resposta (`Cache-Control: public, max-age=300`):
 - `states`: as 27 UFs em ordem de sigla, com `status` (`available`/`no_data`) e `value` (`null` sem
   dado; **nunca zero**).
 
+## `GET /api/v1/states/ranking/{code}`
+
+As UFs selecionadas **ordenadas** por um indicador estadual num único período (S8, página
+`/estados/comparar`). Mesma regra de período do mapa: todas as UFs no mesmo bimestre ou quadrimestre;
+o período padrão é escolhido sobre as 27 UFs (≥ 14 com valor), não só sobre as selecionadas.
+
+| Parâmetro | Descrição |
+|---|---|
+| `reference_date` | Início do período, um dos `available_periods`. Ausente → período padrão. Sem nenhuma UF com valor → `404 period_not_found` |
+| `ufs` | Siglas ou códigos IBGE separados por vírgula (ex.: `SP,MG,RJ`). Ausente → as 27 UFs. Menos de 2 UFs, UF desconhecida (inclui `BR` e regiões) ou repetida → `422 invalid_selection` |
+| `order` | `desc` (padrão, do maior para o menor) ou `asc` |
+
+Resposta (`Cache-Control: public, max-age=300`):
+
+- `indicator`, `accumulation_window`, `period`, `default_rule`, `available_periods`: como no mapa;
+- `metric_kind`: `relative` para os percentuais da RCL publicados pela UF (DCL/RCL e pessoal/RCL),
+  comparáveis entre portes; `absolute` para valores em R$, que refletem o tamanho da UF. Nada é
+  recalculado pelo Atlas (sem per capita nem razões derivadas, ver `state-fiscal-indicators.md`);
+- `order` e `order_note` (texto neutro: a posição não indica desempenho melhor ou pior);
+- `ranking`: `{position, geography, value}` das UFs **com valor**. Classificação por competição
+  ("1, 2, 2, 4"): valores iguais — comparados como `NUMERIC`, nunca como `float` — dividem a posição e
+  aparecem em ordem de sigla;
+- `missing` e `missing_note`: UFs selecionadas **sem valor** no período, fora da classificação e nunca
+  tratadas como zero (`missing_note` é nulo sem ausências ou sem período);
+- `selected_count` e `ranked_count`;
+- `notes`: empates, métrica relativa e denominador (RCL ajustada) ou aviso de valor absoluto, acumulado
+  no ano, valores negativos possíveis, restos a pagar no 3º quadrimestre (pessoal) e a nota do DF
+  quando o DF está na seleção.
+
+## `GET /api/v1/states/compare/{code}`
+
+A série de um indicador estadual em **1 a 6 UFs** (`ufs`, obrigatório, na ordem pedida), cada uma como
+publicada e em seus próprios períodos (S8). Aceita `start_date` e `end_date` como `/states/{uf}/indicators`.
+Cada item de `series` tem o formato de `/states/{uf}/indicators` (`status = no_data` quando a UF não tem
+nenhum valor armazenado: a ausência é explícita, nunca uma série de zeros). `notes`: leitura das
+lacunas, quebra anual dos acumulados no ano, valores em R$ correntes ou denominador da RCL ajustada,
+sinais, restos a pagar (pessoal) e a nota do DF quando selecionado. Seleção inválida →
+`422 invalid_selection`; intervalo invertido → `422 invalid_range`.
+
 ### Planejados (fases futuras)
 
-`/compare`, `/events`, `/relationships`.
+`/events`, `/relationships`.
