@@ -95,7 +95,10 @@ def _resolve_range(
                     Observation.geographic_unit_id == geo.id,
                 )
             )
-        overlap = INCREMENTAL_OVERLAP[Frequency(indicator.frequency)]
+        frequency = Frequency(indicator.frequency)
+        if frequency not in INCREMENTAL_OVERLAP:
+            raise IngestionError(f"No incremental policy for {frequency} series")
+        overlap = INCREMENTAL_OVERLAP[frequency]
         if last_stored is None or overlap is None:
             effective_start = first_available
         else:

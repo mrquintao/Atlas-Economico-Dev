@@ -21,5 +21,8 @@ fiquem sincronizados no tempo e que a frequência original de cada série seja p
    plotagem com margens fixas. Cursor e zoom são propagados por data entre as instâncias do ECharts;
    `echarts.connect` foi descartado porque casa tooltips por índice de dado (falha entre séries de
    tamanhos diferentes) e, combinado à propagação manual, gerava recursão infinita.
-5. **Sem interpolação no cursor:** o gráfico mensal destaca o ponto mensal existente mais próximo do dia
-   apontado no gráfico diário.
+5. **Cursor por mês contido, sem interpolação:** um dia apontado no gráfico diário destaca, no gráfico
+   mensal, o mês que contém esse dia (e não o ponto mais próximo, que na segunda quinzena seria o mês
+   seguinte); um mês apontado leva o gráfico diário ao último dia do mês (posição de fim de mês).
+6. **Zoom compartilhado** é guardado e reaplicado a gráficos redesenhados no mesmo domínio; só é
+   sincronizado entre gráficos com domínio compartilhado (percentuais = mesmas datas).

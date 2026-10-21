@@ -46,7 +46,10 @@
 - Um **único período** (filtro global) vale para todos os gráficos, que compartilham o mesmo domínio
   do eixo de datas e a mesma área de plotagem: uma data fica na mesma posição horizontal em todos.
 - **Zoom e cursor sincronizados por data** (não por índice): ao apontar um dia no gráfico diário, o
-  gráfico mensal destaca o ponto mensal existente mais próximo — nada é interpolado.
+  gráfico mensal destaca o **mês que contém** aquele dia (27/03/2023 → mar/2023, nunca o mês mais
+  próximo); ao apontar um mês, o gráfico diário mostra o último dia desse mês. Nada é interpolado.
+- O zoom é mantido quando um gráfico é redesenhado (ex.: troca diária/mensal) e volta ao período
+  inteiro quando o período global muda.
 - Cada indicador mantém sua frequência e unidade; escalas diferentes ficam em gráficos separados.
 - Séries mensais são filtradas pela data de referência do SGS (dia 1 do mês): um período iniciado
   em 20/10/2021 começa no ponto de nov/2021.

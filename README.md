@@ -87,11 +87,13 @@ uv run python -m app.ingestion.cli ingest DBGG_GDP               # dívida bruta
 uv run uvicorn app.main:app --reload --port 8000
 ```
 
-Coletas seguintes são incrementais (re-buscam os últimos 90 dias para detectar revisões):
+Coletas seguintes são incrementais: séries diárias re-buscam os últimos 90 dias e séries mensais
+são recoletadas inteiras (revisões do PIB podem alterar anos anteriores):
 
 ```bash
 uv run python -m app.ingestion.cli ingest SELIC_TARGET
-# ou, para agendar via cron:  scripts/ingest.sh
+uv run python -m app.ingestion.cli ingest DBGG_GDP
+# ou, para agendar via cron (todos os indicadores):  scripts/ingest.sh
 ```
 
 ### 3. Frontend

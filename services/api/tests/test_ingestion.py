@@ -285,3 +285,13 @@ def test_monthly_date_not_on_first_day_is_rejected(db: Session, ingest_dbgg) -> 
     with pytest.raises(IngestionError, match="not on the 1st"):
         ingest_dbgg(fake, full=True)
     assert count_obs(db) == 0
+
+
+def test_frequency_without_incremental_policy_fails_clearly(
+    db: Session, ingest_dbgg, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import app.ingestion.sgs_ingestion as module
+
+    monkeypatch.setattr(module, "INCREMENTAL_OVERLAP", {})
+    with pytest.raises(IngestionError, match="No incremental policy"):
+        ingest_dbgg(FakeSGS({}))
