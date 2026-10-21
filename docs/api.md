@@ -78,7 +78,11 @@ IBGE coletada por `ingest-boundaries` (ver [pipeline](data-pipeline.md)). Cada f
 ```
 
 - Malha não coletada (ou edição pedida ausente) → `404 boundaries_not_found`.
-- Cache: `Cache-Control: public, max-age=86400` e `ETag`; com `If-None-Match` igual → `304` sem corpo.
+- Cache: `Cache-Control: public, max-age=86400`, `Vary: Accept-Encoding` e `ETag` fraco (`W/"…"`),
+  calculado sobre a edição, os códigos, os nomes e as geometrias: recoletar uma malha idêntica não o
+  muda; uma geometria alterada, sim. `If-None-Match` com o mesmo ETag (com ou sem `W/`) ou `*` → `304`
+  sem corpo.
+- `mesh_year` fora de 2000–2100 → `422 validation_error`.
 - Respostas da API acima de 1 KB são comprimidas com gzip quando o cliente aceita (~100 KB → ~28 KB aqui).
 
 ## `GET /api/v1/indicators/{code}/observations`

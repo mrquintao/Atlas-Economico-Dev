@@ -1,7 +1,8 @@
 import hashlib
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query, Request, Response
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -9,7 +10,7 @@ from app.api.errors import ApiError
 from app.core.config import get_settings
 from app.db.session import get_db
 from app.integrations.ibge.malhas import COORDINATE_DECIMALS, MALHAS_DOCUMENTATION_URL
-from app.models import GeographicLevel, GeographicUnit, Indicator, IngestionRun
+from app.models import GeographicBoundary, GeographicLevel, GeographicUnit, Indicator, IngestionRun
 from app.repositories import catalog as repo
 from app.schemas.catalog import (
     BoundariesMetadataOut,
@@ -121,12 +122,43 @@ BOUNDARIES_SIMPLIFICATION = (
 BOUNDARIES_CACHE_CONTROL = "public, max-age=86400"
 
 
+class GeoJSONResponse(JSONResponse):
+    """GeoJSON media type; a JSONResponse subclass so OpenAPI documents the response schema."""
+
+    media_type = "application/geo+json"
+
+    def render(self, content: Any) -> bytes:
+        # Bodies arrive already serialised by the route (``model_dump_json``).
+        return content.encode() if isinstance(content, str) else super().render(content)
+
+
+def boundaries_etag(boundaries: list[GeographicBoundary]) -> str:
+    """Weak validator over what the features say (edition, codes, names, geometries).
+
+    ``collected_at`` is left out on purpose: re-collecting an identical mesh keeps caches valid.
+    Weak because the same representation is served with and without gzip.
+    """
+    digest = hashlib.sha256()
+    for b in boundaries:
+        unit = b.geographic_unit
+        parts = (b.mesh_year, b.quality, unit.ibge_code, unit.acronym, unit.name, b.geometry_hash)
+        digest.update("|".join(map(str, parts)).encode() + b"\n")
+    return f'W/"{digest.hexdigest()[:32]}"'
+
+
+def etag_matches(if_none_match: str, etag: str) -> bool:
+    """Weak comparison (RFC 9110 §13.1.2): ``W/`` prefixes are ignored; ``*`` matches any."""
+    opaque = etag.removeprefix("W/")
+    tokens = [t.strip() for t in if_none_match.split(",") if t.strip()]
+    return any(t == "*" or t.removeprefix("W/") == opaque for t in tokens)
+
+
 @router.get(
     "/geographies/states/boundaries",
     tags=["catalog"],
     response_model=BoundariesOut,
+    response_class=GeoJSONResponse,
     responses={
-        200: {"content": {"application/geo+json": {}}},
         304: {"description": "Não modificado (ETag igual ao `If-None-Match`)"},
         404: {"model": ErrorResponse},
     },
@@ -136,7 +168,11 @@ def get_state_boundaries(
     request: Request,
     mesh_year: Annotated[
         int | None,
-        Query(ge=2000, description="Edição da malha do IBGE; padrão: a mais recente armazenada"),
+        Query(
+            ge=2000,
+            le=2100,
+            description="Edição da malha do IBGE; padrão: a mais recente armazenada",
+        ),
     ] = None,
 ) -> Response:
     """Official IBGE boundaries of the 27 UFs as a GeoJSON FeatureCollection."""
@@ -149,6 +185,11 @@ def get_state_boundaries(
             "boundaries_not_found",
             "Malha das UFs não coletada" + (f" para a edição {mesh_year}." if mesh_year else "."),
         )
+    etag = boundaries_etag(boundaries)
+    headers = {"ETag": etag, "Cache-Control": BOUNDARIES_CACHE_CONTROL}
+    if etag_matches(request.headers.get("if-none-match", ""), etag):
+        # The GZip middleware sets Vary on 200s (body > 1 KB) but not on this empty 304.
+        return Response(status_code=304, headers={**headers, "Vary": "Accept-Encoding"})
     settings = get_settings()
     body = BoundariesOut(
         metadata=BoundariesMetadataOut(
@@ -179,11 +220,7 @@ def get_state_boundaries(
             for b in boundaries
         ],
     ).model_dump_json()
-    etag = f'"{hashlib.sha256(body.encode()).hexdigest()[:32]}"'
-    headers = {"ETag": etag, "Cache-Control": BOUNDARIES_CACHE_CONTROL}
-    if etag in [t.strip() for t in request.headers.get("if-none-match", "").split(",")]:
-        return Response(status_code=304, headers=headers)
-    return Response(body, media_type="application/geo+json", headers=headers)
+    return GeoJSONResponse(body, headers=headers)
 
 
 @router.get("/indicators", tags=["catalog"])

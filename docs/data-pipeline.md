@@ -142,7 +142,8 @@ por ano, por isso a coleta é manual (fora do agendador). Comportamentos observa
 | Situação | Resposta do IBGE | Tratamento |
 |---|---|---|
 | Sucesso | `200` GeoJSON `FeatureCollection`, 27 feições com `properties.codarea` (código da UF) e `Polygon`/`MultiPolygon` | Validação de cada feição: código numérico único, anéis fechados com ≥ 4 posições, coordenadas finitas dentro do Brasil (incl. ilhas oceânicas) |
-| Edição inexistente (2023 em diante) | `500` `{"statusCode":500,"message":"Internal server error"}` | Tratado como falha temporária (retry); depois das tentativas, `MalhasUnavailableError` |
+| Edição inexistente (2023 em diante e anos anteriores a 2019, ex.: 2000, 2010, 2013, 2018) | `500` `{"statusCode":500,"message":"Internal server error"}` | Indistinguível de uma falha temporária: retry; depois das tentativas, `MalhasUnavailableError` com o aviso de que o IBGE responde 500 para edições não publicadas |
+| Edições disponíveis nesta consulta | 2019, 2020, 2021 e 2022 (conferido em 21/10/2026) | — |
 | Sem `periodo` | Edição 2022 (a mais recente) | O conector sempre envia `periodo`, para a edição gravada ser explícita |
 | `429`/`5xx`/erro de rede/`200` não JSON | — | Retry com backoff exponencial; rate limit `IBGE_MIN_REQUEST_INTERVAL_SECONDS` |
 | Outros códigos HTTP | — | Erro permanente, sem retry |
@@ -160,7 +161,9 @@ Regras de gravação:
 Simplificação e quantização: usa-se a malha **generalizada pelo próprio IBGE** (`qualidade=minima`,
 ~98 KB para as 27 UFs; `intermediaria` ~250 KB, `maxima` ~1 MB), sem simplificação adicional. As
 coordenadas são quantizadas em 4 casas decimais (~11 m), o que não altera a edição 2022 (o IBGE já as
-entrega assim). A API comprime com gzip (~28 KB).
+entrega assim). A API comprime com gzip (~28 KB). A malha generalizada **omite as pequenas ilhas
+oceânicas** (Fernando de Noronha, Trindade e Martim Vaz; longitudes de -73,99 a -34,80): o mapa não
+deve sugerir que elas estejam representadas.
 
 Verificação real (21/10/2026): coleta da edição 2022 com 27 feições inseridas; reexecução `inserted 0,
 updated 0, unchanged 27`; as 27 geometrias servidas por `/api/v1/geographies/states/boundaries` são

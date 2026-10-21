@@ -88,6 +88,7 @@ def test_geometry_hash_ignores_key_order() -> None:
         ({"type": "FeatureCollection", "features": [{"type": "Point"}]}, "Unexpected item"),
         (collection(feature(53)), "Invalid codarea"),
         (collection(feature("DF")), "Invalid codarea"),
+        (collection(feature("5\u00b2")), "Invalid codarea"),
         (collection({"type": "Feature", "geometry": None, "properties": None}), "codarea"),
         (collection(feature("53"), feature("53")), "Duplicate codarea"),
         (collection(feature("53", {"type": "Point", "coordinates": [-47, -15]})), "Unsupported"),
@@ -190,9 +191,15 @@ def test_gives_up_after_max_attempts(settings: Settings) -> None:
         return httpx.Response(503)
 
     client = client_for(settings, handler)
-    with client, pytest.raises(MalhasUnavailableError, match="after 4 attempts"):
+    with client, pytest.raises(MalhasUnavailableError, match=r"after 4 attempts: HTTP 503$"):
         client.fetch_state_boundaries(2023)
     assert calls == settings.http_max_retries + 1
+
+
+def test_persistent_500_hints_at_a_missing_edition(settings: Settings) -> None:
+    client = client_for(settings, lambda _: httpx.Response(500))
+    with client, pytest.raises(MalhasUnavailableError, match="does not publish"):
+        client.fetch_state_boundaries(2013)
 
 
 def test_permanent_errors_are_not_retried(settings: Settings) -> None:

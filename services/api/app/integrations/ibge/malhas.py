@@ -10,9 +10,11 @@ carrying only ``properties.codarea`` (the UF's IBGE code, e.g. ``"53"``) and a `
 ``MultiPolygon`` geometry in longitude/latitude (WGS 84 order).
 
 Observed behaviour this connector relies on (verified 2026-10-21):
-- ``periodo`` selects the mesh edition; 2022 is the latest one served (also the default when the
-  parameter is omitted); 2023 and later answer HTTP 500, so a missing edition is a server error,
-  not a 404.
+- ``periodo`` selects the mesh edition; for this query 2019 to 2022 are served (2022, the latest,
+  is also the default when the parameter is omitted). Other editions (e.g. 2000, 2010, 2013,
+  2018, 2023) answer HTTP 500, so a missing edition looks like a server error, not a 404.
+- The generalised ``minima`` mesh omits the small oceanic islands (Fernando de Noronha,
+  Trindade): its longitudes span about -73.99 to -34.80.
 - ``qualidade=minima`` is the IBGE's own generalised (simplified) mesh: 27 features, ~98 KB,
   coordinates with at most 4 decimal places (~11 m). ``intermediaria`` is ~250 KB and
   ``maxima`` ~1 MB.
@@ -25,6 +27,7 @@ import hashlib
 import json
 import logging
 import math
+import re
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -144,7 +147,7 @@ def parse_boundaries_payload(payload: Any) -> list[AreaBoundary]:
             raise MalhasPayloadError(f"Unexpected item at position {index}")
         properties = feature.get("properties")
         code = properties.get("codarea") if isinstance(properties, dict) else None
-        if not isinstance(code, str) or not code.isdigit():
+        if not isinstance(code, str) or not re.fullmatch(r"[0-9]+", code):
             raise MalhasPayloadError(f"Invalid codarea at position {index}: {code!r}")
         if code in boundaries:
             raise MalhasPayloadError(f"Duplicate codarea in payload: {code}")
@@ -222,9 +225,15 @@ class MalhasClient:
                     extra={"mesh_year": mesh_year, "attempt": attempt, "delay_s": delay},
                 )
                 self._sleep(delay)
+        hint = (
+            " (the IBGE answers HTTP 500 for mesh editions it does not publish; "
+            "check that the edition exists)"
+            if last_error == "HTTP 500"
+            else ""
+        )
         raise MalhasUnavailableError(
             f"IBGE state mesh {mesh_year} ({quality}) failed after {max_attempts} attempts: "
-            f"{last_error}"
+            f"{last_error}{hint}"
         )
 
     def _interpret(

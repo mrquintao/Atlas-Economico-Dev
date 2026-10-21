@@ -52,7 +52,11 @@ def ingest_state_boundaries(
     mesh_year: int | None = None,
     quality: str = "minima",
 ) -> BoundariesSummary:
-    """Collect the state mesh and store it. Raises on any failure (after recording the run)."""
+    """Collect the state mesh and store it.
+
+    Every failure after the run is created (source, payload, code matching, database) is recorded
+    as a failed run and re-raised; a missing IBGE data source raises before any run exists.
+    """
     year = mesh_year if mesh_year is not None else settings.ibge_mesh_year
     source = session.scalar(select(DataSource).where(DataSource.acronym == SOURCE_ACRONYM))
     if source is None:

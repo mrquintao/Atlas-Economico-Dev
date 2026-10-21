@@ -215,18 +215,39 @@ def test_endpoint_etag_revalidation_and_compression(
     ingest(db, settings, mesh(CODES))
     first = client.get(URL, headers={"Accept-Encoding": "gzip"})
     etag = first.headers["etag"]
+    assert etag.startswith('W/"')  # same representation served with and without gzip
     assert first.headers["content-encoding"] == "gzip"
-    not_modified = client.get(URL, headers={"If-None-Match": etag})
-    assert not_modified.status_code == 304
-    assert not_modified.headers["etag"] == etag
-    assert not_modified.content == b""
+    assert first.headers["vary"].count("Accept-Encoding") == 1
+    for if_none_match in (etag, etag.removeprefix("W/"), f'"other", {etag}', "*"):
+        not_modified = client.get(URL, headers={"If-None-Match": if_none_match})
+        assert not_modified.status_code == 304, if_none_match
+        assert not_modified.headers["etag"] == etag
+        assert not_modified.headers["vary"].count("Accept-Encoding") == 1
+        assert not_modified.content == b""
     assert client.get(URL, headers={"If-None-Match": '"other"'}).status_code == 200
-    # A changed geometry changes the ETag.
+    # Re-collecting an identical mesh keeps the ETag (collected_at is not part of it)...
+    ingest(db, settings, mesh(CODES))
+    assert client.get(URL).headers["etag"] == etag
+    # ...a changed geometry changes it.
     ingest(db, settings, mesh(CODES, shift={"35": 0.25}))
     assert client.get(URL).headers["etag"] != etag
     raw = client.get(URL, headers={"Accept-Encoding": "identity"})
     assert "content-encoding" not in raw.headers
     assert json.loads(raw.content)["features"]
+
+
+def test_endpoint_rejects_out_of_range_edition(client: TestClient) -> None:
+    for year in (1999, 2101, 99999999999):
+        response = client.get(URL, params={"mesh_year": year})
+        assert response.status_code == 422, year
+        assert response.json()["error"]["code"] == "validation_error"
+
+
+def test_openapi_documents_geojson_response(client: TestClient) -> None:
+    spec = client.get("/openapi.json").json()
+    content = spec["paths"][URL]["get"]["responses"]["200"]["content"]
+    assert list(content) == ["application/geo+json"]
+    assert content["application/geo+json"]["schema"]["$ref"].endswith("/BoundariesOut")
 
 
 @pytest.mark.parametrize("year", ["1999", "2999"])
