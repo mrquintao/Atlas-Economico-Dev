@@ -32,6 +32,13 @@ class Observation(TimestampMixin, Base):
         # Also serves as the main lookup index (indicator, geography, date range).
         UniqueConstraint("indicator_id", "geographic_unit_id", "reference_date"),
         Index("ix_observations_reference_date", "reference_date"),
+        # Serves the period-end range filter of every observations query (ADR 0005).
+        Index(
+            "ix_observations_indicator_geo_period_end",
+            "indicator_id",
+            "geographic_unit_id",
+            "period_end",
+        ),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)

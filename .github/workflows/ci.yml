@@ -45,11 +45,12 @@ jobs:
         run: uv run ruff check .
       - name: Format
         run: uv run ruff format --check .
-      - name: Migrations (upgrade, downgrade, upgrade)
+      - name: Migrations (upgrade, downgrade, upgrade, models in sync)
         run: |
           uv run alembic upgrade head
           uv run alembic downgrade base
           uv run alembic upgrade head
+          uv run alembic check
       - name: Tests
         run: uv run pytest
 

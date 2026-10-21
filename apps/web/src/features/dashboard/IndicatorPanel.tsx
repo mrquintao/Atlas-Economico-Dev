@@ -4,7 +4,13 @@ import { useState } from "react";
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Segmented } from "@/components/ui/segmented";
-import { EmptyState, ErrorState, LoadingState } from "@/components/ui/states";
+import {
+  EmptyState,
+  ErrorState,
+  InlineError,
+  LoadingState,
+  RefreshingIndicator,
+} from "@/components/ui/states";
 import { useObservations } from "@/hooks/useObservations";
 import { formatChange, formatRate } from "@/lib/format";
 import type { DateRange } from "@/lib/period";
@@ -89,17 +95,12 @@ function SeriesBody({
   return (
     <div className="flex flex-col gap-4" aria-busy={series.status === "loading"}>
       {series.status === "error" && (
-        <div role="alert" className="flex flex-wrap items-center gap-3 text-sm text-red-700 dark:text-red-400">
-          <span>{series.error.message} Exibindo os últimos dados carregados.</span>
-          <button
-            type="button"
-            onClick={series.retry}
-            className="rounded-md border border-border px-2 py-1 font-medium text-foreground hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
-          >
-            Tentar novamente
-          </button>
-        </div>
+        <InlineError
+          message={`${series.error.message} Exibindo os últimos dados carregados.`}
+          onRetry={series.retry}
+        />
       )}
+      {series.status === "loading" && <RefreshingIndicator />}
       {stats ? (
         <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
           <Stat label={`Início (${fmt(stats.first.date)})`} value={formatRate(stats.first.value, unit)} />
@@ -112,7 +113,7 @@ function SeriesBody({
         </dl>
       ) : null}
       {data.count === 0 ? (
-        <EmptyState message="Não há observações oficiais armazenadas para o período selecionado." />
+        <EmptyState message="Não há observações oficiais cujo período de referência termine no intervalo selecionado." />
       ) : (
         <TimeSeriesChart
           name={indicator.short_name}

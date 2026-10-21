@@ -42,8 +42,8 @@
 | `ingestion_runs` | Auditoria de cada coleta: status, contagens, erro, janelas consultadas e SHA-256 de cada payload |
 | `observation_revisions` | Valor anterior/novo quando a fonte revisa um dado já publicado |
 
-Índices: unicidade (indicador, geografia, data) — que também atende às consultas por intervalo —
-e índice por `reference_date`.
+Índices: unicidade (indicador, geografia, data de referência); `(indicador, geografia, period_end)`,
+que atende ao filtro de intervalo das consultas (ADR 0005); e índice por `reference_date`.
 
 ## Frontend
 

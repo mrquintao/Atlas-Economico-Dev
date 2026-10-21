@@ -34,16 +34,22 @@ export function subtractYears(iso: string, years: number): string {
   return toIso(target);
 }
 
+/** First day of the month of an ISO date. */
+export function startOfMonth(iso: string): string {
+  return `${iso.slice(0, 7)}-01`;
+}
+
 /**
  * Range for a preset. `anchor` is the reference end date (normally the latest available
- * observation), so "5 anos" means the five years up to the most recent official value.
+ * observation), so "5 anos" means the five years up to the most recent official value. Relative
+ * presets start on the 1st of the month, so monthly series show their first month in full.
  */
 export function rangeForPreset(preset: Exclude<PeriodPreset, "custom">, anchor: string): DateRange {
   switch (preset) {
     case "5y":
-      return { start: subtractYears(anchor, 5), end: null };
+      return { start: startOfMonth(subtractYears(anchor, 5)), end: null };
     case "10y":
-      return { start: subtractYears(anchor, 10), end: null };
+      return { start: startOfMonth(subtractYears(anchor, 10)), end: null };
     case "since2008":
       return { start: SINCE_2008_START, end: null };
     case "all":
