@@ -22,6 +22,8 @@ inexistente com parâmetro desconhecido responde 422. Erros sempre no formato:
 | `GET /api/v1/indicators/{code}` | Metadados de um indicador (`404 indicator_not_found`) |
 | `GET /api/v1/indicators/{code}/observations` | Série histórica filtrada |
 | `GET /api/v1/dashboard/national` | Resumo do dashboard nacional: último valor e variação em 12 meses de cada indicador |
+| `GET /api/v1/states/{uf}/indicators` | Indicadores estaduais de uma UF: metadados, disponibilidade e séries; filtros `start_date`/`end_date` |
+| `GET /api/v1/states/{uf}/dashboard` | Resumo de uma UF: último valor de cada indicador estadual e diferença em relação ao mesmo período do ano anterior |
 
 Indicadores estaduais (`geographic_level = "state"`, códigos `STATE_*`, S4): no catálogo,
 `first_stored_date`/`last_stored_date` consideram todas as UFs; a série de cada UF vem de
@@ -171,6 +173,65 @@ série, unidade, metodologia, link oficial, data da última coleta), o último v
 - Indicador ausente do catálogo (seed incompleto) → `500 catalog_not_seeded`.
 - `Cache-Control: public, max-age=300`, como em `/observations`.
 
+## `GET /api/v1/states/{uf}/indicators` e `GET /api/v1/states/{uf}/dashboard`
+
+Endpoints por UF sobre os nove indicadores fiscais estaduais derivados do SICONFI
+([`state-fiscal-indicators.md`](state-fiscal-indicators.md), ADR 0010). Só servem indicadores de nível
+`state`: uma série nacional nunca aparece como estadual.
+
+- `{uf}`: sigla (`SP`, sem distinção de maiúsculas) ou código IBGE (`35`) de uma **UF**. Qualquer outra
+  chave (inexistente, `BR`, código de região como `3`, município) → `404 state_not_found`. `SE` é
+  Sergipe (a região Sudeste não é UF).
+- Ordem dos indicadores (validada pelo economist: receita → despesas → resultados → dívida):
+  `STATE_RCL`, `STATE_PERSONNEL_EXEC`, `STATE_PERSONNEL_EXEC_RCL`, `STATE_INVESTMENTS`,
+  `STATE_PRIMARY_RESULT`, `STATE_NOMINAL_RESULT`, `STATE_DC`, `STATE_DCL`, `STATE_DCL_RCL`.
+- `notes`: ressalvas de comparabilidade da UF. Para o DF: "O Distrito Federal acumula competências
+  estaduais e municipais (IPTU, ISS e cota-parte do FPM entram na sua RCL) e não tem Judiciário nem
+  Ministério Público próprios. Por isso, seus valores não são diretamente comparáveis aos dos estados."
+  Para as demais UFs, `[]`.
+- Cada item traz `accumulation_window` (acumulado no ano até o bimestre, últimos 12 meses ou saldo no
+  fim do quadrimestre) e os metadados completos do catálogo, com `first_stored_date`,
+  `last_stored_date` e `last_collected_at` **da UF pedida**.
+- `Cache-Control: public, max-age=300`.
+
+### `/states/{uf}/indicators`
+
+Parâmetros `start_date` e `end_date` (mesma regra de `/observations`: entra o período cujo fim cai no
+intervalo; `start_date > end_date` → `422 invalid_range`). Cada item de `indicators` tem o mesmo
+formato da resposta de `/indicators/{code}/observations?geography={uf}` (frequência original, sem
+agregação), mais `status` e `accumulation_window`:
+
+- `status: "no_data"`: nenhum valor armazenado para a UF (`count: 0`, `observations: []`,
+  `stats: null`; nunca zeros). Com dados fora do intervalo pedido, `status` continua `"available"` e
+  `count` é 0.
+- Fluxos acumulados no ano têm `stats: null`, como em `/observations`.
+
+```json
+{
+  "geography": { "ibge_code": "35", "acronym": "SP", "name": "São Paulo", "geographic_level": "state" },
+  "start_date": null, "end_date": null, "notes": [],
+  "indicators": [
+    { "indicator": { "code": "STATE_RCL", "unit": "R$ correntes", "…": "…" }, "status": "available",
+      "accumulation_window": "Últimos 12 meses até o fim do período.", "frequency": "bimonthly", "count": 12,
+      "stats": { "…": "…" }, "observations": [ { "date": "2025-11-01", "value": 266221395322.55, "period_start": "2025-11-01", "period_end": "2025-12-31", "partial": false } ] }
+  ]
+}
+```
+
+### `/states/{uf}/dashboard`
+
+Sem parâmetros. Para cada indicador, o último período armazenado da UF (`latest`, valor como
+publicado) e `change_12m`: diferença absoluta entre esse valor e o do **mesmo período do ano anterior**
+(mesmo bimestre ou quadrimestre, `period_start` exatamente 12 meses antes), na `change_unit` do
+indicador. Vale também para os fluxos acumulados no ano, porque os dois valores acumulam de janeiro até
+o mesmo bimestre. Sem esse período armazenado (ou antes do início da série, como os resultados antes de
+2023) → `change_12m: null`; nunca se usa um período vizinho. Não há variação percentual (resultados e DCL
+mudam de sinal) nem estatísticas da série. `change_note` explica a base da diferença: "Diferença em
+relação ao mesmo período do ano anterior, em reais correntes, sem correção pela inflação." (valores em
+R$) ou "Diferença em pontos percentuais (p.p.) em relação ao mesmo período do ano anterior." (% da RCL).
+Os indicadores podem ter últimos períodos diferentes (bimestral × quadrimestral); cada `latest` traz o
+seu `period_start`/`period_end`.
+
 ### Planejados (fases futuras)
 
-`/states/{uf}/…`, `/compare`, `/events`, `/relationships`.
+`/compare`, `/events`, `/relationships`.

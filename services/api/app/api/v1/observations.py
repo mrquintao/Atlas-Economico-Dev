@@ -2,11 +2,12 @@ from datetime import date
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Query, Response
+from sqlalchemy.orm import Session
 
 from app.api.errors import ApiError
 from app.api.v1.catalog import DbSession, build_indicator_out, get_indicator_or_404
 from app.ingestion.fiscal_catalog import YEAR_TO_DATE_CODES
-from app.models import Frequency
+from app.models import Frequency, GeographicUnit, Indicator
 from app.repositories import catalog as catalog_repo
 from app.repositories.observations import ObservationRow
 from app.schemas.catalog import GeographyOut
@@ -69,8 +70,22 @@ def get_observations(
             f"'{indicator.geographic_level}', não para '{geo.acronym}'.",
         )
 
+    target = None if frequency == "original" else Frequency(frequency)
+    response.headers["Cache-Control"] = "public, max-age=300"
+    return series_response(session, indicator, geo, start_date, end_date, target)
+
+
+def series_response(
+    session: Session,
+    indicator: Indicator,
+    geo: GeographicUnit,
+    start_date: date | None,
+    end_date: date | None,
+    target_frequency: Frequency | None = None,
+) -> ObservationsResponse:
+    """Series of one indicator in one unit; ``None`` keeps the source frequency."""
     original = Frequency(indicator.frequency)
-    target = original if frequency == "original" else Frequency(frequency)
+    target = target_frequency or original
     first_stored, last_stored = catalog_repo.observation_bounds(session, indicator.id, geo.id)
     try:
         series = load_series(
@@ -90,7 +105,6 @@ def get_observations(
     # Year-to-date flows restart every January: a change or extreme across periods would compare
     # non-comparable values (e.g. a 1st bimester with a 6th), so no statistics are served.
     stats = None if indicator.code in YEAR_TO_DATE_CODES else compute_stats(series.rows)
-    response.headers["Cache-Control"] = "public, max-age=300"
     return ObservationsResponse(
         indicator=build_indicator_out(session, indicator, geo),
         geography=GeographyOut.model_validate(geo),
