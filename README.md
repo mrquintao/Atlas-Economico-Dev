@@ -11,6 +11,8 @@ metodologia e data da última coleta.
 
 ![Dashboard](docs/screenshots/desktop.png)
 
+<sub>Cursor sincronizado por data entre os gráficos: [captura](docs/screenshots/desktop-sync.png).</sub>
+
 ## Objetivos
 
 - Reunir séries econômicas oficiais em um banco próprio, com atualização automatizável e histórico de revisões.
