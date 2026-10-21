@@ -12,4 +12,9 @@ Arquivos usados **somente** em testes automatizados. Nunca são carregados pela 
 - `sgs_html_error.html`: página HTML de "Requisição inválida" devolvida de forma intermitente
   pelo gateway do BCB (trecho reduzido).
 
+- `e2e_seed.py`: **dados SINTÉTICOS** (inventados e determinísticos) para os testes de navegador
+  (`apps/web/e2e`). Carregados só por `ATLAS_E2E_SEED=1 python -m tests.fixtures.e2e_seed` num banco
+  descartável e vazio; cada linha leva `source_reference = "synthetic-e2e-fixture"`. Ver
+  `docs/testing-e2e.md`.
+
 Os demais dados usados nos testes são construídos inline e são sintéticos (identificados como tais).
