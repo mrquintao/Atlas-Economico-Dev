@@ -11,7 +11,7 @@ from app.schemas.dashboard import (
     LatestValueOut,
     NationalDashboardOut,
 )
-from app.schemas.observations import AggregationOut
+from app.schemas.observations import AggregationOut, ErrorResponse
 from app.services.dashboard import (
     NATIONAL_DASHBOARD_CODES,
     latest_summary,
@@ -22,7 +22,7 @@ from app.services.observations import AGGREGATION_DESCRIPTIONS
 router = APIRouter()
 
 
-@router.get("/dashboard/national", tags=["dashboard"])
+@router.get("/dashboard/national", tags=["dashboard"], responses={500: {"model": ErrorResponse}})
 def get_national_dashboard(session: DbSession, response: Response) -> NationalDashboardOut:
     """Latest official value and 12-month change of each national dashboard indicator."""
     geo = national_geography(session)
@@ -31,7 +31,7 @@ def get_national_dashboard(session: DbSession, response: Response) -> NationalDa
         indicator = catalog_repo.get_indicator(session, code)
         if indicator is None:
             raise ApiError(500, "catalog_not_seeded", f"Indicador '{code}' não cadastrado.")
-        indicator_out = build_indicator_out(session, indicator)
+        indicator_out = build_indicator_out(session, indicator, geo)
         original = Frequency(indicator.frequency)
         summary = latest_summary(
             session,
@@ -57,6 +57,7 @@ def get_national_dashboard(session: DbSession, response: Response) -> NationalDa
                     value=summary.latest.value,
                     period_start=summary.latest.period_start,
                     period_end=summary.latest.period_end,
+                    partial=summary.partial,
                 ),
                 change_12m=None
                 if summary is None or summary.year_ago is None

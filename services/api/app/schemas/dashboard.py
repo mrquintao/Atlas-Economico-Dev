@@ -12,6 +12,9 @@ class LatestValueOut(BaseModel):
     value: float
     period_start: dt.date
     period_end: dt.date
+    partial: bool = Field(
+        description="Período ainda não encerrado (ex.: mês corrente de uma série diária)"
+    )
 
 
 class Change12mOut(BaseModel):

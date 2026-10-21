@@ -18,6 +18,8 @@ class LatestSummary:
     latest: ObservationRow
     # Same calendar month one year earlier; None when that month has no stored value.
     year_ago: ObservationRow | None
+    # The latest period is not fully covered yet (e.g. the current month of a daily series).
+    partial: bool
 
 
 def summary_frequency(original: Frequency) -> Frequency:
@@ -59,7 +61,7 @@ def latest_summary(
     latest = series.rows[-1]
     target = _shift_year(latest.period_start, -1)
     year_ago = next((row for row in series.rows if row.period_start == target), None)
-    return LatestSummary(latest, year_ago)
+    return LatestSummary(latest, year_ago, series.partial_flags[-1])
 
 
 def _shift_year(day: date, years: int) -> date:

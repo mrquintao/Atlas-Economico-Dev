@@ -79,6 +79,8 @@ export interface LatestValue {
   value: number;
   period_start: string;
   period_end: string;
+  /** Period not closed yet (e.g. the current month of a daily series). */
+  partial: boolean;
 }
 
 /** Absolute difference versus the same month one year earlier, in `change_unit`. */

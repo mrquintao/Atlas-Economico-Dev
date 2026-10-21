@@ -169,7 +169,7 @@ function dashboardItem(
     indicator,
     status: "available",
     aggregation: { method: "none", description: "Valores na frequência original." },
-    latest: { date, value, period_start: periodStart, period_end: date },
+    latest: { date, value, period_start: periodStart, period_end: date, partial: false },
     change_12m: yearAgo
       ? {
           value: Math.round((value - yearAgo[1]) * 100) / 100,

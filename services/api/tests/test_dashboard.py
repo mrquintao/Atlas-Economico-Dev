@@ -6,7 +6,7 @@ from decimal import Decimal
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -98,6 +98,7 @@ def test_daily_series_compares_last_value_of_same_month_a_year_earlier(
         "value": 13.75,
         "period_start": "2026-10-01",
         "period_end": "2026-10-31",
+        "partial": True,  # October/2026 is still running
     }
     assert item["change_12m"] == {
         "value": -1.25,
@@ -121,6 +122,7 @@ def test_monthly_series_compares_same_month_a_year_earlier(client: TestClient, d
     assert item["aggregation"]["method"] == "none"
     assert item["latest"]["date"] == "2024-03-01"
     assert item["latest"]["value"] == 75.02
+    assert item["latest"]["partial"] is False
     assert item["change_12m"]["reference_date"] == "2023-03-01"
     assert item["change_12m"]["value"] == pytest.approx(2.12)
     assert item["change_12m"]["change_unit"] == "p.p."
@@ -160,3 +162,38 @@ def test_rejects_unknown_query_parameters(client: TestClient) -> None:
     response = client.get(URL, params={"geography": "SP"})
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "unknown_parameter"
+
+
+def test_long_series_matches_previous_card_rule(client: TestClient, db: Session) -> None:
+    """Over a long monthly view, the change uses the month whose period starts 12 months
+    before the latest one (the rule the dashboard card applied), not the first value."""
+    # Jan/2023 .. Dec/2024, one value on the 10th of each month: 10.00, 10.25, 10.50, ...
+    rows = [
+        daily(date(2023 + i // 12, i % 12 + 1, 10), str(Decimal("10.00") + Decimal(i) / 4))
+        for i in range(24)
+    ]
+    rows.append(daily(date(2025, 1, 2), "20.00"))  # latest: 1st business days of Jan/2025
+    add(db, "SELIC_TARGET", rows)
+    item = by_code(client.get(URL).json())["SELIC_TARGET"]
+    monthly_view = client.get(
+        "/api/v1/indicators/SELIC_TARGET/observations", params={"frequency": "monthly"}
+    ).json()["observations"]
+    latest = monthly_view[-1]
+    year_ago = next(o for o in monthly_view if o["period_start"] == "2024-01-01")
+    assert item["latest"]["date"] == latest["date"] == "2025-01-02"
+    assert item["change_12m"]["reference_date"] == year_ago["date"] == "2024-01-10"
+    assert (
+        item["change_12m"]["value"] == latest["value"] - year_ago["value"] == 7.0
+    )  # 20.00 - 13.00 (Jan/2024)
+
+
+def test_indicator_missing_from_catalog_is_a_declared_server_error(
+    client: TestClient, db: Session
+) -> None:
+    db.execute(delete(Indicator).where(Indicator.code == "IPCA_12M"))
+    db.flush()
+    response = client.get(URL)
+    assert response.status_code == 500
+    assert response.json()["error"]["code"] == "catalog_not_seeded"
+    spec = client.get("/openapi.json").json()
+    assert "500" in spec["paths"][URL]["get"]["responses"]

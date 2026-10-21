@@ -16,7 +16,7 @@ function item(partial: Partial<NationalDashboardItem>): NationalDashboardItem {
   };
 }
 
-const latest = { date: "2026-10-21", value: 13.75, period_start: "2026-10-01", period_end: "2026-10-31" };
+const latest = { date: "2026-10-21", value: 13.75, period_start: "2026-10-01", period_end: "2026-10-31", partial: true };
 
 describe("latestFromDashboard", () => {
   it("returns null for an indicator without data instead of zero", () => {

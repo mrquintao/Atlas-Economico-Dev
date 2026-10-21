@@ -23,8 +23,10 @@ def national_geography(session: Session) -> GeographicUnit:
     return geo
 
 
-def build_indicator_out(session: Session, indicator: Indicator) -> IndicatorOut:
-    geo = national_geography(session)
+def build_indicator_out(
+    session: Session, indicator: Indicator, geo: GeographicUnit | None = None
+) -> IndicatorOut:
+    geo = geo or national_geography(session)
     first, last = repo.observation_bounds(session, indicator.id, geo.id)
     return IndicatorOut(
         code=indicator.code,

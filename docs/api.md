@@ -73,7 +73,7 @@ série, unidade, metodologia, link oficial, data da última coleta), o último v
       "indicator": { "code": "SELIC_TARGET", "unit": "% a.a.", "change_unit": "p.p.", "last_collected_at": "…" },
       "status": "available",
       "aggregation": { "method": "last_value_of_period", "description": "Valor mensal: último valor…" },
-      "latest": { "date": "2026-10-21", "value": 13.75, "period_start": "2026-10-01", "period_end": "2026-10-31" },
+      "latest": { "date": "2026-10-21", "value": 13.75, "period_start": "2026-10-01", "period_end": "2026-10-31", "partial": true },
       "change_12m": { "value": -1.25, "change_unit": "p.p.", "reference_date": "2025-10-31", "reference_value": 15.0 }
     }
   ]
@@ -81,13 +81,19 @@ série, unidade, metodologia, link oficial, data da última coleta), o último v
 ```
 
 - **Último valor**: a observação oficial mais recente (`date` = data de referência; `period_start`/
-  `period_end` = período de referência; para série diária, o mês corrente).
+  `period_end` = período de referência; para série diária, o mês corrente, com `partial: true`
+  enquanto o mês não termina).
 - **Variação em 12 meses** (`change_12m.value`): diferença absoluta, na unidade `change_unit` (p.p.
   para taxas e razões), entre o último valor e o valor do **mesmo mês do ano anterior**. Séries diárias
   são lidas na visão mensal (último valor de cada mês, declarado em `aggregation`); séries mensais, como
   publicadas. É o mesmo cálculo que o cartão fazia sobre a visão mensal de `/observations`.
+  Consequência para séries diárias: o último valor (ex.: 21/10/2026) é comparado com o **fechamento** do
+  mesmo mês do ano anterior (31/10/2025), e não com a mesma data; a distância entre as datas pode ser
+  um pouco menor que 12 meses. As datas comparadas vêm sempre na resposta (`latest.date` e
+  `change_12m.reference_date`).
 - Sem valor no mês de comparação → `change_12m: null` (nunca se usa um mês vizinho nem se interpola).
 - Indicador sem dados armazenados → `status: "no_data"`, `latest: null`, `change_12m: null` (nunca zeros).
+- Indicador ausente do catálogo (seed incompleto) → `500 catalog_not_seeded`.
 - `Cache-Control: public, max-age=300`, como em `/observations`.
 
 ### Planejados (fases futuras)
