@@ -37,7 +37,7 @@ function readPalette(): ChartPalette {
   };
 }
 
-function usePalette(): ChartPalette | null {
+export function usePalette(): ChartPalette | null {
   const [palette, setPalette] = useState<ChartPalette | null>(null);
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");

@@ -14,7 +14,7 @@ import type { BoundaryFeature, Indicator, StateBoundaries, StateMap, StateMapVal
 
 import { rewindForD3 } from "./map-geometry";
 import { buildScale, NO_DATA_FILL, type MapScale } from "./map-scale";
-import { STATE_INDICATOR_ORDER } from "./state-indicators";
+import { keptPeriod, STATE_INDICATOR_ORDER } from "./state-indicators";
 
 /** A ratio published since 2018 and never negative (economist, S6). */
 export const DEFAULT_MAP_CODE = "STATE_PERSONNEL_EXEC_RCL";
@@ -57,20 +57,8 @@ export function StateMapPanel() {
     // The period shown belongs to the indicator of the data on screen, not to the last choice.
     const current = options.find((i) => i.code === map.data?.indicator.code);
     const target = options.find((i) => i.code === next);
-    // Keep the period only when it is the same kind of period and within the stored range of
-    // the new indicator; otherwise use the new indicator's default.
-    const shown = map.data?.period?.reference_date ?? null;
-    const keep =
-      shown !== null &&
-      current !== undefined &&
-      target !== undefined &&
-      current.frequency === target.frequency &&
-      target.first_stored_date !== null &&
-      target.last_stored_date !== null &&
-      shown >= target.first_stored_date &&
-      shown <= target.last_stored_date;
     setCode(next);
-    setReferenceDate(keep ? shown : null);
+    setReferenceDate(keptPeriod(map.data?.period?.reference_date ?? null, current, target));
   }
 
   const headingId = useId();
