@@ -79,7 +79,7 @@ export function StateMapPanel() {
     <Card aria-labelledby={headingId}>
       <CardHeader>
         <h2 id={headingId} className="text-lg font-semibold">
-          Mapa das UFs
+          Mapa por indicador
         </h2>
         <p className="text-sm text-muted-foreground">
           Escolha um indicador e um período; todas as UFs aparecem no mesmo período. Clique numa UF
@@ -291,7 +291,12 @@ function ChoroplethSvg({
     onSelect(selected === acronym ? null : acronym, viaPointer);
   }
 
-  function handleKey(event: KeyboardEvent<Element>, acronym: string) {
+  function handleKey(event: KeyboardEvent<Element>, shape: { acronym: string; centroid: [number, number] }) {
+    const { acronym } = shape;
+    // After a click the focus becomes "visible" on the first key press: show the ring then.
+    if (focused?.acronym !== acronym && event.currentTarget.matches(":focus-visible")) {
+      setFocused({ acronym, x: shape.centroid[0], y: shape.centroid[1] });
+    }
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       toggle(acronym);
@@ -353,7 +358,7 @@ function ChoroplethSvg({
               strokeWidth={0.8}
               strokeLinejoin="round"
               onClick={() => toggle(shape.acronym, true)}
-              onKeyDown={(event) => handleKey(event, shape.acronym)}
+              onKeyDown={(event) => handleKey(event, shape)}
               onMouseMove={(event) => track(event, shape.acronym)}
               onFocus={(event) => {
                 // Only keyboard focus gets the ring and tooltip; a mouse click also focuses.

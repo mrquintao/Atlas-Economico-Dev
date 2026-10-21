@@ -149,13 +149,17 @@ describe("StateExplorer", () => {
     acre.focus();
     await user.keyboard("{Enter}");
     expect(acre).toHaveAttribute("aria-pressed", "true");
-    expect(await screen.findByText("Acre selecionada.")).toBeInTheDocument();
+    expect(await screen.findByText("UF selecionada: Acre.")).toBeInTheDocument();
     await user.keyboard("{Escape}");
     expect(acre).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByText("Seleção limpa.")).toBeInTheDocument();
 
     const shortcuts = screen.getByRole("group", { name: "UFs por região" });
-    await user.click(within(shortcuts).getByRole("button", { name: "Bahia" }));
+    // The visible acronym starts the accessible name; the shortcut unmounts, the profile takes focus.
+    within(shortcuts).getByRole("button", { name: "BA Bahia" }).focus();
+    await user.keyboard("{Enter}");
     expect(await mapButton("Bahia")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("heading", { level: 3, name: "Bahia BA" })).toHaveFocus();
     await user.click(screen.getByRole("button", { name: "Limpar seleção" }));
     expect(screen.getByRole("combobox", { name: "Ou escolha uma UF" })).toHaveFocus();
   });

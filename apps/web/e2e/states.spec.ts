@@ -262,3 +262,12 @@ test("explorer: a geographic map; clicking a UF shows its profile beside the map
   await page.getByRole("region", { name: "Acre AC" }).getByRole("link", { name: "Abrir o painel completo da UF" }).click();
   await expect(page).toHaveURL(/\/estados\/AC$/);
 });
+
+test("explorer: the focus ring follows the keyboard, not mouse clicks", async ({ page }) => {
+  await page.goto("/estados");
+  const map = page.getByRole("group", { name: "Mapa do Brasil: escolha uma UF" });
+  await map.getByRole("button", { name: "Bahia" }).click();
+  await expect(map.locator("[data-focus-ring]")).toHaveCount(0);
+  await page.keyboard.press("Tab");
+  await expect(map.locator("[data-focus-ring]")).toHaveCount(1);
+});

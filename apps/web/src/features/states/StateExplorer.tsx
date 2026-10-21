@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 
 import { LoadingState, RetryButton } from "@/components/ui/states";
 import { useStateBoundaries } from "@/hooks/useObservations";
@@ -27,6 +27,10 @@ interface Pointer {
 export function StateExplorer() {
   const boundaries = useStateBoundaries();
   const [selected, setSelected] = useState<string | null>(null);
+  // Live announcement of the last change (empty until the first one).
+  const [announcement, setAnnouncement] = useState("");
+  // A region shortcut unmounts on selection: the profile then takes the keyboard focus.
+  const [focusProfile, setFocusProfile] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const pickerRef = useRef<HTMLSelectElement>(null);
   const headingId = useId();
@@ -37,8 +41,11 @@ export function StateExplorer() {
     [boundaries.data],
   );
 
-  function select(acronym: string | null, viaPointer = false) {
+  function select(acronym: string | null, viaPointer = false, fromShortcut = false) {
     setSelected(acronym);
+    setFocusProfile(fromShortcut);
+    const state = acronym ? findState(acronym) : null;
+    setAnnouncement(state ? `UF selecionada: ${state.name}.` : "Seleção limpa.");
     // Small screens: the profile sits below the map; bring it into view after a tap.
     if (acronym && viaPointer && window.matchMedia?.("(max-width: 1023px)").matches) {
       panelRef.current?.scrollIntoView?.({ block: "start", behavior: "smooth" });
@@ -48,12 +55,13 @@ export function StateExplorer() {
   return (
     <section
       aria-labelledby={headingId}
-      className="grid overflow-hidden rounded-xl border border-border bg-card lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]"
+      className="grid rounded-xl border border-border bg-card lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]"
     >
       <h2 id={headingId} className="sr-only">
         Mapa do Brasil
       </h2>
-      <div className="relative bg-[#e9eef5] p-4 sm:p-8">
+      {/* No overflow clipping on the section: it would break the sticky map and cut tooltips. */}
+      <div className="relative rounded-t-xl bg-[#eef2f7] p-4 sm:p-8 lg:rounded-tr-none lg:rounded-l-xl">
         {shapes ? (
           <BrazilMap
             shapes={shapes}
@@ -64,7 +72,7 @@ export function StateExplorer() {
           <div className="flex min-h-80 flex-col items-center justify-center gap-3 text-center text-sm">
             <p className="max-w-sm">
               {boundaries.error.code === "boundaries_not_found"
-                ? "A malha oficial das UFs (IBGE) ainda não foi coletada. Escolha a UF na lista ao lado."
+                ? "A malha oficial das UFs (IBGE) ainda não foi coletada. Escolha a UF na lista de UFs."
                 : boundaries.error.message}
             </p>
             <RetryButton onRetry={boundaries.retry} />
@@ -85,13 +93,14 @@ export function StateExplorer() {
 
       <div ref={panelRef} className="flex scroll-mt-4 flex-col gap-5 border-t border-border p-5 sm:p-6 lg:border-t-0 lg:border-l">
         <p aria-live="polite" className="sr-only">
-          {uf ? `${uf.name} selecionada.` : ""}
+          {announcement}
         </p>
         {uf ? (
           <Profile
             uf={uf}
+            autoFocus={focusProfile}
             onClear={() => {
-              setSelected(null);
+              select(null);
               // The clear button unmounts: keep the keyboard focus inside the panel.
               pickerRef.current?.focus();
             }}
@@ -103,7 +112,7 @@ export function StateExplorer() {
               Passe o cursor sobre o mapa e clique numa UF (ou use Tab e Enter) para ver a região
               e os últimos valores fiscais que ela publicou no SICONFI.
             </p>
-            <RegionShortcuts onSelect={select} />
+            <RegionShortcuts onSelect={(acronym) => select(acronym, false, true)} />
           </div>
         )}
         <label htmlFor={pickerId} className="mt-auto flex flex-col gap-1 text-xs font-medium text-muted-foreground">
@@ -128,8 +137,12 @@ export function StateExplorer() {
   );
 }
 
-function Profile({ uf, onClear }: { uf: StateUnit; onClear: () => void }) {
+function Profile({ uf, autoFocus, onClear }: { uf: StateUnit; autoFocus: boolean; onClear: () => void }) {
   const titleId = useId();
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (autoFocus) titleRef.current?.focus();
+  }, [autoFocus, uf.acronym]);
   return (
     <div role="region" aria-labelledby={titleId} className="flex flex-col gap-5">
       <div className="flex items-start justify-between gap-3">
@@ -137,7 +150,7 @@ function Profile({ uf, onClear }: { uf: StateUnit; onClear: () => void }) {
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-accent">
             Região {REGION_NAMES[uf.region]}
           </p>
-          <h3 id={titleId} className="text-2xl font-semibold tracking-tight">
+          <h3 id={titleId} ref={titleRef} tabIndex={-1} className="text-2xl font-semibold tracking-tight outline-none">
             {uf.name} <span className="font-normal text-muted-foreground">{uf.acronym}</span>
           </h3>
           <p className="text-xs text-muted-foreground">Código IBGE {uf.ibgeCode}</p>
@@ -179,7 +192,12 @@ function BrazilMap({
     onSelect(selected === acronym ? null : acronym, viaPointer);
   }
 
-  function handleKey(event: KeyboardEvent<Element>, acronym: string) {
+  function handleKey(event: KeyboardEvent<Element>, shape: { acronym: string; centroid: [number, number] }) {
+    const { acronym } = shape;
+    // After a click the focus becomes "visible" on the first key press: show the ring then.
+    if (focused?.acronym !== acronym && event.currentTarget.matches(":focus-visible")) {
+      setFocused({ acronym, x: shape.centroid[0], y: shape.centroid[1] });
+    }
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       toggle(acronym);
@@ -226,15 +244,15 @@ function BrazilMap({
             strokeWidth={1}
             strokeLinejoin="round"
             onClick={() => toggle(shape.acronym, true)}
-            onKeyDown={(event) => handleKey(event, shape.acronym)}
+            onKeyDown={(event) => handleKey(event, shape)}
             onMouseMove={(event) => track(event, shape.acronym)}
             onFocus={(event) => {
-                // Only keyboard focus gets the ring and tooltip; a mouse click also focuses.
-                if (!event.currentTarget.matches(":focus-visible")) return;
-                setFocused({ acronym: shape.acronym, x: shape.centroid[0], y: shape.centroid[1] });
-              }}
+              // Only keyboard focus gets the ring and tooltip; a mouse click also focuses.
+              if (!event.currentTarget.matches(":focus-visible")) return;
+              setFocused({ acronym: shape.acronym, x: shape.centroid[0], y: shape.centroid[1] });
+            }}
             onBlur={() => setFocused(null)}
-            className="cursor-pointer fill-[#8195b3] outline-none transition-[fill] duration-150 hover:fill-[#5d769d] aria-pressed:fill-accent"
+            className="cursor-pointer fill-[#6b80a3] outline-none transition-[fill] duration-150 hover:fill-[#4a6189] aria-pressed:fill-accent"
           />
         ))}
         {selectedShape && (
@@ -301,12 +319,12 @@ function RegionShortcuts({ onSelect }: { onSelect: (acronym: string) => void }) 
                 <button
                   key={state.acronym}
                   type="button"
-                  aria-label={state.name}
-                  title={state.name}
                   onClick={() => onSelect(state.acronym)}
                   className="min-w-10 rounded-md border border-border bg-background px-2 py-1 text-xs font-medium tabular-nums hover:border-accent hover:text-accent focus-visible:outline-2 focus-visible:outline-ring"
                 >
                   {state.acronym}
+                  {/* The accessible name starts with the visible acronym (WCAG 2.5.3). */}
+                  <span className="sr-only"> {state.name}</span>
                 </button>
               ))}
           </div>
