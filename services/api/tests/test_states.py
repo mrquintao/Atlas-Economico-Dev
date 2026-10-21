@@ -439,3 +439,184 @@ def test_map_counts_only_state_level_units(client: TestClient, db: Session) -> N
     body = client.get("/api/v1/states/map/STATE_DCL").json()
     assert body["period"]["coverage"] == 1
     assert len(body["states"]) == 27
+
+
+# --- /states/ranking/{code} (S8) ---
+
+
+def ranking(client: TestClient, code: str, query: str = "") -> dict:
+    response = client.get(f"/api/v1/states/ranking/{code}{query}")
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def positions(body: dict) -> list[tuple[int, str, float]]:
+    return [(r["position"], r["geography"]["acronym"], r["value"]) for r in body["ranking"]]
+
+
+def test_ranking_orders_selected_ufs_and_leaves_absences_out(
+    client: TestClient, db: Session
+) -> None:
+    add(db, "STATE_DCL_RCL", "SP", [quadrimester(2025, 1, "124.23")])
+    add(db, "STATE_DCL_RCL", "MG", [quadrimester(2025, 1, "167.46")])
+    add(db, "STATE_DCL_RCL", "ES", [quadrimester(2025, 1, "-14.5")])
+    body = ranking(client, "STATE_DCL_RCL")
+    assert body["metric_kind"] == "relative"
+    assert body["order"] == "desc"
+    assert "do maior para o menor" in body["order_note"]
+    assert "não indica desempenho" in body["order_note"]
+    assert body["period"]["reference_date"] == "2025-01-01"
+    assert positions(body) == [(1, "MG", 167.46), (2, "SP", 124.23), (3, "ES", -14.5)]
+    # The 24 other UFs: out of the ranking, never zero, with a notice.
+    assert body["selected_count"] == 27 and body["ranked_count"] == 3
+    assert len(body["missing"]) == 24
+    assert body["missing"][0]["acronym"] == "AC"
+    assert body["missing_note"].startswith("Sem dado no período: AC, AL, AM")
+    assert "não equivale a zero" in body["missing_note"]
+
+    ascending = ranking(client, "STATE_DCL_RCL", "?order=asc&ufs=SP,MG,ES,BA")
+    assert positions(ascending) == [(1, "ES", -14.5), (2, "SP", 124.23), (3, "MG", 167.46)]
+    assert "do menor para o maior" in ascending["order_note"]
+    assert [g["acronym"] for g in ascending["missing"]] == ["BA"]
+    assert ascending["missing_note"].startswith(
+        "Sem dado no período: BA. Não há valor armazenado para essa UF"
+    )
+
+
+def test_ranking_ties_share_a_position(client: TestClient, db: Session) -> None:
+    # Equal published decimals tie (1, 2, 2, 4), ordered by acronym within the tie.
+    for uf, value in [("SP", "41.29"), ("RJ", "45.74"), ("BA", "45.74"), ("AM", "38.28")]:
+        add(db, "STATE_PERSONNEL_EXEC_RCL", uf, [quadrimester(2025, 1, value)])
+    body = ranking(client, "STATE_PERSONNEL_EXEC_RCL", "?ufs=SP,RJ,BA,AM")
+    assert positions(body) == [
+        (1, "BA", 45.74),
+        (1, "RJ", 45.74),
+        (3, "SP", 41.29),
+        (4, "AM", 38.28),
+    ]
+    assert body["missing"] == [] and body["missing_note"] is None
+    assert any("1, 2, 2, 4" in n for n in body["notes"])
+
+
+def test_ranking_uses_one_period_for_every_uf(client: TestClient, db: Session) -> None:
+    # MG has not published Q2: it is missing in Q2, never ranked with its Q1 value.
+    add(db, "STATE_DCL", "SP", [quadrimester(2025, 1, "10"), quadrimester(2025, 2, "11")])
+    add(db, "STATE_DCL", "MG", [quadrimester(2025, 1, "20")])
+    latest = ranking(client, "STATE_DCL", "?ufs=SP,MG")
+    assert latest["period"]["reference_date"] == "2025-05-01"
+    assert positions(latest) == [(1, "SP", 11)]
+    assert [g["acronym"] for g in latest["missing"]] == ["MG"]
+    earlier = ranking(client, "STATE_DCL", "?ufs=SP,MG&reference_date=2025-01-01")
+    assert positions(earlier) == [(1, "MG", 20), (2, "SP", 10)]
+    missing_period = client.get("/api/v1/states/ranking/STATE_DCL?reference_date=2024-01-01")
+    assert missing_period.status_code == 404
+    assert missing_period.json()["error"]["code"] == "period_not_found"
+
+
+def test_ranking_default_period_is_chosen_over_the_27_ufs(client: TestClient, db: Session) -> None:
+    for uf in ALL_UFS[:14]:
+        add(db, "STATE_DCL_RCL", uf, [quadrimester(2025, 1, "50")])
+    add(db, "STATE_DCL_RCL", "SP", [quadrimester(2025, 2, "60")])
+    # Even when only SP and AC are selected, the default is the well-covered Q1.
+    body = ranking(client, "STATE_DCL_RCL", "?ufs=SP,AC")
+    assert body["period"]["reference_date"] == "2025-01-01"
+    assert body["default_rule"].startswith("Período padrão")
+
+
+def test_ranking_notes(client: TestClient, db: Session) -> None:
+    add(db, "STATE_PERSONNEL_EXEC", "SP", [quadrimester(2025, 3, "2")])
+    add(db, "STATE_PERSONNEL_EXEC", "MG", [quadrimester(2025, 3, "1")])
+    absolute = ranking(client, "STATE_PERSONNEL_EXEC", "?ufs=SP,MG")
+    assert absolute["metric_kind"] == "absolute"
+    assert any("reflete sobretudo o tamanho" in n for n in absolute["notes"])
+    assert any("restos a pagar" in n for n in absolute["notes"])
+    # DF note only when the DF is selected.
+    assert not any(n.startswith("O Distrito Federal") for n in absolute["notes"])
+    with_df = ranking(client, "STATE_PERSONNEL_EXEC", "?ufs=SP,DF")
+    assert with_df["notes"][-1].startswith("O Distrito Federal")
+
+    ratio = ranking(client, "STATE_DCL_RCL")["notes"]
+    assert any(n.startswith("Métrica relativa") for n in ratio)
+    assert any("RCL ajustada para endividamento" in n for n in ratio)
+    assert any("Valores negativos são possíveis" in n for n in ratio)
+    assert not any("reflete sobretudo" in n for n in ratio)
+    assert any("Acumulado de janeiro" in n for n in ranking(client, "STATE_INVESTMENTS")["notes"])
+
+
+def test_ranking_without_data(client: TestClient) -> None:
+    body = ranking(client, "STATE_DC", "?ufs=SP,MG")
+    assert body["period"] is None
+    assert body["ranking"] == []
+    assert [g["acronym"] for g in body["missing"]] == ["MG", "SP"]
+    assert body["missing_note"] is None
+
+
+@pytest.mark.parametrize(
+    ("query", "message"),
+    [
+        ("?ufs=SP", "de 2 a 27"),
+        ("?ufs=SP,XX", "'XX'"),
+        ("?ufs=SP,sp", "repetida"),
+        ("?ufs=SP,35", "repetida"),
+        ("?ufs=SP,,MG", "''"),
+        ("?ufs=SP,BR", "'BR'"),
+    ],
+)
+def test_ranking_rejects_invalid_selections(client: TestClient, query: str, message: str) -> None:
+    response = client.get(f"/api/v1/states/ranking/STATE_DCL_RCL{query}")
+    assert response.status_code == 422
+    error = response.json()["error"]
+    assert error["code"] == "invalid_selection"
+    assert message in error["message"]
+
+
+def test_ranking_accepts_ibge_codes_and_rejects_bad_params(client: TestClient) -> None:
+    body = ranking(client, "state_dcl_rcl", "?ufs=35,mg")
+    assert body["indicator"]["code"] == "STATE_DCL_RCL"
+    assert body["selected_count"] == 2
+    assert client.get("/api/v1/states/ranking/STATE_DCL?order=up").status_code == 422
+    assert client.get("/api/v1/states/ranking/SELIC_TARGET").status_code == 404
+
+
+# --- /states/compare/{code} (S8) ---
+
+
+def test_comparison_returns_each_uf_series_as_published(client: TestClient, db: Session) -> None:
+    add(db, "STATE_RCL", "SP", [bimester(2025, 1, "100"), bimester(2025, 2, "110")])
+    add(db, "STATE_RCL", "MG", [bimester(2025, 2, "50")])
+    response = client.get("/api/v1/states/compare/STATE_RCL?ufs=MG,SP,AC")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["indicator"]["code"] == "STATE_RCL"
+    series = body["series"]
+    assert [s["geography"]["acronym"] for s in series] == ["MG", "SP", "AC"]
+    assert [o["value"] for o in series[1]["observations"]] == [100, 110]
+    assert [o["date"] for o in series[0]["observations"]] == ["2025-03-01"]
+    # A UF without data is an explicit absence, not a series of zeros.
+    assert series[2]["status"] == "no_data" and series[2]["observations"] == []
+    assert any("tamanho de cada UF" in n for n in body["notes"])
+    filtered = client.get("/api/v1/states/compare/STATE_RCL?ufs=SP&start_date=2025-03-01").json()
+    assert [o["value"] for o in filtered["series"][0]["observations"]] == [110]
+
+
+def test_comparison_notes_and_limits(client: TestClient) -> None:
+    def notes(code: str, ufs: str) -> list[str]:
+        return client.get(f"/api/v1/states/compare/{code}?ufs={ufs}").json()["notes"]
+
+    primary = notes("STATE_PRIMARY_RESULT", "SP,DF")
+    assert any("recomeçam em janeiro" in n for n in primary)
+    assert any("déficit" in n for n in primary)
+    assert primary[-1].startswith("O Distrito Federal")
+    personnel = notes("STATE_PERSONNEL_EXEC_RCL", "SP")
+    assert any("limites da despesa com pessoal" in n for n in personnel)
+    assert not any("DCL/RCL" in n for n in personnel)
+    assert any("restos a pagar" in n for n in personnel)
+    assert not any("recomeçam" in n for n in personnel)
+
+    too_many = client.get("/api/v1/states/compare/STATE_RCL?ufs=SP,MG,RJ,RS,BA,PR,SC")
+    assert too_many.status_code == 422
+    assert client.get("/api/v1/states/compare/STATE_RCL").status_code == 422
+    bad_range = client.get(
+        "/api/v1/states/compare/STATE_RCL?ufs=SP&start_date=2025-02-01&end_date=2025-01-01"
+    )
+    assert bad_range.json()["error"]["code"] == "invalid_range"

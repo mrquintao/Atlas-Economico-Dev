@@ -54,11 +54,11 @@ que atende ao filtro de intervalo das consultas (ADR 0005); e índice por `refer
 
 - `src/app/` — layout com navegação (`Brasil`, `Estados`, `Metodologia`, `Fontes de dados`) e páginas
   (estáticas; dados buscados no cliente após hidratação): `/`, `/estados`, `/estados/[uf]`,
-  `/metodologia` e `/fontes`. As 27 páginas `/estados/[uf]` são pré-renderizadas a partir da lista de
+  `/estados/comparar` (ranking e evolução histórica das UFs, S8), `/metodologia` e `/fontes`. As 27 páginas `/estados/[uf]` são pré-renderizadas a partir da lista de
   UFs em `src/lib/states.ts` (a mesma da migração 0006, conferida por teste).
 - `src/proxy.ts` — Proxy do Next.js 16 restrito a `/estados/:uf`: sigla em minúsculas → `308` para a
   página canônica (`/estados/mg` → `/estados/MG`); qualquer outro segmento (`XX`, `BR`, código IBGE)
-  → página `not-found` com status `404`. A verificação precisa ocorrer antes da renderização: a página
+  → página `not-found` com status `404`. Páginas estáticas sob `/estados` (`comparar`) passam direto. A verificação precisa ocorrer antes da renderização: a página
   é transmitida em streaming e um `notFound()` dentro dela só produziria a página de erro com status 200.
 - `src/features/dashboard/` — painel nacional, filtro de período, cartões, gráfico, metodologia.
   O gráfico e a sincronização servem a qualquer frequência: diária, mensal, bimestral (RREO) e

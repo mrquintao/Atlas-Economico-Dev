@@ -134,8 +134,8 @@ estas regras:
   é propriedade do catálogo (`SIGNED_CODES`), nunca dos valores do período. Valores iguais ficam sempre
   na mesma classe, e a legenda mostra o intervalo real de cada faixa e quantas UFs ela tem. Um valor
   exatamente zero entra na primeira classe não negativa.
-- **Valores absolutos em R$** entram no mapa com a nota "refletem também o tamanho de cada UF"; métricas
-  relativas (per capita, rankings) ficam para a S8. Indicador padrão: pessoal do Executivo / RCL (razão,
+- **Valores absolutos em R$** entram no mapa com a nota "refletem também o tamanho de cada UF", que
+  remete às métricas relativas (DCL/RCL e pessoal/RCL); o ranking é a S8. Indicador padrão: pessoal do Executivo / RCL (razão,
   desde 2018, nunca negativa).
 - **DF** entra na classificação, com asterisco no mapa e na tabela e a nota de comparabilidade.
 - **Acumulados no ano**: comparar UFs no mesmo bimestre é coerente; comparar bimestres diferentes não.
@@ -149,9 +149,45 @@ estas regras:
   reorienta os anéis para a convenção do d3-geo antes de projetar (sem alterar coordenadas), o que é
   testado com a amostra real do IBGE e exercitado no E2E por quadrados sintéticos anti-horários.
 
+## Comparação e ranking das UFs (S8, parecer do economist de 21/10/2026)
+
+A página `/estados/comparar` (endpoints `GET /states/ranking/{code}` e `GET /states/compare/{code}`,
+contratos em [`api.md`](api.md)) segue estas regras:
+
+- **Métricas relativas primeiro.** São relativas apenas as razões publicadas pelas próprias UFs no RGF:
+  DCL/RCL e despesa com pessoal do Executivo/RCL. DCL/RCL é o indicador padrão do ranking e do gráfico.
+  Valores absolutos em R$ continuam selecionáveis (o critério é "preferência", não exclusividade), com o
+  aviso "a ordem reflete sobretudo o tamanho de cada UF".
+- **Nada é recalculado.** Não se calculam investimentos/RCL, primário/RCL, DC/RCL nem razões
+  semelhantes: violaria a regra de usar as linhas como publicadas, misturaria janelas (fluxo acumulado
+  no ano sobre RCL de 12 meses) e periodicidades (RREO bimestral × RGF quadrimestral). Valores per
+  capita e em % do PIB estadual exigem séries novas do IBGE (população e PIB estadual), com validação
+  própria, e ficam para entrega futura.
+- **Um período para todas as UFs**, com o período padrão do mapa calculado sobre as 27 UFs. Posição
+  por classificação de competição ("1, 2, 2, 4"), com empates decididos sobre os decimais armazenados.
+  UFs sem valor ficam fora da classificação, numa lista "Sem dado no período", nunca como zero.
+- **Neutralidade.** Ordem "do maior para o menor" ou o inverso, com o texto "A posição não indica
+  desempenho melhor ou pior"; uma só cor nas barras, sem vermelho/verde nem medalhas. Valores negativos
+  (DCL negativa, déficits) têm barras à esquerda do zero.
+- **Limites legais não são desenhados**: o limite de pessoal varia por UF (BA 48,6%) e deveria ser lido
+  de cada demonstrativo; o limite de endividamento não foi validado nesta entrega.
+- **Evolução histórica**: até 6 UFs, uma linha por UF, cores Okabe–Ito pela ordem de seleção (nunca pelo
+  valor), estilos de linha e marcadores distintos; lacunas como interrupções; acumulados no ano
+  interrompidos a cada janeiro; sem escala logarítmica nem áreas empilhadas. Séries começam em anos
+  diferentes (DCL/RCL em 2020; resultados em 2023). A nota de restos a pagar acompanha os indicadores
+  de pessoal; a nota do DF aparece sempre que o DF está selecionado (asterisco no nome).
+- **Ausências**: a nota diz apenas que não há valor armazenado (o relatório pode não ter sido entregue
+  ou ainda não ter sido coletado), sem afirmar que a UF deixou de publicar.
+
+**Verificação real (21/10/2026).** Com `derive-fiscal --indicator STATE_DCL_RCL --indicator STATE_RCL
+--year 2025 --collect` num banco local, o ranking da DCL/RCL no 3º quadrimestre de 2025 classifica as
+27 UFs (cobertura 27), de RJ (217,25%) a ES (−52,50%), com SP 124,23, MG 167,46, RS 174,03, BA 35,67 e
+DF 15,91, todos iguais às amostras oficiais acima. O ranking da RCL no 6º bimestre (SP, MG, RJ, BA, RS
+e DF) reproduz os seis valores da tabela de amostras.
+
 ## Fora do escopo agora
 
 Resultados de 2018–2022 (só como série própria, nunca emendada); resultados com RPPS ou abaixo da
 linha; pessoal dos demais poderes e total do ente (limite de 60%, LRF art. 19); RCL ajustada isolada;
-investimentos empenhados ou pagos; DC/RCL, passivo atuarial e metas da LDO; valores per capita, em % do
-PIB estadual e rankings (dependem do PIB estadual do IBGE).
+investimentos empenhados ou pagos; DC/RCL, passivo atuarial e metas da LDO; valores per capita e em %
+do PIB estadual (dependem da população e do PIB estadual do IBGE, séries ainda não integradas).

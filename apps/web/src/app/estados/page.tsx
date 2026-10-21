@@ -25,6 +25,11 @@ export default function StatesPage() {
           dívida consolidada, como publicados nos relatórios entregues ao Tesouro Nacional
           (SICONFI). Escolha uma UF no mapa ou na lista abaixo.
         </p>
+        <p>
+          <Link href="/estados/comparar" className="font-medium underline underline-offset-4">
+            Comparar UFs: ranking e evolução histórica
+          </Link>
+        </p>
       </div>
       <StateMapPanel />
       <h2 className="sr-only">Lista das UFs por região</h2>

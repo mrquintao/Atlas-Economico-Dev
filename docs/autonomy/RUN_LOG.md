@@ -4,7 +4,20 @@ Entradas curtas, da mais recente para a mais antiga: o que foi entregue, o que f
 como foram corrigidas, e as decisões relevantes. Os detalhes ficam nos PRs, nas issues e nos ADRs.
 
 
-## 2026-10-21 — S6 concluída: mapa coroplético das UFs (issue #16, PR #45)
+## 2026-10-21 — S8: comparação entre UFs e rankings (issue #18, PR #46)
+
+- API `GET /states/ranking/{code}` (classificação 1, 2, 2, 4 sobre `Decimal`, ausências à parte,
+  período padrão do mapa) e `GET /states/compare/{code}` (1 a 6 UFs). Web: `/estados/comparar` com
+  ranking (relativas primeiro, aviso de porte, barras a partir do zero) e evolução histórica (ECharts,
+  Okabe–Ito pela ordem de seleção). Proxy deixa `comparar` passar.
+- economist: só razões publicadas contam como relativas; nada recalculado; per capita e % do PIB
+  adiados (exigem séries do IBGE); sem linhas de limite; textos neutros.
+- qa-auditor: sem críticos/altos. Médios corrigidos (dados antigos sob erro, nota de ausência que
+  afirmava "não publicou", cores deslocadas por UF sem dado), com testes de regressão. Baixos restantes
+  na issue.
+- Verificação real: coleta de 2025 (RCL e DCL/RCL, 27 UFs) num `/tmp/pgdata` recriado; ranking igual
+  às amostras oficiais. `scripts/check.sh` de clone limpo verde; E2E 31/31.
+: mapa coroplético das UFs (issue #16, PR #45)
 
 - Concorrência: outra sessão ainda finalizava a S7 (PR #44); esta sessão reivindicou a S6 na issue e
   mesclou a `main` antes do PR (conflitos aditivos em `estados/page.tsx` e `state-indicators.ts`).

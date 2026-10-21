@@ -175,6 +175,47 @@ export interface StateMap {
   states: StateMapValue[];
 }
 
+export interface StateRankingItem {
+  /** Equal values share the position (1, 2, 2, 4). */
+  position: number;
+  geography: Geography;
+  value: number;
+}
+
+/** Selected UFs ordered by one state indicator at a single period (/states/ranking/{code}). */
+export interface StateRanking {
+  indicator: Indicator;
+  accumulation_window: string;
+  /** "relative": a % of the RCL published by the UF; "absolute": an amount in R$. */
+  metric_kind: "relative" | "absolute";
+  order: RankingOrder;
+  order_note: string;
+  period: StateMapPeriod | null;
+  default_rule: string;
+  /** Most recent first; coverage counts the 27 UFs. */
+  available_periods: StateMapPeriod[];
+  selected_count: number;
+  ranked_count: number;
+  ranking: StateRankingItem[];
+  /** Selected UFs without a value in the period: out of the ranking, never zero. */
+  missing: Geography[];
+  missing_note: string | null;
+  notes: string[];
+}
+
+export type RankingOrder = "desc" | "asc";
+
+/** One state indicator in a few UFs, each series as published (/states/compare/{code}). */
+export interface StateComparison {
+  indicator: Indicator;
+  accumulation_window: string;
+  start_date: string | null;
+  end_date: string | null;
+  notes: string[];
+  /** One series per UF, in the requested order. */
+  series: StateIndicatorSeries[];
+}
+
 export interface BoundaryFeature {
   type: "Feature";
   id: string;

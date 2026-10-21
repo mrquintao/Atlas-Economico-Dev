@@ -6,21 +6,26 @@ import {
   fetchObservations,
   fetchSources,
   fetchStateBoundaries,
+  fetchStateComparison,
   fetchStateDashboard,
   fetchStateIndicators,
   fetchStateMap,
+  fetchStateRanking,
 } from "@/lib/api";
 import type { DateRange } from "@/lib/period";
 import type {
   Indicator,
   NationalDashboard,
   ObservationsResponse,
+  RankingOrder,
   RequestedFrequency,
   Source,
   StateBoundaries,
   StateDashboard,
   StateIndicators,
+  StateComparison,
   StateMap,
+  StateRanking,
 } from "@/types/api";
 
 import { useResource } from "./useResource";
@@ -75,4 +80,26 @@ export function useStateMap(code: string, referenceDate: string | null) {
 /** Loads the official boundaries of the 27 UFs. */
 export function useStateBoundaries() {
   return useResource<StateBoundaries>("geographies/states/boundaries", fetchStateBoundaries);
+}
+
+/** Loads a ranking of UFs at a period (null: the API's default; `ufs` null: the 27 UFs). */
+export function useStateRanking(
+  code: string,
+  referenceDate: string | null,
+  ufs: readonly string[] | null,
+  order: RankingOrder,
+) {
+  return useResource<StateRanking>(
+    JSON.stringify(["states/ranking", code, referenceDate, ufs, order]),
+    (signal) => fetchStateRanking(code, referenceDate, ufs, order, signal),
+  );
+}
+
+/** Loads one state indicator in a few UFs; refetches when code, UFs or range change. */
+export function useStateComparison(code: string, ufs: readonly string[], range: DateRange) {
+  const { start, end } = range;
+  return useResource<StateComparison>(
+    JSON.stringify(["states/compare", code, ufs, start, end]),
+    (signal) => fetchStateComparison(code, ufs, { start, end }, signal),
+  );
 }
