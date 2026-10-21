@@ -93,8 +93,11 @@ em worktrees isolados ou sobre arquivos disjuntos; nunca dois agentes no mesmo a
 
 ## 7. Releases
 
-Ao concluir um marco (M7, S9, A8): verificar os critérios de aceite da fase, criar a tag `vX.Y.Z` na
-`main` e publicar as release notes. Nenhuma publicação em hospedagem pública faz parte das releases de código.
+Ao concluir um marco (M7, S9, A8): verificar os critérios de aceite da fase com evidências em
+`docs/releases/vX.Y.Z.md`, integrar esse documento por PR e então disparar o workflow **Release**
+(`.github/workflows/release.yml`, `workflow_dispatch` na `main` com `version=vX.Y.Z`). O workflow
+recusa versão inválida, notas ausentes, tag existente e qualquer check obrigatório que não esteja
+verde no commit a marcar; depois cria a tag e a release com as notas do documento. Nenhuma publicação em hospedagem pública faz parte das releases de código.
 
 ## 8. Bloqueios conhecidos de recursos
 

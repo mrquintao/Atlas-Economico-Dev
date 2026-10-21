@@ -3,6 +3,27 @@
 Entradas curtas, da mais recente para a mais antiga: o que foi entregue, o que foi validado, as falhas e
 como foram corrigidas, e as decisões relevantes. Os detalhes ficam nos PRs, nas issues e nos ADRs.
 
+## 2026-10-21 — M7 concluída: critérios de aceite do MVP e release v0.1.0 (issue #9, PR #36)
+
+- Verificação do §25 em clone limpo da `main` (`1dcd398`), seguindo só a Opção B do README, com um
+  banco novo:
+  - migrações 0001–0005;
+  - coleta real de 10.093, 237 e 550 observações;
+  - recoleta com 0 inserções e 0 revisões, e datas distintas iguais ao total;
+  - OpenAPI;
+  - filtro por data com agregação declarada;
+  - site com dados reais.
+  Evidências item a item em `docs/releases/v0.1.0.md`.
+- 15 amostras conferidas contra as APIs oficiais (SGS 432 e 13762, SIDRA 1737/2265), todas iguais. A
+  série DBGG inteira (237 meses) também confere, com 0 divergências.
+- O README tinha um `/docs` perdido no fim do aviso de segurança, que pertencia ao link da OpenAPI.
+  Corrigido, e a lista de endereços foi movida para a Opção A. Capturas de tela atualizadas a partir
+  do build de produção.
+- Contraste da navegação medido: 7,58:1 no tema claro e 7,34:1 no escuro (achado da M5 resolvido).
+- Novo workflow `Release` (`workflow_dispatch` na `main`): só cria a tag e a release se versão, notas,
+  ausência de tag e os 4 checks obrigatórios do commit estiverem em ordem. As ferramentas do agente
+  não criam releases diretamente.
+
 ## 2026-10-21 — M6 concluída: testes E2E com Playwright (issue #8, PR #35)
 
 - Fixture SINTÉTICA `services/api/tests/fixtures/e2e_seed.py`: séries determinísticas, cada linha

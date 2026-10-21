@@ -19,7 +19,7 @@ Legenda de status: ✅ concluída · 🔄 em andamento · ⏳ pendente · ⛔ bl
 | M4 | Automação da coleta: agendamento simples (serviço de agendamento no Compose) e monitoramento das execuções | M2 | §3.3, §7 Automação, §11 | ✅ | #6 · PR #33 |
 | M5 | Páginas "Metodologia" e "Fontes de dados" geradas a partir do catálogo | M2 | §13, §22 | ✅ | #7 · PR #34 |
 | M6 | Testes E2E (Playwright) do fluxo principal no CI | M2 | §7 Testes, §21.12 | ✅ | #8 · PR #35 |
-| M7 | Verificação dos critérios de aceite do MVP e release `v0.1.0` | M2–M6 | §25 | ⏳ | #9 |
+| M7 | Verificação dos critérios de aceite do MVP e release `v0.1.0` | M2–M6 | §25 | ✅ | #9 · PR #36 · [`v0.1.0`](releases/v0.1.0.md) |
 | I1 | Proteção da `main` com checks obrigatórios e auto-merge nativo | — | — | ⛔ | #10 |
 
 ## Fase 2 — Atlas estadual (`phase:states`)
