@@ -48,9 +48,29 @@ def test_series_are_deterministic() -> None:
 
 def test_refuses_a_database_that_already_has_observations(db: Session) -> None:
     e2e_seed.seed(db)
-    with pytest.raises(SystemExit, match="already has observations"):
+    with pytest.raises(SystemExit, match="already has observations rows"):
         e2e_seed.seed(db)
     assert db.scalar(select(func.count()).select_from(Observation)) == 8217 + 234 + 317
+
+
+def test_refuses_a_database_with_collection_runs_but_no_observations(db: Session) -> None:
+    indicator = db.scalar(select(Indicator).where(Indicator.code == "SELIC_TARGET"))
+    assert indicator is not None
+    db.add(IngestionRun(source_id=indicator.source_id, indicator_id=indicator.id, status="failed"))
+    db.flush()
+    with pytest.raises(SystemExit, match="already has ingestion_runs rows"):
+        e2e_seed.seed(db)
+
+
+@pytest.mark.parametrize("name", ["atlas", "atlas_prod", "", None])
+def test_refuses_databases_not_named_as_test_databases(name: str | None) -> None:
+    with pytest.raises(SystemExit, match="Refusing to seed database"):
+        e2e_seed.check_database_name(name)
+
+
+@pytest.mark.parametrize("name", ["atlas_e2e", "atlas_test", "atlas_qa_e2e"])
+def test_accepts_test_database_names(name: str) -> None:
+    e2e_seed.check_database_name(name)
 
 
 def test_refuses_to_run_without_the_explicit_flag(monkeypatch: pytest.MonkeyPatch) -> None:

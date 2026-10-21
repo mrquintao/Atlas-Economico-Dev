@@ -8,13 +8,15 @@ date ranges, so the E2E tests never call the official sources and always see the
 - IPCA_12M (monthly): 2000-01 to 2026-05.
 
 Every row is tagged `source_reference = "synthetic-e2e-fixture"` and every run carries
-`{"synthetic": true}`. The script refuses to run unless `ATLAS_E2E_SEED=1` and the database has no
-observations yet, so it can never mix synthetic values with collected official data.
+`{"synthetic": true}`. The script refuses to run unless `ATLAS_E2E_SEED=1`, the database name says
+it is a test database (contains "e2e" or "test", e.g. `atlas_e2e`) and the database has no
+observations nor collection runs yet, so it can never mix synthetic values with official data.
 
     ATLAS_E2E_SEED=1 DATABASE_URL=... uv run python -m tests.fixtures.e2e_seed
 """
 
 import os
+import re
 import sys
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
@@ -86,9 +88,24 @@ SERIES = {
 }
 
 
+# Only disposable test databases: the default DATABASE_URL points to `atlas`, the real data.
+TEST_DATABASE_NAME = re.compile(r"(e2e|test)", re.IGNORECASE)
+
+
+def check_database_name(name: str | None) -> None:
+    if not name or not TEST_DATABASE_NAME.search(name):
+        raise SystemExit(
+            f"Refusing to seed database {name!r}: its name must contain 'e2e' or 'test' "
+            "(a disposable test database, never the one with collected data)."
+        )
+
+
 def seed(session: Session) -> dict[str, int]:
-    if session.scalar(select(func.count()).select_from(Observation)):
-        raise SystemExit("Refusing to seed: the database already has observations.")
+    for model in (Observation, IngestionRun):
+        if session.scalar(select(func.count()).select_from(model)):
+            raise SystemExit(
+                f"Refusing to seed: the database already has {model.__tablename__} rows."
+            )
     geo = session.scalar(select(GeographicUnit).where(GeographicUnit.acronym == "BR"))
     if geo is None:
         raise SystemExit("Run the migrations first (catalog not seeded).")
@@ -136,7 +153,9 @@ def seed(session: Session) -> dict[str, int]:
 def main() -> None:
     if os.environ.get("ATLAS_E2E_SEED") != "1":
         sys.exit("Refusing to seed synthetic data: set ATLAS_E2E_SEED=1 (test databases only).")
-    with Session(get_engine()) as session:
+    engine = get_engine()
+    check_database_name(engine.url.database)
+    with Session(engine) as session:
         counts = seed(session)
     print("Seeded SYNTHETIC E2E data:", ", ".join(f"{k}={v}" for k, v in counts.items()))
 
