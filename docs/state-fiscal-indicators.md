@@ -176,6 +176,14 @@ contratos em [`api.md`](api.md)) segue estas regras:
   interrompidos a cada janeiro; sem escala logarítmica nem áreas empilhadas. Séries começam em anos
   diferentes (DCL/RCL em 2020; resultados em 2023). A nota de restos a pagar acompanha os indicadores
   de pessoal; a nota do DF aparece sempre que o DF está selecionado (asterisco no nome).
+- **Ausências**: a nota diz apenas que não há valor armazenado (o relatório pode não ter sido entregue
+  ou ainda não ter sido coletado), sem afirmar que a UF deixou de publicar.
+
+**Verificação real (21/10/2026).** Com `derive-fiscal --indicator STATE_DCL_RCL --indicator STATE_RCL
+--year 2025 --collect` num banco local, o ranking da DCL/RCL no 3º quadrimestre de 2025 classifica as
+27 UFs (cobertura 27), de RJ (217,25%) a ES (−52,50%), com SP 124,23, MG 167,46, RS 174,03, BA 35,67 e
+DF 15,91, todos iguais às amostras oficiais acima. O ranking da RCL no 6º bimestre (SP, MG, RJ, BA, RS
+e DF) reproduz os seis valores da tabela de amostras.
 
 ## Fora do escopo agora
 

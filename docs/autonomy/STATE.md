@@ -7,12 +7,12 @@
 |---|---|
 | Atualizado em | 2026-10-21 |
 | Fase atual | 2 — Atlas estadual (MVP nacional concluído: release `v0.1.0`) |
-| Última entrega | S6 — mapa coroplético das UFs em `/estados` (issue #16, PR #45). Antes: S7 (#17, PRs #43 e #44), S5 (#15, PR #42), S4 (#14, PR #41), S3 (#13, PR #40), S2 (#12, PR #39), S1 (#11, PR #38) e [release `v0.1.0`](https://github.com/mrquintao/Atlas-Economico-Dev/releases/tag/v0.1.0) |
-| Próxima entrega elegível | **S8 — comparação entre estados e rankings com métricas relativas ([#18](https://github.com/mrquintao/Atlas-Economico-Dev/issues/18))**; depois S9 (#19, release `v0.2.0`) |
+| Última entrega | S8 — comparação e ranking das UFs em `/estados/comparar` (issue #18, PR #46). Antes: S6 (#16, PR #45), S7 (#17, PRs #43 e #44), S5 (#15, PR #42), S4 (#14, PR #41), S3 (#13, PR #40), S2 (#12, PR #39), S1 (#11, PR #38) e [release `v0.1.0`](https://github.com/mrquintao/Atlas-Economico-Dev/releases/tag/v0.1.0) |
+| Próxima entrega elegível | **S9 — release `v0.2.0` do Atlas estadual ([#19](https://github.com/mrquintao/Atlas-Economico-Dev/issues/19))** |
 | Issue ativa | nenhuma (comentar na issue ao iniciar, para evitar sessões concorrentes) |
 | Branch | novo branch a partir da `main` atualizada |
-| Último commit integrado na `main` | merge do PR #45 (conferir com `git log origin/main -1`); tag `v0.1.0` em `ade5512` |
-| Última validação | S6: `scripts/check.sh` verde (397 pytest, 137 vitest); E2E 28/28; mapa sobre coleta real de 2025 (27 UFs) igual às 42 amostras oficiais, com a malha real do IBGE |
+| Último commit integrado na `main` | merge do PR #46 (conferir com `git log origin/main -1`); tag `v0.1.0` em `ade5512` |
+| Última validação | S8: `scripts/check.sh` verde (416 pytest, 155 vitest); E2E 31/31; ranking sobre coleta real de 2025 (RCL e DCL/RCL, 27 UFs) igual às amostras oficiais |
 
 ## Bloqueios
 
@@ -29,11 +29,10 @@
 
 ## Próxima ação recomendada
 
-Iniciar a S8 (#18), comparação entre UFs e rankings com métricas relativas (per capita, % da RCL).
-Reaproveitar o corte transversal de `GET /states/map/{code}` (27 UFs num período, `coverage`) e as
-regras de escala/notas do mapa (`docs/state-fiscal-indicators.md`, seção S6). Métricas per capita exigem
-população oficial (IBGE) com metadados: validar a série com o economist antes. Manter neutralidade
-(sem "melhor/pior") e o DF com a nota de comparabilidade.
+Iniciar a S9 (#19), release `v0.2.0` do Atlas estadual: verificar os critérios de aceite da Fase 2 com
+evidências em `docs/releases/v0.2.0.md`, integrar por PR e disparar o workflow Release (AGENT_POLICY §7).
+Valores per capita e em % do PIB estadual ficaram fora da S8 (exigem séries do IBGE com validação do
+economist); registrar como limitação conhecida na release.
 
 Concorrência: na S7, o mantenedor integrou o branch da sessão (PR #43) antes da auditoria; as
 correções vieram no PR #44. Na S1, outra sessão disparou a release `v0.1.0` um minuto antes (a segunda
@@ -42,7 +41,9 @@ reivindicar a issue com um comentário.
 
 Migração mais recente: `0009` (frequências `bimonthly`/`four_monthly` e seed dos 9 indicadores fiscais estaduais).
 
-Achados menores pendentes (registrados nas issues/PRs): S7 — `/estados/mg/` faz dois 308; `grid.left`
+Achados menores pendentes (registrados nas issues/PRs): S8 — rodapé dos painéis de comparação sem
+link de fonte nem data de coleta; `parse_selection` faz uma consulta por UF (até 27); sem teste unitário
+do proxy (coberto pelo E2E). S7 — `/estados/mg/` faz dois 308; `grid.left`
 fixo de 44 px pode cortar rótulos do eixo em R$ abaixo de 1 mi; fixture E2E sem bimestre faltante;
 erro na recarga das séries estaduais mostra um aviso por painel. S5 — ~40–55 consultas por requisição em `/states/{uf}/…` (consolidar quando houver endpoint com as 27 UFs); nota do DF ausente em `/indicators/{code}/observations?geography=DF`. S4 — observação mantida quando uma retificação remove a linha de origem (ADR 0010); coleta falha interrompe `derive-fiscal --collect` sem derivar. S3 — `Retry-After` do 429 ignorado (backoff
 já mais lento que o limite); coleta do SICONFI manual, fora do agendador; limitador de taxa por processo.
@@ -62,7 +63,7 @@ segue coberta só pelo smoke test do job Docker (ADR 0008).
 
 - PostgreSQL 16 local: `/usr/lib/postgresql/16/bin`, dados em `/tmp/pgdata` (sobrevive a reinícios;
   após um reboot: `su postgres -c "/usr/lib/postgresql/16/bin/pg_ctl -D /tmp/pgdata -l /tmp/pgdata/log -o '-p 5432 -k /tmp' start"`).
-  Bancos: `atlas` (dados reais, **não destruir**; recriado do zero na sessão da S6: migrado até 0009, com os anexos de 2025 das 27 UFs, os `STATE_*` derivados e a malha do IBGE, sem séries nacionais), `atlas_test` e `atlas_ci` (descartáveis).
+  Bancos: `atlas` (dados reais, **não destruir**; recriado do zero na sessão da S8: migrado até 0009, com os anexos de 2025 do RREO 03 e RGF 02 das 27 UFs e `STATE_RCL`/`STATE_DCL_RCL` derivados; sem malha nem séries nacionais), `atlas_test` e `atlas_ci` (descartáveis).
 - Validação local: `TEST_DATABASE_URL=postgresql+psycopg://atlas:atlas@localhost:5432/atlas_ci scripts/check.sh`.
 - E2E local: banco `atlas_e2e` com a fixture sintética (`docs/testing-e2e.md`), `npm run build` e
   `CI=1 DATABASE_URL=…/atlas_e2e PLAYWRIGHT_CHROMIUM_EXECUTABLE=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npm run test:e2e`.
