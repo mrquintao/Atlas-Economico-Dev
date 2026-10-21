@@ -15,8 +15,8 @@ const LINKS = [
 export function SiteNav() {
   const pathname = usePathname();
   return (
-    <nav aria-label="Principal">
-      <ul className="flex flex-wrap gap-x-5 gap-y-1">
+    <nav aria-label="Principal" className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:overflow-visible sm:px-0">
+      <ul className="flex gap-6">
         {LINKS.map(({ href, label }) => {
           // A section stays current on its sub-pages (/estados/MG is under "Estados").
           const current = pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
@@ -26,8 +26,13 @@ export function SiteNav() {
                 href={href}
                 aria-current={current ? (pathname === href ? "page" : "location") : undefined}
                 className={cn(
-                  "text-sm underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring",
-                  current ? "font-semibold text-foreground" : "text-muted-foreground",
+                  // An inset bar at the bottom underlines the current section; it never overflows
+                  // the scrollable nav on small screens.
+                  "flex h-12 items-center whitespace-nowrap text-sm transition-[color,box-shadow] sm:h-14",
+                  "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
+                  current
+                    ? "font-medium text-foreground shadow-[inset_0_-2px_0_var(--accent)]"
+                    : "text-muted-foreground hover:text-foreground hover:shadow-[inset_0_-2px_0_var(--border-strong)]",
                 )}
               >
                 {label}

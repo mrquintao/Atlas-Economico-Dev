@@ -157,10 +157,10 @@ test("map: 27 UFs at one common period, explicit absences, legend and table", as
   await page.goto("/estados");
   const map = stateMap(page);
   await expect(map).toHaveAccessibleName("Mapa de Pessoal do Executivo / RCL por UF, 3º quadr./2025 (set–dez)");
-  await expect(map.getByRole("link")).toHaveCount(27);
-  await expect(map.getByRole("link", { name: "São Paulo: 44,00% da RCL ajustada, 3º quadr./2025 (set–dez)" })).toBeVisible();
-  await expect(map.getByRole("link", { name: "Distrito Federal*: 44,00% da RCL ajustada, 3º quadr./2025 (set–dez)" })).toBeVisible();
-  await expect(map.getByRole("link", { name: "Minas Gerais: sem dado, 3º quadr./2025 (set–dez)" })).toBeVisible();
+  await expect(map.getByRole("button")).toHaveCount(27);
+  await expect(map.getByRole("button", { name: "São Paulo: 44,00% da RCL ajustada, 3º quadr./2025 (set–dez)" })).toBeVisible();
+  await expect(map.getByRole("button", { name: "Distrito Federal*: 44,00% da RCL ajustada, 3º quadr./2025 (set–dez)" })).toBeVisible();
+  await expect(map.getByRole("button", { name: "Minas Gerais: sem dado, 3º quadr./2025 (set–dez)" })).toBeVisible();
   await expect(page.getByText("2 de 27 UFs com dado publicado neste período.")).toBeVisible();
 
   const legend = page.getByRole("list", { name: "Legenda do mapa" });
@@ -174,27 +174,50 @@ test("map: 27 UFs at one common period, explicit absences, legend and table", as
   await expect(table.getByRole("row", { name: /Minas Gerais/ })).toContainText("sem dado");
 });
 
-test("map: hover shows value, unit and period; a click opens the UF", async ({ page }) => {
+test("map: hover shows value, unit and period; a click shows the UF beside the map", async ({ page }) => {
   await page.goto("/estados");
-  const sp = stateMap(page).getByRole("link", { name: /^São Paulo:/ });
+  const sp = stateMap(page).getByRole("button", { name: /^São Paulo:/ });
   await sp.hover();
   const tooltip = page.getByRole("tooltip");
   await expect(tooltip).toContainText("São Paulo");
   await expect(tooltip).toContainText("44,00% da RCL ajustada");
   await expect(tooltip).toContainText("3º quadr./2025 (set–dez)");
 
-  await stateMap(page).getByRole("link", { name: /^Minas Gerais:/ }).click();
+  // Clicking selects the UF: same page, values in the side panel.
+  await sp.click();
+  await expect(sp).toHaveAttribute("aria-pressed", "true");
+  await expect(page).toHaveURL(/\/estados$/);
+  const panel = page.getByRole("region", { name: "São Paulo SP" });
+  await expect(panel).toContainText("Região Sudeste");
+  await expect(panel).toContainText("44,00% da RCL ajustada");
+  const latest = panel.getByRole("region", { name: "Últimos valores publicados" });
+  await expect(latest).toContainText("Receita corrente líquida");
+  await expect(latest).toContainText("R$ 268,00 bi");
+  await expect(latest).toContainText("6º bim./2025 (nov–dez)");
+
+  // Another UF replaces the selection; MG has no value in this period and says so.
+  await stateMap(page).getByRole("button", { name: /^Minas Gerais:/ }).click();
+  const mg = page.getByRole("region", { name: "Minas Gerais MG" });
+  await expect(mg).toContainText("Sem dado");
+  await expect(mg.getByRole("region", { name: "Últimos valores publicados" })).toContainText("R$ 134,00 bi");
+  await expect(mg).toContainText(/Sem dados nesta UF: .*Dívida consolidada/);
+
+  await mg.getByRole("link", { name: "Abrir o painel completo da UF" }).click();
   await expect(page).toHaveURL(/\/estados\/MG$/);
   await expect(page.getByRole("heading", { level: 1, name: "Minas Gerais (MG)" })).toBeVisible();
 });
 
-test("map: keyboard focus and Enter open the UF", async ({ page }) => {
+test("map: keyboard focus shows the tooltip; Enter selects, Escape clears", async ({ page }) => {
   await page.goto("/estados");
-  const sp = stateMap(page).getByRole("link", { name: /^São Paulo:/ });
+  const sp = stateMap(page).getByRole("button", { name: /^São Paulo:/ });
   await sp.focus();
   await expect(page.getByRole("tooltip")).toContainText("São Paulo");
   await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(/\/estados\/SP$/);
+  await expect(sp).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("heading", { level: 3, name: "São Paulo SP" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(sp).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByRole("heading", { level: 3, name: "Nenhuma UF selecionada" })).toBeVisible();
 });
 
 test("map: period and indicator filters", async ({ page }) => {
@@ -202,11 +225,11 @@ test("map: period and indicator filters", async ({ page }) => {
   const map = stateMap(page);
   await page.getByRole("combobox", { name: "Período" }).selectOption({ label: "1º quadr./2023 (jan–abr) — 2 UFs" });
   await expect(map).toHaveAccessibleName(/1º quadr\.\/2023 \(jan–abr\)$/);
-  await expect(map.getByRole("link", { name: /^São Paulo: 40,00% da RCL ajustada/ })).toBeVisible();
+  await expect(map.getByRole("button", { name: /^São Paulo: 40,00% da RCL ajustada/ })).toBeVisible();
 
   // Same kind of period (four-monthly): the period is kept. DCL/RCL can be negative: diverging.
   await page.getByRole("combobox", { name: "Indicador" }).selectOption({ label: DCL_RCL });
   await expect(map).toHaveAccessibleName("Mapa de DCL / RCL por UF, 1º quadr./2023 (jan–abr)");
-  await expect(map.getByRole("link", { name: /^Minas Gerais: 110,00% da RCL ajustada/ })).toBeVisible();
+  await expect(map.getByRole("button", { name: /^Minas Gerais: 110,00% da RCL ajustada/ })).toBeVisible();
   await expect(page.getByText(/^Zero separa as cores/)).toBeVisible();
 });
