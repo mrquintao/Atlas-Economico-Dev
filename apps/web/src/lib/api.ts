@@ -4,6 +4,7 @@ import type {
   NationalDashboard,
   ObservationsResponse,
   RequestedFrequency,
+  Source,
 } from "@/types/api";
 import type { DateRange } from "@/lib/period";
 
@@ -80,6 +81,10 @@ export function fetchObservations(
 
 export function fetchIndicators(signal?: AbortSignal): Promise<Indicator[]> {
   return getJson<Indicator[]>(`${API_BASE_URL}/api/v1/indicators`, signal);
+}
+
+export function fetchSources(signal?: AbortSignal): Promise<Source[]> {
+  return getJson<Source[]>(`${API_BASE_URL}/api/v1/sources`, signal);
 }
 
 /** Latest value and 12-month change of every national dashboard indicator, in one request. */

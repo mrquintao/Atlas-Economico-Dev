@@ -36,7 +36,7 @@ Especificação completa: [`PROJECT_SPEC.md`](PROJECT_SPEC.md). Instruções par
 ## Estrutura
 
 ```
-apps/web/                 Frontend Next.js (src/app, src/features/dashboard, src/lib, src/hooks…)
+apps/web/                 Frontend Next.js (src/app, src/features/{dashboard,catalog}, src/lib, src/hooks…)
 services/api/             Backend FastAPI
   app/integrations/bcb/   Conector do SGS/BCData (janelas, retry, validação)
   app/ingestion/          Pipeline idempotente + CLI de coleta
@@ -80,7 +80,7 @@ docker compose exec scheduler python -m app.ingestion.scheduler --check   # vali
 - O painel "Sobre o indicador e a metodologia" mostra a última coleta bem-sucedida e avisa quando a
   última tentativa falhou. Detalhes em [docs/data-pipeline.md](docs/data-pipeline.md#coleta-automática).
 
-- Frontend: http://localhost:3000
+- Frontend: http://localhost:3000 (painel nacional; catálogo em `/metodologia` e `/fontes`)
 - API / OpenAPI: http://localhost:8000
 - PostgreSQL: `127.0.0.1:5432` (acessível apenas a partir do computador local; a API usa a rede interna do Compose).
 

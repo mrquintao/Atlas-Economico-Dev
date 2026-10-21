@@ -3,6 +3,20 @@
 Entradas curtas, da mais recente para a mais antiga: o que foi entregue, o que foi validado, as falhas e
 como foram corrigidas, e as decisões relevantes. Os detalhes ficam nos PRs, nas issues e nos ADRs.
 
+## 2026-10-21 — M5 concluída: páginas "Metodologia" e "Fontes de dados" (issue #7, PR #34)
+
+- Frontend: `/metodologia` lista todos os indicadores de `GET /indicators` e `/fontes` as fontes de
+  `GET /sources` com os indicadores de cada uma. A navegação do cabeçalho marca a página atual com
+  `aria-current`. `IndicatorMetadata` é compartilhado com o painel de cada gráfico, que ganhou link para
+  a página; não há texto metodológico no frontend. Âncoras por código, com rolagem depois do
+  carregamento. Estados de carregamento, erro e vazio. Nenhuma mudança na API ou no banco.
+- qa-auditor: sem críticos. Alto corrigido: um hash malformado (`#%E0`) derrubava a página por causa de
+  `decodeURIComponent`. Médio corrigido: `/fontes#ID` rolava antes de os indicadores carregarem.
+  Baixos corrigidos: o texto sobre revisões, o rótulo do link e "SGS" repetido; os demais ficaram
+  registrados na #7. As duas regressões têm testes que falham sem a correção.
+- Ambiente: sessão nova, sem `/tmp/pgdata`. O PostgreSQL foi reinicializado e o banco `atlas` recebeu
+  coleta real (`ingest --all`).
+
 ## 2026-10-21 — M4 concluída: coleta automática (issue #6, PR #33)
 
 - `app/ingestion/batch.py` + CLI `ingest --all` (falha isolada por indicador, saída 1 se algum falhar,
