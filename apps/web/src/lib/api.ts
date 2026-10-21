@@ -5,8 +5,10 @@ import type {
   ObservationsResponse,
   RequestedFrequency,
   Source,
+  StateBoundaries,
   StateDashboard,
   StateIndicators,
+  StateMap,
 } from "@/types/api";
 import type { DateRange } from "@/lib/period";
 
@@ -118,4 +120,23 @@ export function fetchStateIndicators(
 /** Latest value and change versus the same period a year earlier of each state indicator. */
 export function fetchStateDashboard(uf: string, signal?: AbortSignal): Promise<StateDashboard> {
   return getJson<StateDashboard>(`${statePath(uf)}/dashboard`, signal);
+}
+
+export function stateMapUrl(code: string, referenceDate: string | null): string {
+  const query = referenceDate ? `?${new URLSearchParams({ reference_date: referenceDate })}` : "";
+  return `${API_BASE_URL}/api/v1/states/map/${encodeURIComponent(code)}${query}`;
+}
+
+/** One state indicator in the 27 UFs at one period (the most recent well-covered by default). */
+export function fetchStateMap(
+  code: string,
+  referenceDate: string | null,
+  signal?: AbortSignal,
+): Promise<StateMap> {
+  return getJson<StateMap>(stateMapUrl(code, referenceDate), signal);
+}
+
+/** Official IBGE boundaries of the 27 UFs (GeoJSON). */
+export function fetchStateBoundaries(signal?: AbortSignal): Promise<StateBoundaries> {
+  return getJson<StateBoundaries>(`${API_BASE_URL}/api/v1/geographies/states/boundaries`, signal);
 }

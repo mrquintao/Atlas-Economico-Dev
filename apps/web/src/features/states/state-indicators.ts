@@ -10,3 +10,16 @@ const YEAR_TO_DATE_CODES = new Set(["STATE_INVESTMENTS", "STATE_PRIMARY_RESULT",
 export function resetsEachYear(code: string): boolean {
   return YEAR_TO_DATE_CODES.has(code);
 }
+
+/** Display order of the state indicators (same as the API's STATE_DASHBOARD_CODES). */
+export const STATE_INDICATOR_ORDER = [
+  "STATE_RCL",
+  "STATE_PERSONNEL_EXEC",
+  "STATE_PERSONNEL_EXEC_RCL",
+  "STATE_INVESTMENTS",
+  "STATE_PRIMARY_RESULT",
+  "STATE_NOMINAL_RESULT",
+  "STATE_DC",
+  "STATE_DCL",
+  "STATE_DCL_RCL",
+] as const;

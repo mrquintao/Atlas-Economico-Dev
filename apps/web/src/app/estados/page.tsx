@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { StateMapPanel } from "@/features/states/StateMap";
 import { REGION_NAMES, statePath, STATES } from "@/lib/states";
 
 export const metadata: Metadata = {
@@ -21,9 +22,12 @@ export default function StatesPage() {
         <p className="text-muted-foreground">
           Indicadores fiscais das 26 unidades estaduais e do Distrito Federal: receita corrente
           líquida, despesa com pessoal, investimentos, resultados primário e nominal e dívida, a
-          partir dos relatórios entregues ao Tesouro Nacional (SICONFI). Escolha uma UF.
+          partir dos relatórios entregues ao Tesouro Nacional (SICONFI). Escolha uma UF no mapa ou na
+          lista abaixo.
         </p>
       </div>
+      <StateMapPanel />
+      <h2 className="sr-only">Lista das UFs por região</h2>
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {regions.map((region) => (
           <section key={region.code} aria-labelledby={`region-${region.code}`}>
