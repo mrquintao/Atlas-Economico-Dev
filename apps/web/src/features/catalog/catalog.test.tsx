@@ -175,9 +175,42 @@ describe("MethodologyCatalog", () => {
       Element.prototype.scrollIntoView = original;
     }
   });
+
+  it("does not crash on a malformed URL hash", async () => {
+    window.location.hash = "#%E0";
+    render(<MethodologyCatalog />);
+    expect(await screen.findByRole("region", { name: "Meta Selic" })).toBeInTheDocument();
+  });
 });
 
 describe("SourcesCatalog", () => {
+  it("scrolls to the source in the URL hash only after the indicator lists load", async () => {
+    const scroll = vi.fn();
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scroll;
+    window.location.hash = "#IBGE";
+    let releaseIndicators: () => void = () => {};
+    const indicatorsReady = new Promise<void>((resolve) => {
+      releaseIndicators = resolve;
+    });
+    fetchMock.mockImplementation(async (url: string) => {
+      const path = new URL(url).pathname;
+      if (path === "/api/v1/indicators") await indicatorsReady;
+      return routes[path]();
+    });
+    try {
+      render(<SourcesCatalog />);
+      await screen.findByRole("region", { name: "Banco Central do Brasil (BCB)" });
+      expect(scroll).not.toHaveBeenCalled();
+      releaseIndicators();
+      await waitFor(() => expect(scroll).toHaveBeenCalledTimes(1));
+      expect(scroll.mock.contexts[0]).toHaveAttribute("id", "IBGE");
+      expect(screen.getByRole("link", { name: "IPCA 12 meses" })).toBeInTheDocument();
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
+  });
+
   it("lists every source with the indicators it feeds", async () => {
     render(<SourcesCatalog />);
     expect(screen.getByRole("status")).toHaveTextContent("Carregando as fontes oficiais…");

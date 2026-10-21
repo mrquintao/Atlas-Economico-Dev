@@ -70,8 +70,7 @@ export function IndicatorMetadata({
       ) : null}
       <dt className="text-muted-foreground">Fonte</dt>
       <dd>
-        {indicator.source.organization} — {indicator.source.name},{" "}
-        {sourceSeriesLabel(indicator)}.{" "}
+        {indicator.source.organization}, {sourceSeriesLabel(indicator)}.{" "}
         <a
           href={indicator.source_url}
           target="_blank"

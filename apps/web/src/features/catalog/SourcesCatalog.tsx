@@ -96,7 +96,10 @@ export function SourcesCatalog() {
   const indicatorsState = useIndicators();
   const sources = sourcesState.data;
   const indicators = indicatorsState.data;
-  useScrollToHash(sources !== null && sources.length > 0);
+  // Wait for the indicator lists too: they grow the cards above the target.
+  useScrollToHash(
+    sources !== null && sources.length > 0 && indicatorsState.status !== "loading",
+  );
 
   if (sources === null) {
     return sourcesState.status === "error" ? (

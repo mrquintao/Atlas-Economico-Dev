@@ -16,7 +16,7 @@ export function MethodologyPanel({ response }: { response: ObservationsResponse 
           href={`/metodologia#${encodeURIComponent(indicator.code)}`}
           className="self-start underline underline-offset-2"
         >
-          Ver todos os indicadores na página de metodologia
+          Ver este indicador na página de metodologia
         </Link>
       </div>
     </details>

@@ -88,7 +88,7 @@ describe("MethodologyPanel", () => {
   it("links to the indicator on the methodology page", () => {
     render(<MethodologyPanel response={response(null)} />);
     expect(
-      screen.getByRole("link", { name: "Ver todos os indicadores na página de metodologia" }),
+      screen.getByRole("link", { name: "Ver este indicador na página de metodologia" }),
     ).toHaveAttribute("href", "/metodologia#SELIC_TARGET");
   });
 
