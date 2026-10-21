@@ -15,7 +15,7 @@ Legenda de status: ✅ concluída · 🔄 em andamento · ⏳ pendente · ⛔ bl
 | M0c | Dívida bruta/PIB (SGS 13762) e gráficos sincronizados | M0b | §5, §6.1, §14 | ✅ | PR #2 |
 | M1 | Robustez: parâmetros desconhecidos na API, filtros temporais de séries mensais, estados de carregamento | M0c | §12, §13G, §5 | ✅ | #3 · PR #28 |
 | M2 | IPCA acumulado em 12 meses (IBGE/SIDRA 1737): conector IBGE, validação metodológica, cartão e gráfico | M1 | §6.2, §5 | ✅ | PR #30 |
-| M3 | `GET /api/v1/dashboard/national` (resumo dos três indicadores) | M2 | §12 | ⏳ | #5 |
+| M3 | `GET /api/v1/dashboard/national` (resumo dos três indicadores) | M2 | §12 | ✅ | #5 · PR #32 |
 | M4 | Automação da coleta: agendamento simples (serviço de agendamento no Compose) e monitoramento das execuções | M2 | §3.3, §7 Automação, §11 | ⏳ | #6 |
 | M5 | Páginas "Metodologia" e "Fontes de dados" geradas a partir do catálogo | M2 | §13, §22 | ⏳ | #7 |
 | M6 | Testes E2E (Playwright) do fluxo principal no CI | M2 | §7 Testes, §21.12 | ⏳ | #8 |

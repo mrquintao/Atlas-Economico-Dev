@@ -7,12 +7,12 @@
 |---|---|
 | Atualizado em | 2026-10-21 |
 | Fase atual | 1 — MVP nacional |
-| Última entrega | M2 — IPCA 12 meses (issue #4), PR #30: conector IBGE/SIDRA, ingestão genérica por fonte, cartão e terceiro gráfico sincronizado, quebras de linha em períodos ausentes |
-| Próxima entrega elegível | **M3 — `GET /api/v1/dashboard/national` ([#5](https://github.com/mrquintao/Atlas-Economico-Dev/issues/5))** |
-| Issue ativa | nenhuma até o início da M3 |
+| Última entrega | M3 — `GET /api/v1/dashboard/national` (issue #5), PR #32: resumo dos três indicadores numa chamada (último valor, período, variação em 12 meses em p.p., metadados); cartões passam a usá-lo |
+| Próxima entrega elegível | **M4 — automação da coleta ([#6](https://github.com/mrquintao/Atlas-Economico-Dev/issues/6))** |
+| Issue ativa | nenhuma até o início da M4 |
 | Branch | novo branch a partir da `main` atualizada |
-| Último commit integrado na `main` | merge do PR #30 (`93decf8`; conferir com `git log origin/main -1`) |
-| Última validação | M2: `scripts/check.sh` (144 pytest com PostgreSQL, 51 vitest, lint, format, `alembic check`, typecheck, build); coleta real do IPCA (550 meses, idempotente) conferida 100% contra o SIDRA; navegador desktop e mobile com dados reais, console limpo; qa-auditor sem críticos, achados importantes corrigidos |
+| Último commit integrado na `main` | merge do PR #32 (conferir com `git log origin/main -1`) |
+| Última validação | M3: `scripts/check.sh` (153 pytest com PostgreSQL, 53 vitest, lint, format, `alembic check`, typecheck, build); endpoint com dados reais idêntico ao cálculo antigo do cartão nos 3 indicadores e conferido contra SGS 432/13762 e SIDRA 1737; qa-auditor sem críticos/altos, médios corrigidos |
 
 ## Bloqueios
 
@@ -29,20 +29,20 @@
 
 ## Próxima ação recomendada
 
-Iniciar a M3 (#5): endpoint `GET /api/v1/dashboard/national` com o resumo dos três indicadores
-(último valor, mês/dia de referência, variação em 12 meses em p.p., fonte e metadados), reutilizando
-`latestFromMonthly`/estatísticas do backend; depois M4 (#6), automação da coleta.
+Iniciar a M4 (#6): automação da coleta (agendamento simples no Compose) e monitoramento das execuções.
+Considerar ali: resposta vazia do SIDRA/SGS conta como sucesso (avaliar alerta).
 
-Achados menores da auditoria da M2 deixados para depois (registrados no PR): resposta vazia do SIDRA conta
-como sucesso, igual ao SGS (avaliar alerta na M4, monitoramento); lacunas de vários meses recebem uma
-única quebra no gráfico (o cursor cai no ponto real mais próximo); "Todo o histórico" começa em 1980 por
-causa do IPCA.
+Achados menores pendentes (registrados nas issues/PRs): M2 — lacunas de vários meses recebem uma única
+quebra no gráfico; "Todo o histórico" começa em 1980 por causa do IPCA. M3 — em erro da requisição única
+do dashboard, cada cartão mostra seu próprio "Tentar novamente" (mesmo padrão dos gráficos); a variação
+"em 12 meses" de série diária compara com o fechamento do mesmo mês do ano anterior (documentado em
+`docs/api.md`; mudar a regra exige decisão do economist).
 
 ## Ambiente de desenvolvimento (lembrete para sessões em nuvem)
 
 - PostgreSQL 16 local: `/usr/lib/postgresql/16/bin`, dados em `/tmp/pgdata` (sobrevive a reinícios;
   após um reboot: `su postgres -c "/usr/lib/postgresql/16/bin/pg_ctl -D /tmp/pgdata -l /tmp/pgdata/log -o '-p 5432 -k /tmp' start"`).
-  Bancos: `atlas` (dados reais, **não destruir**; migrado até 0005), `atlas_test` e `atlas_ci` (descartáveis).
+  Bancos: `atlas` (dados reais, **não destruir**; migrado até 0005; recriado nesta sessão com coleta real dos 3 indicadores), `atlas_test` e `atlas_ci` (descartáveis).
 - Validação local: `TEST_DATABASE_URL=postgresql+psycopg://atlas:atlas@localhost:5432/atlas_ci scripts/check.sh`.
 - Sem Docker local: os Dockerfiles são validados pelo job `Docker Compose` do CI.
 - Proxy de saída: as APIs do BCB e do SIDRA (`apisidra.ibge.gov.br`) respondem.
