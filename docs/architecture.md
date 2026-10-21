@@ -40,6 +40,7 @@
 | `data_sources` | Fontes oficiais (BCB…) |
 | `indicators` | Catálogo: código interno, série na fonte, unidade, unidade de variação (`p.p.`), frequência, nível geográfico, metodologia, link oficial |
 | `geographic_units` | País/região/UF/município com código IBGE e hierarquia (`parent_id`: país → região → UF) |
+| `geographic_boundaries` | Geometria oficial (GeoJSON em `JSONB`) de cada unidade por edição da malha do IBGE (`mesh_year`) e qualidade, com hash, URL da consulta e data da coleta |
 | `observations` | Valores (`NUMERIC(24,8)`), período de referência, `collected_at`, referência da fonte |
 | `ingestion_runs` | Auditoria de cada coleta: status, contagens, erro, janelas consultadas e SHA-256 de cada payload |
 | `observation_revisions` | Valor anterior/novo quando a fonte revisa um dado já publicado |

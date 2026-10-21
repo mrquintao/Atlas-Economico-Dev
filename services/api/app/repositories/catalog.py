@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.models import (
     DataSource,
+    GeographicBoundary,
     GeographicUnit,
     Indicator,
     IngestionRun,
@@ -92,3 +93,29 @@ def observation_bounds(
         )
     ).one()
     return row[0], row[1]
+
+
+def latest_mesh_year(session: Session, level: str, quality: str) -> int | None:
+    return session.scalar(
+        select(func.max(GeographicBoundary.mesh_year))
+        .join(GeographicUnit)
+        .where(GeographicUnit.geographic_level == level, GeographicBoundary.quality == quality)
+    )
+
+
+def list_boundaries(
+    session: Session, level: str, mesh_year: int, quality: str
+) -> list[GeographicBoundary]:
+    return list(
+        session.scalars(
+            select(GeographicBoundary)
+            .join(GeographicUnit)
+            .options(joinedload(GeographicBoundary.geographic_unit))
+            .where(
+                GeographicUnit.geographic_level == level,
+                GeographicBoundary.mesh_year == mesh_year,
+                GeographicBoundary.quality == quality,
+            )
+            .order_by(GeographicUnit.ibge_code)
+        )
+    )

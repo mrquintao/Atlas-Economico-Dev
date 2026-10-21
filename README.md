@@ -62,6 +62,7 @@ docker compose exec api python -m app.ingestion.cli ingest SELIC_TARGET --full  
 docker compose exec api python -m app.ingestion.cli ingest DBGG_GDP               # série mensal (segundos)
 docker compose exec api python -m app.ingestion.cli ingest IPCA_12M               # IBGE/SIDRA (segundos)
 docker compose exec api python -m app.ingestion.cli ingest --all                  # todos, incremental
+docker compose exec api python -m app.ingestion.cli ingest-boundaries             # malha das 27 UFs (IBGE)
 ```
 
 - Frontend: http://localhost:3000 (painel nacional; catálogo em `/metodologia` e `/fontes`)
@@ -107,6 +108,7 @@ uv run alembic upgrade head                # migrações + seed (BCB, IBGE, Bras
 uv run python -m app.ingestion.cli ingest SELIC_TARGET --full   # coleta inicial do histórico completo
 uv run python -m app.ingestion.cli ingest DBGG_GDP               # dívida bruta/PIB (série mensal)
 uv run python -m app.ingestion.cli ingest IPCA_12M               # IPCA 12 meses (IBGE/SIDRA)
+uv run python -m app.ingestion.cli ingest-boundaries             # malha oficial das 27 UFs (IBGE, edição 2022)
 uv run uvicorn app.main:app --reload --port 8000   # API em :8000, OpenAPI em http://localhost:8000/docs
 ```
 
@@ -169,6 +171,7 @@ unitários rodam. Nenhum teste acessa a internet. O CI (GitHub Actions) roda tud
 |---|---|---|
 | Banco Central do Brasil — SGS | Meta Selic (432) · DBGG/PIB (13762) | [Dados abertos](https://dadosabertos.bcb.gov.br/) · [SGS 432](https://dadosabertos.bcb.gov.br/dataset/432-taxa-de-juros---meta-selic-definida-pelo-copom) · [SGS 13762](https://dadosabertos.bcb.gov.br/dataset/13762-divida-bruta-do-governo-geral--pib---metodologia-utilizada-a-partir-de-2008) |
 | IBGE — SIDRA | Implementado: IPCA 12 meses (tabela 1737, variável 2265) | [API SIDRA](https://apisidra.ibge.gov.br/) · [Serviço de dados](https://servicodados.ibge.gov.br/api/docs/) |
+| IBGE — Malhas | Implementado: geometrias oficiais das 27 UFs (edição 2022) | [API de malhas v3](https://servicodados.ibge.gov.br/api/docs/malhas?versao=3) |
 | Tesouro Nacional / SICONFI | Fase 2 (estados) | [Tesouro Transparente](https://www.tesourotransparente.gov.br/) · [SICONFI API](https://apidatalake.tesouro.gov.br/docs/siconfi/) |
 
 ## Princípios

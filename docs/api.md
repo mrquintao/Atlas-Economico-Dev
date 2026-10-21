@@ -17,6 +17,7 @@ inexistente com parâmetro desconhecido responde 422. Erros sempre no formato:
 | `GET /api/v1/health` | Estado da aplicação e do banco (`503 database_unavailable` se o banco cair) |
 | `GET /api/v1/sources` | Fontes oficiais cadastradas |
 | `GET /api/v1/geographies` | Unidades geográficas cadastradas (ver abaixo); filtro opcional `level` |
+| `GET /api/v1/geographies/states/boundaries` | Geometrias oficiais das 27 UFs (GeoJSON, malha do IBGE); filtro opcional `mesh_year` |
 | `GET /api/v1/indicators` | Catálogo com metadados, período armazenado e data da última coleta |
 | `GET /api/v1/indicators/{code}` | Metadados de um indicador (`404 indicator_not_found`) |
 | `GET /api/v1/indicators/{code}/observations` | Série histórica filtrada |
@@ -52,6 +53,33 @@ Ordem: país, UFs e regiões, cada nível pelo código IBGE. `level` (`country`,
 Códigos e siglas do IBGE só são únicos **dentro de um nível**: `1` é o Brasil e a Região Norte; `SE` é
 Sergipe e a Região Sudeste. No parâmetro `geography` das observações, a busca ocorre primeiro no nível
 do indicador; fora dele, a ordem é país, UF, região (`SE` → Sergipe, `1` → Brasil).
+
+## `GET /api/v1/geographies/states/boundaries`
+
+GeoJSON `FeatureCollection` (`Content-Type: application/geo+json`) com as 27 UFs da malha oficial do
+IBGE coletada por `ingest-boundaries` (ver [pipeline](data-pipeline.md)). Cada feição tem `id` e
+`properties.ibge_code` iguais ao código IBGE de `/geographies`, mais `acronym` e `name`; a geometria é
+`Polygon` ou `MultiPolygon` em (longitude, latitude). O frontend usa só este endpoint, nunca o IBGE.
+
+| Parâmetro | Padrão | Descrição |
+|---|---|---|
+| `mesh_year` | edição mais recente armazenada | Edição da malha (≥ 2000) |
+
+```json
+{ "type": "FeatureCollection",
+  "metadata": { "source": { "acronym": "IBGE", "name": "API de malhas geográficas do IBGE (v3)", … },
+    "source_url": "https://servicodados.ibge.gov.br/api/v3/malhas/paises/BR?formato=application%2Fvnd.geo%2Bjson&intrarregiao=UF&qualidade=minima&periodo=2022",
+    "mesh_year": 2022, "quality": "minima", "coordinate_decimals": 4,
+    "simplification": "Malha generalizada pelo próprio IBGE (qualidade=minima), …",
+    "collected_at": "2026-10-21T07:53:04Z" },
+  "features": [ { "type": "Feature", "id": "53",
+    "properties": { "ibge_code": "53", "acronym": "DF", "name": "Distrito Federal" },
+    "geometry": { "type": "Polygon", "coordinates": [[[-48.016, -16.0497], …]] } }, … ] }
+```
+
+- Malha não coletada (ou edição pedida ausente) → `404 boundaries_not_found`.
+- Cache: `Cache-Control: public, max-age=86400` e `ETag`; com `If-None-Match` igual → `304` sem corpo.
+- Respostas da API acima de 1 KB são comprimidas com gzip quando o cliente aceita (~100 KB → ~28 KB aqui).
 
 ## `GET /api/v1/indicators/{code}/observations`
 
