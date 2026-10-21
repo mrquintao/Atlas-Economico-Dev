@@ -183,6 +183,7 @@ jobs:
   dev-script:
     name: Dev script (shellcheck, local smoke)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:16-alpine
@@ -223,6 +224,7 @@ jobs:
           kill -TERM "$pid"
           wait "$pid" || true
           cat dev.log
-          # Both servers (and their child processes) must be gone.
-          ! curl -fsS -o /dev/null http://localhost:8000/api/v1/health
-          ! curl -fsS -o /dev/null http://localhost:3000
+          # Both servers (and their child processes) must be gone. (A line starting with `!`
+          # does not trigger `set -e`, hence the explicit exits.)
+          if curl -fsS -o /dev/null http://localhost:8000/api/v1/health; then echo "API still running"; exit 1; fi
+          if curl -fsS -o /dev/null http://localhost:3000; then echo "web still running"; exit 1; fi

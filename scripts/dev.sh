@@ -66,7 +66,10 @@ fi
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --states)
-      [[ $# -ge 2 && "$2" =~ ^[0-9]{4}$ ]] || die "--states exige um ano com 4 dígitos (ex.: --states 2025)"
+      # Same bounds as `derive-fiscal --year` (2015 to the current year in Brasília time).
+      this_year="$(TZ=America/Sao_Paulo date +%Y)"
+      [[ $# -ge 2 && "$2" =~ ^[1-9][0-9]{3}$ && "$2" -ge 2015 && "$2" -le "$this_year" ]] ||
+        die "--states exige um ano entre 2015 e $this_year (ex.: --states $((this_year - 1)))"
       STATES_YEAR="$2"
       shift 2
       ;;
@@ -77,6 +80,13 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 case "$COMMAND" in up | data | docker) ;; *) die "comando desconhecido: $COMMAND (use --help)" ;; esac
+[[ "$NO_DATA" -eq 1 && "$COMMAND" == "data" ]] && die "--no-data não faz sentido com 'data' (o comando é a coleta)"
+[[ "$NO_DATA" -eq 1 && -n "$STATES_YEAR" ]] && die "--no-data e --states são incompatíveis"
+if [[ "$COMMAND" == "docker" ]]; then
+  [[ "$DB_DOCKER" -eq 1 ]] && die "--db-docker vale para 'up' e 'data'; o modo 'docker' já sobe o banco"
+  [[ "$API_PORT" != 8000 || "$WEB_PORT" != 3000 ]] &&
+    die "o modo 'docker' usa as portas fixas 8000 e 3000 do docker-compose.yml (API_PORT/WEB_PORT valem só para 'up')"
+fi
 
 # ---------------------------------------------------------------- shared pieces
 # Python run inside the API environment (local venv or the API container): prints the number
@@ -116,7 +126,9 @@ port_in_use() {
 }
 
 # Runs a collection command (local or in the container); a failure is reported, not fatal:
-# the application still starts and the gaps are shown as gaps.
+# the application still starts and the gaps are shown as gaps. `data` exits non-zero if any failed.
+FAILED_COLLECTIONS=0
+RETRY_HINT="scripts/dev.sh data${STATES_YEAR:+ --states $STATES_YEAR}"
 collect() {
   local label="$1"
   shift
@@ -127,7 +139,8 @@ collect() {
   if "$@" >"$log" 2>&1; then
     ok "$label"
   else
-    warn "$label falhou (veja o log). A aplicação funciona com os dados já existentes; tente de novo com: scripts/dev.sh data"
+    FAILED_COLLECTIONS=$((FAILED_COLLECTIONS + 1))
+    warn "$label falhou (veja o log). A aplicação funciona com os dados já existentes; tente de novo com: $RETRY_HINT"
   fi
 }
 
@@ -184,7 +197,7 @@ local_database() {
       ok "PostgreSQL iniciado com Docker Compose (127.0.0.1:5432)"
       (cd "$API_DIR" && uv run --frozen python -c "$DB_PROBE") || die "PostgreSQL ainda inacessível"
     else
-      die "PostgreSQL inacessível (DATABASE_URL em services/api/.env).
+      die "PostgreSQL inacessível (DATABASE_URL do ambiente ou de services/api/.env).
        Opções: inicie seu PostgreSQL 16 e crie o banco (README, \"Opção B\"),
        ou rode: scripts/dev.sh --db-docker   (sobe só o banco com Docker Compose)"
     fi
@@ -237,7 +250,7 @@ load_data() {
       api_cli derive-fiscal --year "$STATES_YEAR" --collect
   elif [[ "$mode" == "first-run" ]]; then
     printf '%s  i%s Indicadores fiscais estaduais: scripts/dev.sh data --states %s\n' \
-      "$DIM" "$RESET" "$(($(date +%Y) - 1))"
+      "$DIM" "$RESET" "$(($(TZ=America/Sao_Paulo date +%Y) - 1))"
   fi
 }
 
@@ -285,6 +298,7 @@ run_local() {
   local_database
   if [[ "$COMMAND" == "data" ]]; then
     load_data update
+    [[ "$FAILED_COLLECTIONS" -eq 0 ]] || die "$FAILED_COLLECTIONS coleta(s) falharam (veja os logs em .dev/logs/)"
     return 0
   fi
   load_data first-run
@@ -292,7 +306,8 @@ run_local() {
   step "Iniciando os servidores"
   port_in_use "$API_PORT" && die "a porta $API_PORT já está em uso (defina API_PORT=...)"
   port_in_use "$WEB_PORT" && die "a porta $WEB_PORT já está em uso (defina WEB_PORT=...)"
-  trap 'stop_services; exit 130' INT TERM
+  trap 'stop_services; exit 130' INT
+  trap 'stop_services; exit 143' TERM
   trap stop_services EXIT
   # Environment overrides services/api/.env: the dashboard origin must be allowed by CORS.
   start_service api "$API_DIR" env LOG_JSON=false \
@@ -331,8 +346,11 @@ run_docker() {
     cp "$ROOT/.env.example" "$ROOT/.env"
     ok ".env criado a partir de .env.example"
   fi
-  port_in_use 8000 && die "a porta 8000 já está em uso"
-  port_in_use 3000 && die "a porta 3000 já está em uso"
+  # Re-running with the stack already up just rebuilds/updates it; otherwise the ports must be free.
+  if [[ -z "$(docker compose -f "$ROOT/docker-compose.yml" ps --status running -q 2>/dev/null)" ]]; then
+    port_in_use 8000 && die "a porta 8000 já está em uso"
+    port_in_use 3000 && die "a porta 3000 já está em uso"
+  fi
 
   step "Construindo e iniciando os containers (db, api, web)"
   docker compose -f "$ROOT/docker-compose.yml" up --build -d --wait ||
