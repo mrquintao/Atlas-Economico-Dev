@@ -47,8 +47,14 @@ que atende ao filtro de intervalo das consultas (ADR 0005); e índice por `refer
 
 ## Frontend
 
-- `src/app/` — layout e página (estática; dados buscados no cliente após hidratação).
+- `src/app/` — layout com navegação (`Brasil`, `Metodologia`, `Fontes de dados`) e páginas
+  (estáticas; dados buscados no cliente após hidratação): `/`, `/metodologia` e `/fontes`.
 - `src/features/dashboard/` — painel, filtro de período, cartões, gráfico, metodologia.
+- `src/features/catalog/` — páginas de catálogo: `/metodologia` lista todos os indicadores de
+  `GET /api/v1/indicators` e `/fontes` as fontes de `GET /api/v1/sources` com os indicadores de cada
+  uma. `IndicatorMetadata` também é usado no painel de metodologia de cada gráfico: nenhum texto
+  metodológico fica no frontend, tudo vem do catálogo (seeds das migrações). Âncoras por código
+  (`/metodologia#SELIC_TARGET`, `/fontes#BCB`).
   O intervalo de datas é estado único do painel e é repassado a todos os gráficos (sincronização).
 - `src/lib/format.ts` — formatação pt-BR reutilizável (vírgula decimal, `p.p.`, datas sem fuso).
 - `src/lib/period.ts` — períodos predefinidos (5 anos, 10 anos, desde 2008, todo o histórico).
