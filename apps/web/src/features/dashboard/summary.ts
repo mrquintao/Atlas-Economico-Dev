@@ -66,5 +66,6 @@ export function sourceSeriesLabel(
     const [table, variable] = code.split("/");
     return variable ? `SIDRA ${table} (v. ${variable})` : `SIDRA ${code}`;
   }
+  if (indicator.source.acronym === "SICONFI") return `SICONFI, ${code}`;
   return `SGS ${code}`;
 }

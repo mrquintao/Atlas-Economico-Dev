@@ -40,8 +40,12 @@ def national_geography(session: Session) -> GeographicUnit:
 def build_indicator_out(
     session: Session, indicator: Indicator, geo: GeographicUnit | None = None
 ) -> IndicatorOut:
-    geo = geo or national_geography(session)
-    first, last = repo.observation_bounds(session, indicator.id, geo.id)
+    if geo is None and indicator.geographic_level != GeographicLevel.COUNTRY:
+        # Catalog view of a subnational indicator: the stored range across all its units.
+        first, last = repo.observation_bounds(session, indicator.id)
+    else:
+        geo = geo or national_geography(session)
+        first, last = repo.observation_bounds(session, indicator.id, geo.id)
     return IndicatorOut(
         code=indicator.code,
         name=indicator.name,

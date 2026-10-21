@@ -38,7 +38,8 @@ class Indicator(TimestampMixin, Base):
     __tablename__ = "indicators"
     __table_args__ = (
         CheckConstraint(
-            "frequency IN ('daily', 'monthly', 'quarterly', 'annual')", name="frequency"
+            "frequency IN ('daily', 'monthly', 'bimonthly', 'quarterly', 'four_monthly', 'annual')",
+            name="frequency",
         ),
         CheckConstraint(
             "geographic_level IN ('country', 'region', 'state', 'municipality')",

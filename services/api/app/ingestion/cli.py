@@ -11,6 +11,9 @@ Examples:
         --state SP --state RJ --year 2024                     # SICONFI report annex (S3)
     python -m app.ingestion.cli ingest-siconfi --report RGF --annex "RGF-Anexo 02" \
         --state SP --year 2023 --year 2024 --period 3 --refresh
+    python -m app.ingestion.cli derive-fiscal                  # state fiscal indicators (S4)
+    python -m app.ingestion.cli derive-fiscal --indicator STATE_DCL --state SP --year 2024 \
+        --collect                                              # collect the annexes first
 
 The exit code is 0 when every requested collection succeeds and 1 when any of them fails.
 """
@@ -24,15 +27,21 @@ from dataclasses import asdict
 from datetime import date
 from typing import Any
 
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
 from app.core.clock import brazil_today
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.db.session import get_session_factory
 from app.ingestion.batch import BatchResult, run_batch
 from app.ingestion.boundaries import ingest_state_boundaries
+from app.ingestion.fiscal_catalog import FISCAL_INDICATORS, required_annexes
+from app.ingestion.fiscal_indicators import derive_fiscal_indicator
 from app.ingestion.series_ingestion import IngestionError, format_error
 from app.ingestion.siconfi import ingest_siconfi_reports
 from app.integrations.tesouro.siconfi import POWERS
+from app.models import GeographicLevel, GeographicUnit
 
 EXIT_OK = 0
 EXIT_FAILED = 1
@@ -68,7 +77,30 @@ def main(argv: list[str] | None = None) -> int:
     siconfi.add_argument(
         "--refresh", action="store_true", help="Collect again even if no newer delivery is listed"
     )
+    derive = sub.add_parser(
+        "derive-fiscal",
+        help="Derive the state fiscal indicators from the collected SICONFI annexes",
+    )
+    derive.add_argument(
+        "--indicator", action="append", choices=sorted(FISCAL_INDICATORS), help="Default: all"
+    )
+    derive.add_argument("--state", action="append", help="UF acronym (repeatable); default: all")
+    derive.add_argument("--year", type=int, action="append", help="Exercise; default: all")
+    derive.add_argument(
+        "--collect",
+        action="store_true",
+        help="Collect the annexes the indicators need first (requires --year)",
+    )
+    derive.add_argument("--refresh", action="store_true", help="With --collect: force recollection")
     args = parser.parse_args(argv)
+    if args.command == "derive-fiscal":
+        if args.year and any(not 2015 <= y <= brazil_today().year for y in args.year):
+            parser.error("--year must be between 2015 and the current year")
+        if args.collect and not args.year:
+            parser.error("--collect requires --year (bounds the requests to the SICONFI API)")
+        if args.refresh and not args.collect:
+            parser.error("--refresh applies only with --collect")
+        return _derive_fiscal(args)
     if args.command == "ingest-siconfi":
         if any(not 2015 <= y <= brazil_today().year for y in args.year):
             parser.error("--year must be between 2015 and the current year")
@@ -144,6 +176,65 @@ def _ingest_siconfi(args: argparse.Namespace) -> int:
         )
         return EXIT_FAILED
     return EXIT_OK
+
+
+def _derive_fiscal(args: argparse.Namespace) -> int:
+    settings = get_settings()
+    configure_logging(settings.log_level, settings.log_json)
+    codes = sorted(set(args.indicator)) if args.indicator else sorted(FISCAL_INDICATORS)
+    definitions = [FISCAL_INDICATORS[code] for code in codes]
+    exercises = sorted(set(args.year)) if args.year else None
+    output: dict[str, Any] = {"collections": [], "indicators": []}
+    ok = True
+    with get_session_factory()() as session:
+        if args.collect:
+            states = args.state or _all_states(session)
+            for report_type, annex, power in required_annexes(definitions, exercises or []):
+                try:
+                    summary = ingest_siconfi_reports(
+                        session,
+                        settings,
+                        report_type=report_type,
+                        annex=annex,
+                        states=states,
+                        exercises=exercises or [],
+                        power=power,
+                        refresh=args.refresh,
+                    )
+                except Exception as exc:  # recorded in ingestion_runs by the ingestion itself
+                    print(f"error: {annex}: {format_error(exc)}", file=sys.stderr)
+                    return EXIT_FAILED
+                output["collections"].append(
+                    {"annex": annex, "power": power, "run_id": summary.run_id}
+                )
+        for definition in definitions:
+            try:
+                result = derive_fiscal_indicator(
+                    session, definition, states=args.state, exercises=exercises
+                )
+            except Exception as exc:  # invalid request, or a failure recorded in ingestion_runs
+                ok = False
+                output["indicators"].append(
+                    {"indicator": definition.code, "status": "failed", "error": format_error(exc)}
+                )
+                continue
+            report = asdict(result)
+            report["outcomes"] = [o for o in report["outcomes"] if o["status"] != "unchanged"][
+                :50
+            ]  # full list in ingestion_runs.metadata_json
+            output["indicators"].append(report)
+    print(json.dumps(output, default=str, ensure_ascii=False, indent=2))
+    return EXIT_OK if ok else EXIT_FAILED
+
+
+def _all_states(session: Session) -> list[str]:
+    return list(
+        session.scalars(
+            select(GeographicUnit.acronym)
+            .where(GeographicUnit.geographic_level == GeographicLevel.STATE)
+            .order_by(GeographicUnit.ibge_code)
+        )
+    )
 
 
 def _report(result: BatchResult) -> list[dict[str, Any]]:

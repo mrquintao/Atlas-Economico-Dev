@@ -23,11 +23,10 @@ from app.ingestion.series_ingestion import (
     SeriesClient,
     format_error,
     ingest_indicator,
-    record_failed_run,
 )
 from app.integrations.bcb.sgs import SGSClient
 from app.integrations.ibge.sidra import SIDRAClient
-from app.models import Indicator, IngestionRun, IngestionStatus
+from app.models import DataSource, Indicator, IngestionRun, IngestionStatus
 
 logger = logging.getLogger(__name__)
 
@@ -66,14 +65,31 @@ class BatchResult:
 
 
 def select_indicators(session: Session, codes: Sequence[str] | None) -> list[Indicator]:
-    """The requested indicators, or the whole catalog (ordered by code) when ``codes`` is None."""
-    query = select(Indicator).options(joinedload(Indicator.source)).order_by(Indicator.code)
+    """The requested indicators, or every series with a connector (ordered by code) when
+    ``codes`` is None.
+
+    Indicators derived from SICONFI annexes have no series connector: they are produced by
+    ``derive-fiscal`` (ADR 0010), so the batch skips them and rejects an explicit request
+    before any run is recorded.
+    """
+    query = (
+        select(Indicator)
+        .join(Indicator.source)
+        .options(joinedload(Indicator.source))
+        .order_by(Indicator.code)
+    )
     if codes is None:
-        return list(session.scalars(query))
+        return list(session.scalars(query.where(DataSource.acronym.in_(CONNECTORS))))
     found = {i.code: i for i in session.scalars(query.where(Indicator.code.in_(codes)))}
     unknown = [code for code in codes if code not in found]
     if unknown:
         raise IngestionError(f"Unknown indicator: {', '.join(unknown)}")
+    derived = [code for code in codes if found[code].source.acronym not in CONNECTORS]
+    if derived:
+        raise IngestionError(
+            f"No series connector for {', '.join(derived)}; derive it from the SICONFI "
+            "annexes with `derive-fiscal`"
+        )
     return [found[code] for code in codes]
 
 
@@ -99,21 +115,15 @@ def run_batch(
     logger.info("batch_started", extra={"indicators": [code for code, _, _ in targets]})
     with ExitStack() as stack:
         open_clients: dict[str, SeriesClient] = dict(clients or {})
-        for code, indicator_id, source in targets:
+        for code, _, source in targets:
             if should_stop():
                 logger.warning("batch_interrupted", extra={"pending": code})
                 break
             item = BatchItem(code, IngestionStatus.FAILED)
             try:
                 if source not in open_clients:
-                    connector = CONNECTORS.get(source)
-                    if connector is None:
-                        error = IngestionError(f"No connector for source {source}")
-                        item.run_id = record_failed_run(
-                            session, session.get_one(Indicator, indicator_id), error
-                        )
-                        raise error
-                    open_clients[source] = stack.enter_context(connector(settings))
+                    # select_indicators only returns indicators of sources with a connector.
+                    open_clients[source] = stack.enter_context(CONNECTORS[source](settings))
                 summary = ingest_indicator(
                     session, open_clients[source], code, source_acronym=source, **options
                 )
