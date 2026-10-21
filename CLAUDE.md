@@ -74,6 +74,7 @@ npm install
 npm run dev                               # http://localhost:3000
 npm test                                  # Vitest
 npm run lint && npm run typecheck && npm run build
+npm run test:e2e                          # Playwright; banco com fixture sintética (docs/testing-e2e.md)
 
 # Tudo via Docker
 docker compose up --build

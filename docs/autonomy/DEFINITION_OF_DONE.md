@@ -21,7 +21,7 @@ verificáveis. "N/A" deve ser justificado no PR.
 - [ ] `ruff check`, `ruff format --check`, `npm run lint`, `npm run typecheck`, `npm run build` sem erros.
 - [ ] Migrações: upgrade → downgrade → upgrade sem erros (quando houver migração).
 - [ ] Validação a partir de um clone limpo (o estado local não pode mascarar falhas).
-- [ ] CI verde no commit final do PR (API, Web, Docker e E2E, quando existir).
+- [ ] CI verde no commit final do PR (API, Web, E2E e Docker).
 
 ## Dados e metodologia (séries novas ou alteradas)
 - [ ] Metadados validados pelo `economist` contra a fonte oficial (nome, unidade, frequência, início,
