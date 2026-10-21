@@ -135,6 +135,14 @@ def _ingest_siconfi(args: argparse.Namespace) -> int:
     report = asdict(summary)
     report["revisions"] = report["revisions"][:20]  # full list in ingestion_runs.metadata_json
     print(json.dumps(report, ensure_ascii=False, indent=2))
+    delivered = [o for o in summary.reports if o.status != "not_delivered"]
+    if delivered and all(o.status == "not_available" for o in delivered):
+        # Usually a wrong annex name (the API answers an empty list instead of an error).
+        print(
+            "error: every delivered period came back empty; check the annex name",
+            file=sys.stderr,
+        )
+        return EXIT_FAILED
     return EXIT_OK
 
 

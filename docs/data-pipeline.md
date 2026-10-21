@@ -195,30 +195,39 @@ Comportamento observado (21/10/2026):
 
 | Situação | Resposta do SICONFI | Tratamento |
 |---|---|---|
-| Sucesso | `200` página ORDS: `items`, `hasMore`, `limit` (5000), `offset`, `count`, `links` | Validação de cada linha contra o pedido (exercício, período, periodicidade, anexo, esfera, poder ou `demonstrativo`, `cod_ibge`); `valor` lido do texto JSON direto para `Decimal` |
-| Mais de uma página | `hasMore: true` | Novas páginas com `offset` += linhas recebidas (`limit=5000`); página vazia com `hasMore`, `offset` diferente do pedido ou mais de 50 páginas são erro. Um anexo de uma UF cabe numa página (o maior visto: RREO-Anexo 01 do RJ, 671 linhas) |
+| Sucesso | `200` página ORDS: `items`, `hasMore`, `limit` (5000 por padrão), `offset`, `count`, `links` | Validação de cada linha contra o pedido (exercício, período, periodicidade, anexo, esfera, poder ou `demonstrativo`, `cod_ibge`); `valor` lido do texto JSON direto para `Decimal` e recusado se não couber exatamente em `NUMERIC(24,8)` (mais de 8 casas ou 16 dígitos inteiros), em vez de ser arredondado |
+| Mais de uma página | `hasMore: true` | Novas páginas com `offset` += linhas recebidas (`limit=5000`); página vazia com `hasMore`, `offset` diferente do pedido ou mais de 50 páginas são erro. Um anexo de uma UF cabe numa página (o maior visto: RREO-Anexo 02 do RJ de 2024, 2.021 linhas; paginado com `limit=500`, mesmas linhas e mesma ordem) |
 | Filtro ausente ou inexistente (ente, anexo, período sem dados) | `200` com `items: []` | Não é erro: "ainda não disponível". Nada é gravado e o período é tentado de novo na próxima coleta (`not_available`) |
-| Linha repetida (mesmo `rotulo`, `coluna`, `cod_conta`, `conta`) | não observada | `SiconfiPayloadError`: o anexo inteiro é recusado (protege contra paginação instável) |
+| Linha repetida (mesmo `rotulo`, `coluna`, `cod_conta`, `conta`) | não observada | `SiconfiPayloadError`: o anexo inteiro é recusado (detecta sobreposição de páginas; linhas puladas não seriam detectadas, mas a paginação observada foi estável) |
 | `429`/`5xx`/erro de rede/`200` não JSON | — | Retry com backoff exponencial (`HTTP_MAX_RETRIES`, `HTTP_BACKOFF_BASE_SECONDS`) |
 | Outros códigos HTTP | — | Erro permanente, sem retry |
 
 **Limite de taxa.** A documentação oficial limita a API a 1 requisição por segundo. O cliente espaça o
 início de duas requisições em pelo menos `SICONFI_MIN_REQUEST_INTERVAL_SECONDS` (padrão 1,1 s; a
 configuração recusa valores abaixo de 1,0), inclusive entre tentativas e páginas; um teste com relógio
-simulado comprova o espaçamento.
+simulado comprova o espaçamento. O limitador vale dentro de um processo: duas coletas simultâneas somam
+as taxas, por isso o SICONFI não está no agendador (ADR 0009). O cabeçalho `Retry-After` do 429 não é
+lido; o backoff exponencial (1, 2, 4, 8 s) já é mais lento que o limite.
 
 **Coleta incremental.** Para cada UF e exercício, uma requisição ao `extrato_entregas`; para cada
 período pedido:
 
 1. sem entrega listada → `not_delivered` (nenhuma requisição ao relatório);
 2. já armazenado com `delivered_at` ≥ a entrega mais recente listada → `up_to_date` (nenhuma requisição);
-3. caso contrário (ou com `--refresh`) → coleta o anexo: `inserted` (novo), `unchanged` (mesmo
-   `content_hash`) ou `updated` (retificação).
+3. caso contrário (ou com `--refresh`) → coleta o anexo: `inserted` (novo), `updated` (retificação),
+   `unchanged` (mesmo `content_hash`) ou `awaiting_source` (ver abaixo).
 
 A entrega mais recente de um período é o maior `data_status` entre **todos** os órgãos que entregaram
 aquele relatório (no RGF cada poder entrega o seu); isso pode recoletar um anexo sem mudança, o que é
-inofensivo, mas nunca deixa de ver uma retificação. Se o data lake ainda servir a versão anterior quando a
-nova entrega já aparece no extrato, a coleta grava o conteúdo antigo com a data nova; `--refresh` corrige.
+inofensivo. O extrato pode listar uma retificação antes de o data lake servir o conteúdo novo: se uma
+entrega mais nova vem com o mesmo conteúdo e tem menos de `SICONFI_RECTIFICATION_GRACE_DAYS` (padrão 7)
+dias, o anexo fica `awaiting_source`, mantém a data da entrega anterior e é pedido de novo nas próximas
+coletas (com aviso no log); passado esse prazo, o conteúdo é aceito como `unchanged` (a retificação mexeu
+em outros anexos). `--refresh` força a recoleta a qualquer momento.
+
+O nome do anexo é validado (`RREO-Anexo 03`, `RGF-Anexo 02`, `RREO-Anexo 10 - RPPS`): um nome errado
+como `RREO-Anexo 3` faria a API responder vazio para todos os períodos. Se todos os períodos entregues
+voltarem `not_available`, a CLI termina com código 1, mesmo com a execução registrada como `success`.
 
 **Idempotência e revisões.** Unicidade (UF, relatório, exercício, periodicidade, período, anexo, esfera,
 poder; `NULLS NOT DISTINCT`, pois o RREO não tem poder) e, por linha, (`rotulo`, `coluna`, `cod_conta`,
@@ -226,8 +235,10 @@ poder; `NULLS NOT DISTINCT`, pois o RREO não tem poder) e, por linha, (`rotulo`
 independente da paginação. Numa retificação, as linhas alteradas, novas e removidas são aplicadas e
 cada mudança fica em `ingestion_runs.metadata_json.revisions` (linha, valor anterior, valor novo e hash
 anterior; até 1000 por execução, com o total em `revision_count`). Cada anexo é gravado na própria
-transação: uma falha preserva os anexos já coletados e a execução fica `failed`, com os resultados até
-ali em `metadata_json.reports`.
+transação: uma falha (inclusive interrupção com Ctrl+C) preserva os anexos já gravados e a execução fica
+`failed`, com contagens e resultados só dos anexos efetivamente gravados (`metadata_json.reports`).
+`records_updated` soma linhas alteradas e removidas; as removidas também ficam em
+`metadata_json.rows_deleted`.
 
 Verificação real (21/10/2026): RREO-Anexo 03 (bimestres 1–6) e RGF-Anexo 02 (quadrimestres 1–3,
 Executivo) de 2024 para SP e RJ: 18 anexos, 5.452 linhas, 22 requisições, sempre ≤ 1/s; RREO de SP de

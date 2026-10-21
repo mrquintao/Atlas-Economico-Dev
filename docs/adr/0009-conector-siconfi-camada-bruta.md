@@ -6,7 +6,7 @@
 
 A fase 2 depende dos relatórios fiscais que os estados entregam ao SICONFI (RREO bimestral,
 consolidado do ente; RGF quadrimestral, um por Poder ou órgão — LRF arts. 52, 54 e 55). A API de dados abertos do Tesouro (`apidatalake.tesouro.gov.br/ords/siconfi/tt`) serve
-cada anexo como linhas (`rotulo`, `coluna`, `conta`, `valor`), paginadas (ORDS, até 5000 por página), com
+cada anexo como linhas (`rotulo`, `coluna`, `conta`, `valor`), paginadas (ORDS, 5000 linhas por página por padrão), com
 limite documentado de 1 requisição por segundo. Os indicadores estaduais (RCL, DCL, DCL/RCL, despesa
 com pessoal, resultados primário e nominal) ainda serão definidos e validados pelo economist na S4;
 cada um depende de linhas e colunas específicas de anexos diferentes, e as estruturas dos anexos mudam
@@ -33,7 +33,11 @@ entre exercícios.
    recebe relógio injetável para ser testado de forma determinística.
 5. **Valores exatos.** O JSON é lido com `parse_float=Decimal`; nenhum valor passa por `float`.
 6. **Coleta manual por enquanto.** O agendador (ADR 0007) não coleta o SICONFI até a S4 definir os
-   anexos e o calendário de entregas que alimentam indicadores.
+   anexos e o calendário de entregas que alimentam indicadores. Antes de ligá-lo, é preciso uma trava
+   entre processos: o limitador de taxa vale só dentro de um processo.
+7. **Retificação ainda não refletida no data lake.** Uma entrega nova com conteúdo igual ao armazenado,
+   dentro de `SICONFI_RECTIFICATION_GRACE_DAYS`, não avança `delivered_at` (`awaiting_source`), para
+   que o anexo seja pedido de novo nas próximas coletas.
 
 ## Consequências
 

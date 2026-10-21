@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import asdict, dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
@@ -55,7 +55,8 @@ class ReportOutcome:
     state: str
     exercise: int
     period: int
-    # inserted | updated | unchanged | up_to_date | not_delivered | not_available
+    # inserted | updated | unchanged | awaiting_source | up_to_date | not_delivered |
+    # not_available
     status: str
     rows: int = 0
     delivered_at: str | None = None
@@ -79,6 +80,16 @@ class SiconfiSummary:
         self.revision_count += 1
         if len(self.revisions) < MAX_LISTED_REVISIONS:
             self.revisions.append(revision)
+
+    def absorb(self, report: SiconfiSummary, outcome: ReportOutcome) -> None:
+        """Add the counts of one report, called only after its transaction committed."""
+        self.rows_inserted += report.rows_inserted
+        self.rows_updated += report.rows_updated
+        self.rows_deleted += report.rows_deleted
+        self.rows_unchanged += report.rows_unchanged
+        for revision in report.revisions:
+            self.record_revision(revision)
+        self.reports.append(outcome)
 
 
 def ingest_siconfi_reports(
@@ -148,13 +159,16 @@ def ingest_siconfi_reports(
                         report_type, exercise, period, annex, unit.ibge_code, sphere, power,
                         periodicity,
                     )  # fmt: skip
-                    outcome = _collect(session, client, unit, request, deliveries, refresh, summary)
-                    summary.reports.append(outcome)
+                    report = SiconfiSummary(run_id, report_type, annex)
+                    outcome = _collect(
+                        session, settings, client, unit, request, deliveries, refresh, report
+                    )
                     session.commit()
+                    summary.absorb(report, outcome)
         summary.requests = client.requests_made
         _finish(session, run_id, summary, IngestionStatus.SUCCESS)
         session.commit()
-    except Exception as exc:
+    except BaseException as exc:  # also Ctrl+C: never leave the run as "running"
         session.rollback()
         summary.requests = client.requests_made
         _finish(session, run_id, summary, IngestionStatus.FAILED, exc)
@@ -192,6 +206,7 @@ def _states(session: Session, acronyms: list[str]) -> list[GeographicUnit]:
 
 def _collect(
     session: Session,
+    settings: Settings,
     client: SiconfiClient,
     unit: GeographicUnit,
     request: ReportRequest,
@@ -263,13 +278,27 @@ def _collect(
         outcome.status = "inserted"
         return outcome
     changed = stored.content_hash != result.content_hash
+    fields = _report_fields(result, delivered_at, now)
+    outcome.status = "updated" if changed else "unchanged"
     if changed:
         _apply_revision(stored, result, summary, unit.acronym)
     else:
         summary.rows_unchanged += len(result.rows)
-    for key, value in _report_fields(result, delivered_at, now).items():
+        grace = timedelta(days=settings.siconfi_rectification_grace_days)
+        newer = stored.delivered_at is None or delivered_at > stored.delivered_at
+        if newer and now - delivered_at < grace:
+            # A newer delivery is listed but the data lake still serves the stored content: it
+            # may not have caught up yet. Keep the previous delivery date so the period is
+            # requested again on the next runs; after the grace period the content is accepted
+            # as unchanged (the rectification touched other annexes).
+            fields["delivered_at"] = stored.delivered_at
+            outcome.status = "awaiting_source"
+            logger.warning(
+                "siconfi_delivery_without_content_change",
+                extra={"url": result.url, "delivered_at": delivered_at.isoformat()},
+            )
+    for key, value in fields.items():
         setattr(stored, key, value)
-    outcome.status = "updated" if changed else "unchanged"
     return outcome
 
 

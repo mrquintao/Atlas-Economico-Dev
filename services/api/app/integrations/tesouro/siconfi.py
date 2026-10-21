@@ -12,9 +12,9 @@ Every response is an Oracle REST Data Services page:
 ``{"items": [...], "hasMore": bool, "limit": int, "offset": int, "count": int, "links": [...]}``.
 
 Observed behaviour this connector relies on (verified 2026-10-21):
-- The default (and maximum) page size is 5000 rows; ``offset``/``limit`` query parameters page
-  through larger results and ``hasMore`` tells whether another page exists. One annex of one
-  state usually fits in a single page (RREO Anexo 01 of RJ, 2024/6th bimester: 671 rows).
+- The default page size is 5000 rows; ``offset``/``limit`` query parameters page through larger
+  results and ``hasMore`` tells whether another page exists. One annex of one state usually fits
+  in a single page (largest seen: RREO-Anexo 02 of RJ, 2024, 2021 rows).
 - Missing or unknown filters do not fail: the API answers 200 with ``items: []``. An empty
   result therefore means "not available in the data lake", never an error.
 - Report rows carry ``rotulo``, ``coluna``, ``cod_conta``, ``conta`` and ``valor`` (a JSON
@@ -31,6 +31,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 import time
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
@@ -127,8 +128,11 @@ class ReportRequest:
             raise SiconfiError(f"Periodicity {self.periodicity!r} invalid for {self.report_type}")
         if not 1 <= self.period <= PERIODS_PER_YEAR[self.periodicity]:
             raise SiconfiError(f"Period {self.period} invalid for periodicity {self.periodicity}")
-        if not self.annex.startswith(f"{self.report_type}-Anexo "):
-            raise SiconfiError(f"Annex {self.annex!r} does not belong to {self.report_type}")
+        if not re.fullmatch(rf"{self.report_type}-Anexo \d{{2}}( - .+)?", self.annex):
+            raise SiconfiError(
+                f"Annex {self.annex!r} is not a {self.report_type} annex name "
+                f'(e.g. "{self.report_type}-Anexo 02", "RREO-Anexo 10 - RPPS")'
+            )
         if self.sphere not in SPHERES:
             raise SiconfiError(f"Unknown sphere {self.sphere!r}")
         if self.report_type == "RGF" and self.power not in POWERS:
@@ -190,6 +194,8 @@ class Delivery:
 
 def plain_decimal(value: Decimal) -> str:
     """Canonical text of a value: no exponent, no trailing zeros (1000.10 and 1000.1 match)."""
+    if value.is_zero():
+        return "0"  # -0 and 0 are the same value
     return format(value.normalize(), "f")
 
 
@@ -215,6 +221,10 @@ def _decimal(value: Any, where: str) -> Decimal:
     result = Decimal(value)
     if not result.is_finite():
         raise SiconfiPayloadError(f"Non-finite valor in {where}: {value!r}")
+    # Must fit NUMERIC(24,8) exactly: never round silently.
+    exponent = result.normalize().as_tuple().exponent
+    if (isinstance(exponent, int) and exponent < -8) or result.adjusted() >= 16:
+        raise SiconfiPayloadError(f"valor does not fit NUMERIC(24,8) in {where}: {value!r}")
     return result
 
 

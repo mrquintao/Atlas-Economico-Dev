@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterator
+from contextlib import nullcontext
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
@@ -20,7 +22,7 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings
 from app.ingestion import cli
 from app.ingestion.series_ingestion import IngestionError
-from app.ingestion.siconfi import ingest_siconfi_reports
+from app.ingestion.siconfi import ReportOutcome, SiconfiSummary, ingest_siconfi_reports
 from app.integrations.tesouro.siconfi import SiconfiClient, SiconfiError, SiconfiPayloadError
 from app.models import FiscalReport, FiscalReportRow, GeographicUnit, IngestionRun
 
@@ -290,6 +292,7 @@ def test_rreo_reports_with_null_power_are_unique(
         ({"states": []}, IngestionError),
         ({"periods": [7]}, SiconfiError),
         ({"annex": "RGF-Anexo 02"}, SiconfiError),
+        ({"annex": "RREO-Anexo 3"}, SiconfiError),  # the API would answer [] for every period
     ],
 )
 def test_invalid_requests_fail_before_any_run(
@@ -324,3 +327,85 @@ def test_cli_rejects_invalid_arguments(argv: list[str]) -> None:
     with pytest.raises(SystemExit) as exc:
         cli.main(["ingest-siconfi", *argv])
     assert exc.value.code == 2
+
+
+def test_rectification_not_yet_in_the_data_lake_is_requested_again(
+    db: Session, settings: Settings, fake: FakeSiconfi
+) -> None:
+    """The statement lists a new delivery before the data lake serves the new content."""
+    run(db, settings, fake, states=["SP"], periods=[2])
+    recent = (datetime.now(UTC) - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    fake.deliveries[("35", DELIVERABLE["RREO"], 2)] = recent
+    summary = run(db, settings, fake, states=["SP"], periods=[2])
+    assert statuses(summary) == [("SP", 2, "awaiting_source")]
+    assert report_of(db, "SP", 2).delivered_at.year == 2024  # type: ignore[union-attr]
+    fake.reports[("rreo", "35", 2)] = {"C1": num("999"), "C2": num("22345678901.23")}
+    summary = run(db, settings, fake, states=["SP"], periods=[2])
+    assert statuses(summary) == [("SP", 2, "updated")]
+    assert stored_values(db, "SP", 2)["C1"] == Decimal("999")
+    summary = run(db, settings, fake, states=["SP"], periods=[2])
+    assert statuses(summary) == [("SP", 2, "up_to_date")]
+
+
+def test_unchanged_content_is_accepted_after_the_grace_period(
+    db: Session, settings: Settings, fake: FakeSiconfi
+) -> None:
+    run(db, settings, fake, states=["SP"], periods=[2])
+    old = (datetime.now(UTC) - timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    fake.deliveries[("35", DELIVERABLE["RREO"], 2)] = old  # rectification of another annex
+    summary = run(db, settings, fake, states=["SP"], periods=[2])
+    assert statuses(summary) == [("SP", 2, "unchanged")]
+    summary = run(db, settings, fake, states=["SP"], periods=[2])
+    assert statuses(summary) == [("SP", 2, "up_to_date")]
+
+
+def test_failed_commit_is_not_counted_as_stored(
+    db: Session, settings: Settings, fake: FakeSiconfi, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    commit, calls = db.commit, {"n": 0}
+
+    def flaky_commit() -> None:
+        calls["n"] += 1
+        if calls["n"] == 3:  # 1 = run created, 2 = SP period 1, 3 = SP period 2
+            raise RuntimeError("simulated commit failure")
+        commit()
+
+    monkeypatch.setattr(db, "commit", flaky_commit)
+    with pytest.raises(RuntimeError):
+        run(db, settings, fake, states=["SP"], periods=[1, 2])
+    failed = db.scalars(select(IngestionRun).order_by(IngestionRun.id.desc())).first()
+    assert failed is not None and failed.status == "failed"
+    assert failed.records_inserted == 2  # only period 1 was stored
+    assert failed.metadata_json is not None
+    assert [r["period"] for r in failed.metadata_json["reports"]] == [1]
+    assert stored_values(db, "SP", 2) == {}
+
+
+def test_interruption_is_recorded_as_failed_run(
+    db: Session, settings: Settings, fake: FakeSiconfi, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def interrupt(*_: Any) -> None:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(SiconfiClient, "fetch_report", interrupt)
+    with pytest.raises(KeyboardInterrupt):
+        run(db, settings, fake, states=["SP"], periods=[1])
+    last = db.scalars(select(IngestionRun).order_by(IngestionRun.id.desc())).first()
+    assert last is not None and last.status == "failed"
+
+
+def test_cli_fails_when_every_delivered_period_is_empty(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    summary = SiconfiSummary(1, "RREO", "RREO-Anexo 03")
+    summary.reports = [
+        ReportOutcome("SP", 2024, 1, "not_available"),
+        ReportOutcome("SP", 2024, 2, "not_delivered"),
+    ]
+    monkeypatch.setattr(cli, "ingest_siconfi_reports", lambda *a, **k: summary)
+    monkeypatch.setattr(cli, "get_session_factory", lambda: lambda: nullcontext(None))
+    argv = ["ingest-siconfi", "--report", "RREO", "--annex", "RREO-Anexo 03"]
+    assert cli.main([*argv, "--state", "SP", "--year", "2024"]) == cli.EXIT_FAILED
+    assert "check the annex name" in capsys.readouterr().err
+    summary.reports[0].status = "inserted"
+    assert cli.main([*argv, "--state", "SP", "--year", "2024"]) == cli.EXIT_OK

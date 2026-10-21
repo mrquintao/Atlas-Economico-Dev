@@ -221,6 +221,8 @@ def test_permanent_http_error_is_not_retried(settings: Settings) -> None:
         ({"valor": None}, "Non-numeric"),
         ({"valor": True}, "Non-numeric"),
         ({"conta": None}, "conta"),
+        ({"valor": 1.123456789}, "NUMERIC"),  # would be rounded by NUMERIC(24,8)
+        ({"valor": 1e16}, "NUMERIC"),
     ],
 )
 def test_rejects_invalid_rows(settings: Settings, override: dict[str, Any], message: str) -> None:
@@ -338,6 +340,16 @@ def test_deliveries_of_another_entity_are_rejected(settings: Settings) -> None:
     client = make_client(settings, lambda _: httpx.Response(200, content=body), FakeClock())
     with pytest.raises(SiconfiPayloadError, match="another entity"):
         client.fetch_deliveries("33", 2024)
+
+
+def test_accepts_annex_names_with_suffix() -> None:
+    assert ReportRequest("RREO", 2024, 6, "RREO-Anexo 10 - RPPS", "35").annex.endswith("RPPS")
+
+
+def test_negative_zero_hashes_like_zero() -> None:
+    assert rows_hash([ReportRow("r", "c", "k", "conta", Decimal("-0.00"))]) == rows_hash(
+        [ReportRow("r", "c", "k", "conta", Decimal("0"))]
+    )
 
 
 def test_rows_hash_ignores_order_but_not_values() -> None:

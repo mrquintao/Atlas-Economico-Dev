@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     # SICONFI documents a limit of 1 request per second; the minimum enforces it (with a margin
     # by default) and cannot be configured below it.
     siconfi_min_request_interval_seconds: float = Field(default=1.1, ge=1.0)
+    # Days after a new SICONFI delivery during which an unchanged annex is requested again, in
+    # case the data lake has not caught up with the rectification yet.
+    siconfi_rectification_grace_days: int = Field(default=7, ge=0)
 
     # Scheduled collection (Compose `scheduler` service): times of day, Brasília time.
     ingest_schedule: str = "06:00"
