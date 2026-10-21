@@ -14,7 +14,7 @@ Legenda de status: ✅ concluída · 🔄 em andamento · ⏳ pendente · ⛔ bl
 | M0b | Selic meta (SGS 432): conector BCB, ingestão idempotente, API, gráfico | M0a | §6.1, §11, §12, §27 | ✅ | PR #1 |
 | M0c | Dívida bruta/PIB (SGS 13762) e gráficos sincronizados | M0b | §5, §6.1, §14 | ✅ | PR #2 |
 | M1 | Robustez: parâmetros desconhecidos na API, filtros temporais de séries mensais, estados de carregamento | M0c | §12, §13G, §5 | ✅ | #3 · PR #28 |
-| M2 | IPCA acumulado em 12 meses (IBGE/SIDRA 1737): conector IBGE, validação metodológica, cartão e gráfico | M1 | §6.2, §5 | ⏳ | #4 |
+| M2 | IPCA acumulado em 12 meses (IBGE/SIDRA 1737): conector IBGE, validação metodológica, cartão e gráfico | M1 | §6.2, §5 | 🔄 PR aberto | #4 |
 | M3 | `GET /api/v1/dashboard/national` (resumo dos três indicadores) | M2 | §12 | ⏳ | #5 |
 | M4 | Automação da coleta: agendamento simples (serviço de agendamento no Compose) e monitoramento das execuções | M2 | §3.3, §7 Automação, §11 | ⏳ | #6 |
 | M5 | Páginas "Metodologia" e "Fontes de dados" geradas a partir do catálogo | M2 | §13, §22 | ⏳ | #7 |

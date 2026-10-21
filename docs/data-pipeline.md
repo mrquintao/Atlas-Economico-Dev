@@ -73,7 +73,10 @@ GET https://apisidra.ibge.gov.br/values/t/{tabela}/n1/all/v/{variável}/p/{AAAAM
 | Parâmetro inválido | `400` | Erro permanente, sem retry |
 | `429`/`5xx`/erro de rede/timeout/`200` não JSON | — | Retry com backoff exponencial |
 
-Uma única requisição traz a série inteira (~550 meses, ~1 s).
+Uma única requisição traz a série inteira (~550 meses, ~1 s). Rate limit próprio:
+`IBGE_MIN_REQUEST_INTERVAL_SECONDS` (0,5 s). O cabeçalho é validado (formato de códigos, nível Brasil,
+período mensal), assim como a variável, a unidade e o território de cada linha; linhas sem valor
+chegam com unidade vazia (`"MC": ""`) e são descartadas antes da checagem de unidade.
 
 ## Verificação real (20–21/10/2026)
 

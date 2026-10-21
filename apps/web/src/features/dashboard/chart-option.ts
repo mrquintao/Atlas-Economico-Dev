@@ -115,7 +115,8 @@ export function buildTimeSeriesOption({
       name: unit,
       nameTextStyle: { color: palette.muted, align: "left" },
       scale: false,
-      min: 0,
+      // Zero baseline for rates; extends below zero only if the series has negative values.
+      min: (extent: { min: number }) => Math.min(0, extent.min),
       axisLabel: { color: palette.muted, formatter: (v: number) => formatNumber(v, 0) },
       splitLine: { lineStyle: { color: palette.grid, type: "dashed" } },
     },

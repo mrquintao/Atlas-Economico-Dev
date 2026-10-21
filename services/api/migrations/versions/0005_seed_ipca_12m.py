@@ -63,10 +63,11 @@ def upgrade() -> None:
                 "meses), Brasil. Cada observação é a variação do índice de preços entre o mês "
                 "de referência e o mesmo mês do ano anterior, ou seja, o produto das 12 "
                 "variações mensais até o mês de referência. A data da observação é o mês de "
-                "referência; a janela de 12 meses começa, portanto, até 11 meses antes do "
-                "início de qualquer período filtrado. Não é a variação mensal nem a "
-                "acumulada no ano. Para os meses anteriores a dezembro de 1980 o IBGE não "
-                "divulga o acumulado em 12 meses ('...'); eles aparecem como lacunas. "
+                "referência, e a janela de acumulação começa 11 meses antes dele: num período "
+                "filtrado, o primeiro valor inclui preços de meses anteriores ao início "
+                "escolhido. Não é a variação mensal nem a acumulada no ano. A série começa em "
+                "dezembro de 1980, primeiro mês com 12 meses de histórico; antes disso o IBGE "
+                "não divulga o acumulado em 12 meses ('...'). "
                 "Variações entre dois meses são expressas em pontos percentuais (p.p.)."
             ),
         },

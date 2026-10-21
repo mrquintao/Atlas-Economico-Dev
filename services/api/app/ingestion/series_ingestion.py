@@ -246,18 +246,18 @@ def ingest_indicator(
 
 
 def period_end(reference_date: date, frequency: Frequency) -> date:
-    """Last day of the period an SGS observation refers to.
+    """Last day of the period an observation refers to.
 
-    SGS dates daily values by the day itself and monthly values by the 1st of the month.
+    Both SGS and SIDRA date daily values by the day itself and monthly values by the 1st.
     """
     if frequency == Frequency.DAILY:
         return reference_date
     if frequency == Frequency.MONTHLY:
         if reference_date.day != 1:
-            raise IngestionError(f"Monthly SGS date not on the 1st: {reference_date}")
+            raise IngestionError(f"Monthly date not on the 1st: {reference_date}")
         last_day = calendar.monthrange(reference_date.year, reference_date.month)[1]
         return reference_date.replace(day=last_day)
-    raise IngestionError(f"Unsupported frequency for SGS ingestion: {frequency}")
+    raise IngestionError(f"Unsupported frequency for ingestion: {frequency}")
 
 
 def _upsert(

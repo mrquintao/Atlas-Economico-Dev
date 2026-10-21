@@ -37,6 +37,7 @@ def settings() -> Settings:
         http_max_retries=3,
         http_backoff_base_seconds=0.01,
         bcb_min_request_interval_seconds=0,
+        ibge_min_request_interval_seconds=0,
         bcb_daily_window_years=10,
     )
 

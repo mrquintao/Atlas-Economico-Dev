@@ -26,6 +26,7 @@ from app.integrations.ibge.sidra import (
     split_series_code,
 )
 from app.models import Observation, ObservationRevision
+from tests.conftest import load_fixture
 
 HEADER = {
     "NC": "Nível Territorial (Código)",
@@ -74,6 +75,19 @@ def test_parse_value() -> None:
             parse_sidra_value(bad)
 
 
+def test_real_fixture() -> None:
+    """Real SIDRA excerpt (see tests/fixtures/README.md): missing rows carry an empty unit."""
+    payload = json.loads(load_fixture("sidra_1737_2265_sample.json"))
+    assert [r["MC"] for r in payload[1:3]] == ["", ""]
+    points, skipped = parse_sidra_payload(payload, variable="2265", unit_code="2")
+    assert skipped == 2
+    assert [(p.reference_date, p.value) for p in points] == [
+        (date(1980, 12, 1), Decimal("99.25")),
+        (date(2026, 8, 1), Decimal("4.22")),
+        (date(2026, 9, 1), Decimal("4.58")),
+    ]
+
+
 def test_payload_skips_missing_and_sorts() -> None:
     payload = [HEADER, row("202002", "3.2"), row("198012", "..."), row("202001", "3.1")]
     points, skipped = parse_sidra_payload(payload, variable="2265", unit_code="2")
@@ -94,6 +108,9 @@ def test_payload_skips_missing_and_sorts() -> None:
         [HEADER, row("202001", "1"), row("202001", "2")],  # duplicate month
         [HEADER, row("202001", "1", variable="63")],  # wrong variable
         [HEADER, row("202001", "1", unit="30")],  # wrong unit (index number)
+        [HEADER, row("202001", "..."), row("202001", "...")],  # duplicate missing month
+        [{**HEADER, "D3C": "Trimestre (Código)"}, row("202001", "1")],  # not monthly
+        [HEADER, {**row("202001", "1"), "D1C": "35"}],  # not Brasil
     ],
 )
 def test_payload_rejects_invalid(payload) -> None:

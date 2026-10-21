@@ -87,26 +87,38 @@ def parse_sidra_payload(
     if not isinstance(payload, list) or not payload:
         raise SIDRAPayloadError("Expected a non-empty JSON array")
     header, rows = payload[0], payload[1:]
-    if not isinstance(header, dict) or header.get("V") != "Valor":
+    # Codes format, national level, monthly periods: anything else (e.g. a quarterly table
+    # whose AAAA0N codes look like months) is rejected.
+    if (
+        not isinstance(header, dict)
+        or header.get("V") != "Valor"
+        or header.get("D3C") != "Mês (Código)"
+        or header.get("D1C") != "Brasil (Código)"
+    ):
         raise SIDRAPayloadError(f"Unexpected header row: {header!r}")
     points: dict[date, SGSPoint] = {}
+    seen: set[date] = set()
     skipped = 0
     for index, item in enumerate(rows, start=1):
         if not isinstance(item, dict) or not {"V", "D2C", "D3C", "MC"} <= item.keys():
             raise SIDRAPayloadError(f"Unexpected item at position {index}: {item!r}")
         if item["D2C"] != variable:
             raise SIDRAPayloadError(f"Variable {item['D2C']!r} returned, expected {variable!r}")
+        if item.get("D1C") != "1":
+            raise SIDRAPayloadError(f"Territory {item.get('D1C')!r} returned, expected Brasil (1)")
         reference_date = parse_sidra_month(item["D3C"])
+        if reference_date in seen:
+            raise SIDRAPayloadError(f"Duplicate month in payload: {item['D3C']}")
+        seen.add(reference_date)
         value = parse_sidra_value(item["V"])
         if value is None:
+            # Missing rows come with an empty unit code ("MC": ""), so this check comes first.
             skipped += 1
             continue
         if item["MC"] != unit_code:
             raise SIDRAPayloadError(
                 f"Unit code {item['MC']!r} for {item['D3C']}, expected {unit_code!r}"
             )
-        if reference_date in points:
-            raise SIDRAPayloadError(f"Duplicate month in payload: {item['D3C']}")
         points[reference_date] = SGSPoint(reference_date, value)
     return sorted(points.values(), key=lambda p: p.reference_date), skipped
 
@@ -151,7 +163,7 @@ class SIDRAClient:
         self._client.close()
 
     def _throttle(self) -> None:
-        interval = self.settings.bcb_min_request_interval_seconds
+        interval = self.settings.ibge_min_request_interval_seconds
         if self._last_request_at is not None and interval > 0:
             elapsed = time.monotonic() - self._last_request_at
             if elapsed < interval:

@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     bcb_daily_window_years: int = Field(default=1, ge=1, le=10)
     # Minimum interval between two requests to the same source (seconds).
     bcb_min_request_interval_seconds: float = 0.5
+    ibge_min_request_interval_seconds: float = 0.5
 
 
 @lru_cache

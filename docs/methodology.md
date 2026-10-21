@@ -9,7 +9,7 @@
    na consulta e declarada na resposta (`aggregation.method` e `aggregation.description`).
 3. **Variações de taxas em pontos percentuais.** A diferença entre dois valores de um indicador
    em % é expressa em `p.p.` (`indicators.change_unit`). Selic de 10% para 12% = **+2 p.p.**
-4. **Gráficos não enganosos.** Eixo vertical começa em zero para taxas; escalas diferentes ficam em
+4. **Gráficos não enganosos.** Eixo vertical começa em zero para taxas (ou abaixo de zero, só quando a série tem valores negativos); escalas diferentes ficam em
    gráficos separados; nada de eixo duplo indiscriminado.
 
 ## Meta Selic (SGS 432)

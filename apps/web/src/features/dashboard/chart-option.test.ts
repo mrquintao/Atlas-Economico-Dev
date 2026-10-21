@@ -22,7 +22,8 @@ describe("buildTimeSeriesOption", () => {
 
   it("plots values as a step series on a time axis starting at zero", () => {
     expect(option.xAxis.type).toBe("time");
-    expect(option.yAxis.min).toBe(0);
+    expect(option.yAxis.min({ min: 2, max: 15 })).toBe(0);
+    expect(option.yAxis.min({ min: -1.5, max: 4 })).toBe(-1.5);
     expect(option.yAxis.name).toBe("% a.a.");
     expect(option.series[0].step).toBe("end");
     expect(option.series[0].data).toEqual([

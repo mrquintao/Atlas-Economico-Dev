@@ -54,7 +54,8 @@ fonte oficial.
   inteira (550 pontos) é recoletada a cada execução, numa só requisição.
 - **Conferência em 21/10/2026 (IPCA_12M no banco após a coleta real):** dez/1994 = 916,46 ·
   jan/2003 = 14,47 · dez/2015 = 10,67 · dez/2021 = 10,06 · set/2025 = 5,17 · set/2026 = 4,58 (última).
+  As 550 observações do banco foram comparadas uma a uma com `p/all` do SIDRA: nenhuma divergência.
   Verificação independente: o acumulado foi recalculado como o produto das 12 variações mensais
-  (variável 63) para todos os 550 meses; 542 coincidem dentro do arredondamento de 2 casas e os
-  8 restantes (fev–set/1994, hiperinflação acima de 2.000%) diferem em até 0,14 ponto, ou menos de 0,004%
-  do valor, efeito do arredondamento das taxas mensais publicadas.
+  (variável 63) para os 550 meses. A partir de 1996 a diferença máxima é 0,009 ponto, efeito do
+  arredondamento das taxas mensais a 2 casas. Nos anos de alta inflação esse arredondamento se
+  acumula: a diferença chega a 0,14 ponto em jun/1994 (4.922,60% publicado), menos de 0,004% do valor.

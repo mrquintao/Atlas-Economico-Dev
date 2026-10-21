@@ -1,6 +1,8 @@
 import { formatDate, formatDateTime } from "@/lib/format";
 import type { ObservationsResponse } from "@/types/api";
 
+import { sourceSeriesLabel } from "./summary";
+
 const FREQUENCY_LABEL: Record<string, string> = {
   daily: "Diária",
   monthly: "Mensal",
@@ -32,8 +34,8 @@ export function MethodologyPanel({ response }: { response: ObservationsResponse 
         <dd>{indicator.methodology}</dd>
         <dt className="text-muted-foreground">Fonte</dt>
         <dd>
-          {indicator.source.organization} — {indicator.source.name}, série{" "}
-          {indicator.source_series_code}.{" "}
+          {indicator.source.organization} — {indicator.source.name},{" "}
+          {sourceSeriesLabel(indicator)}.{" "}
           <a
             href={indicator.source_url}
             target="_blank"

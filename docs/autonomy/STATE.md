@@ -8,11 +8,11 @@
 | Atualizado em | 2026-10-21 |
 | Fase atual | 1 — MVP nacional |
 | Última entrega | M1 — Robustez (issue #3), PR #28: parâmetros desconhecidos e repetidos (422), filtro pelo fim do período de referência + índice, presets alinhados ao mês, estados de carregamento consistentes |
-| Próxima entrega elegível | **M2 — IPCA 12 meses ([#4](https://github.com/mrquintao/Atlas-Economico-Dev/issues/4))** |
-| Issue ativa | nenhuma até o início da M2 |
-| Branch | novo branch a partir da `main` atualizada após o merge do PR #28 |
+| Próxima entrega elegível | **M3 — `GET /api/v1/dashboard/national` ([#5](https://github.com/mrquintao/Atlas-Economico-Dev/issues/5))**, após o merge da M2 |
+| Issue ativa | M2 ([#4](https://github.com/mrquintao/Atlas-Economico-Dev/issues/4)): PR aberto a partir de `claude/admiring-knuth-q0bg78`; conferir o estado do PR antes de qualquer trabalho |
+| Branch | `claude/admiring-knuth-q0bg78` (M2) |
 | Último commit integrado na `main` | merge do PR #28 (conferir com `git log origin/main -1`) |
-| Última validação | `scripts/check.sh` num clone limpo: 113 pytest (PostgreSQL) e 46 vitest; lint, format, `alembic check`, typecheck e build; navegador com dados reais (cursor 118/118, console limpo); qa-auditor: pronto para PR |
+| Última validação | M2: `scripts/check.sh` (144 pytest com PostgreSQL, 51 vitest, lint, format, `alembic check`, typecheck, build); coleta real do IPCA (550 meses, idempotente) conferida 100% contra o SIDRA; navegador desktop e mobile com dados reais, console limpo; qa-auditor sem críticos, achados importantes corrigidos |
 
 ## Bloqueios
 
@@ -29,16 +29,22 @@
 
 ## Próxima ação recomendada
 
-Iniciar a M2 (#4): (1) testar o acesso ao SIDRA (`apisidra.ibge.gov.br`) pelo proxy; (2) `economist` valida a
-tabela 1737, a variável do acumulado em 12 meses e as amostras; (3) conector `integrations/ibge/sidra.py`
-e despacho da ingestão por fonte; (4) seed `IPCA_12M` com `period_*` = mês de referência e janela de 12
-meses como metadado (comentário na #4); (5) cartão e terceiro gráfico sincronizado.
+1. Se o PR da M2 ainda estiver aberto: conferir a CI do último commit e fazer o merge pelo gate da
+   AGENT_POLICY §3; depois fechar a #4 e marcar a M2 como ✅ no roadmap.
+2. Iniciar a M3 (#5): endpoint `GET /api/v1/dashboard/national` com o resumo dos três indicadores.
+
+Achados menores da auditoria da M2 deixados para depois (registrados no PR): resposta vazia do SIDRA conta
+como sucesso, igual ao SGS (avaliar alerta na M4, monitoramento); lacunas de vários meses recebem uma
+única quebra no gráfico (o cursor cai no ponto real mais próximo); "Todo o histórico" começa em 1980 por
+causa do IPCA.
 
 ## Ambiente de desenvolvimento (lembrete para sessões em nuvem)
 
 - PostgreSQL 16 local: `/usr/lib/postgresql/16/bin`, dados em `/tmp/pgdata` (sobrevive a reinícios;
   após um reboot: `su postgres -c "/usr/lib/postgresql/16/bin/pg_ctl -D /tmp/pgdata -l /tmp/pgdata/log -o '-p 5432 -k /tmp' start"`).
-  Bancos: `atlas` (dados reais, **não destruir**; migrado até 0004), `atlas_test` e `atlas_ci` (descartáveis).
+  Bancos: `atlas` (dados reais, **não destruir**; migrado até 0005), `atlas_test` e `atlas_ci` (descartáveis).
 - Validação local: `TEST_DATABASE_URL=postgresql+psycopg://atlas:atlas@localhost:5432/atlas_ci scripts/check.sh`.
 - Sem Docker local: os Dockerfiles são validados pelo job `Docker Compose` do CI.
-- Proxy de saída: a API do BCB responde; o SIDRA deve ser testado no início da M2.
+- Proxy de saída: as APIs do BCB e do SIDRA (`apisidra.ibge.gov.br`) respondem.
+- Se `/tmp/pgdata` não existir (sessão nova), inicializar com `initdb -A trust` como `postgres`, criar o
+  papel `atlas` e os bancos.
