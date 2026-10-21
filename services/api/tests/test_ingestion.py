@@ -230,3 +230,58 @@ def test_original_error_survives_failure_to_record_the_run(
     monkeypatch.setattr(module, "_finish", database_down)
     with pytest.raises(SGSUnavailableError):
         ingest(broken, start=date(2024, 1, 1))
+
+
+# --- Monthly series (DBGG_GDP, SGS 13762). Synthetic values. ---
+
+
+def monthly(values: dict[tuple[int, int], str]) -> dict[date, str | None]:
+    return {date(y, m, 1): v for (y, m), v in values.items()}
+
+
+@pytest.fixture
+def ingest_dbgg(db: Session, settings: Settings):
+    def run(fake, **kwargs):
+        kwargs.setdefault("today", date(2024, 10, 21))
+        return ingest_sgs_indicator(db, client_for(settings, fake), "DBGG_GDP", **kwargs)
+
+    return run
+
+
+def test_monthly_observation_covers_the_whole_month(db: Session, ingest_dbgg) -> None:
+    fake = FakeSGS(monthly({(2024, 1): "74.47", (2024, 2): "74.81"}))
+    summary = ingest_dbgg(fake, full=True)
+
+    assert summary.inserted == 2
+    feb = db.scalar(select(Observation).where(Observation.reference_date == date(2024, 2, 1)))
+    assert feb is not None
+    assert (feb.period_start, feb.period_end) == (date(2024, 2, 1), date(2024, 2, 29))
+    assert feb.value == Decimal("74.81")
+    assert feb.source_reference == "bcdata.sgs.13762"
+
+
+def test_monthly_series_is_requested_in_a_single_window(db: Session, ingest_dbgg) -> None:
+    fake = FakeSGS(monthly({(2006, 12): "55.48", (2024, 8): "77.36"}))
+    ingest_dbgg(fake, full=True)
+    assert fake.requests == [("01/12/2006", "21/10/2024")]
+
+
+def test_monthly_incremental_run_refetches_full_history(db: Session, ingest_dbgg) -> None:
+    """GDP revisions can change the ratio years back, so every run re-reads everything."""
+    values = monthly({(2006, 12): "55.48", (2015, 12): "65.50", (2024, 8): "77.36"})
+    ingest_dbgg(FakeSGS(values))
+    values[date(2015, 12, 1)] = "65.61"  # e.g. GDP revised by IBGE
+    summary = ingest_dbgg(FakeSGS(values))  # no start/full: incremental
+
+    assert summary.start == date(2006, 12, 1)
+    assert (summary.inserted, summary.updated, summary.unchanged) == (0, 1, 2)
+    revision = db.scalar(select(ObservationRevision))
+    assert revision is not None
+    assert (revision.previous_value, revision.new_value) == (Decimal("65.50"), Decimal("65.61"))
+
+
+def test_monthly_date_not_on_first_day_is_rejected(db: Session, ingest_dbgg) -> None:
+    fake = FakeSGS({date(2024, 1, 15): "74.47"})
+    with pytest.raises(IngestionError, match="not on the 1st"):
+        ingest_dbgg(fake, full=True)
+    assert count_obs(db) == 0

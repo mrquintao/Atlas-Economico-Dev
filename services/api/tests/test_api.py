@@ -218,3 +218,66 @@ def test_monthly_marks_first_stored_month_as_partial(client: TestClient, seeded:
     body = client.get(URL, params={"frequency": "monthly"}).json()
     assert body["observations"][0]["partial"] is True
     assert body["observations"][1]["partial"] is False
+
+
+@pytest.fixture
+def dbgg_seeded(db: Session) -> None:
+    """Synthetic monthly series Jan..Mar 2024 for DBGG_GDP."""
+    indicator = db.scalar(select(Indicator).where(Indicator.code == "DBGG_GDP"))
+    brazil = db.scalar(select(GeographicUnit).where(GeographicUnit.acronym == "BR"))
+    assert indicator is not None and brazil is not None
+    now = datetime.now(UTC)
+    for month, value, end in [(1, "74.47", 31), (2, "74.81", 29), (3, "75.02", 31)]:
+        db.add(
+            Observation(
+                indicator_id=indicator.id,
+                geographic_unit_id=brazil.id,
+                reference_date=date(2024, month, 1),
+                period_start=date(2024, month, 1),
+                period_end=date(2024, month, end),
+                value=Decimal(value),
+                collected_at=now,
+                source_reference="test",
+            )
+        )
+    db.flush()
+
+
+DBGG_URL = "/api/v1/indicators/DBGG_GDP/observations"
+
+
+def test_dbgg_metadata(client: TestClient) -> None:
+    body = client.get("/api/v1/indicators/DBGG_GDP").json()
+    assert body["source_series_code"] == "13762"
+    assert body["unit"] == "% do PIB"
+    assert body["change_unit"] == "p.p."
+    assert body["frequency"] == "monthly"
+    assert body["first_available_date"] == "2006-12-01"
+    assert "SGS 4537" in body["methodology"]  # warns against mixing methodologies
+
+
+def test_monthly_series_is_served_without_aggregation(
+    client: TestClient, dbgg_seeded: None
+) -> None:
+    for frequency in ("original", "monthly"):
+        body = client.get(DBGG_URL, params={"frequency": frequency}).json()
+        assert body["aggregation"]["method"] == "none"
+        assert body["frequency"] == "monthly"
+        assert [(o["date"], o["period_end"], o["partial"]) for o in body["observations"]] == [
+            ("2024-01-01", "2024-01-31", False),
+            ("2024-02-01", "2024-02-29", False),
+            ("2024-03-01", "2024-03-31", False),
+        ]
+        assert body["stats"]["change"] == pytest.approx(0.55)
+        assert body["stats"]["change_unit"] == "p.p."
+
+
+def test_monthly_series_cannot_be_converted_to_daily(client: TestClient) -> None:
+    response = client.get(DBGG_URL, params={"frequency": "daily"})
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "frequency_not_supported"
+
+
+def test_catalog_lists_both_indicators(client: TestClient) -> None:
+    codes = [i["code"] for i in client.get("/api/v1/indicators").json()]
+    assert codes == ["DBGG_GDP", "SELIC_TARGET"]

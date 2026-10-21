@@ -14,6 +14,7 @@ Guarantees:
 
 from __future__ import annotations
 
+import calendar
 import logging
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
@@ -38,8 +39,14 @@ from app.models import (
 
 logger = logging.getLogger(__name__)
 
-# Days re-fetched before the last stored observation on incremental runs.
-INCREMENTAL_OVERLAP_DAYS = 90
+# How far before the last stored observation incremental runs re-fetch, so that recent
+# revisions by the source are detected. ``None`` means "always re-fetch the full history":
+# monthly fiscal ratios inherit IBGE GDP revisions that can reach years back, and the whole
+# series is a single small request (~240 points).
+INCREMENTAL_OVERLAP: dict[Frequency, timedelta | None] = {
+    Frequency.DAILY: timedelta(days=90),
+    Frequency.MONTHLY: None,
+}
 _INSERT_CHUNK = 1000
 NATIONAL_IBGE_CODE = "1"
 
@@ -88,12 +95,11 @@ def _resolve_range(
                     Observation.geographic_unit_id == geo.id,
                 )
             )
-        if last_stored is None:
+        overlap = INCREMENTAL_OVERLAP[Frequency(indicator.frequency)]
+        if last_stored is None or overlap is None:
             effective_start = first_available
         else:
-            effective_start = max(
-                first_available, last_stored - timedelta(days=INCREMENTAL_OVERLAP_DAYS)
-            )
+            effective_start = max(first_available, last_stored - overlap)
     if effective_start > effective_end:
         raise IngestionError(f"Empty range: {effective_start} > {effective_end}")
     return effective_start, effective_end
@@ -204,6 +210,21 @@ def ingest_sgs_indicator(
     return summary
 
 
+def period_end(reference_date: date, frequency: Frequency) -> date:
+    """Last day of the period an SGS observation refers to.
+
+    SGS dates daily values by the day itself and monthly values by the 1st of the month.
+    """
+    if frequency == Frequency.DAILY:
+        return reference_date
+    if frequency == Frequency.MONTHLY:
+        if reference_date.day != 1:
+            raise IngestionError(f"Monthly SGS date not on the 1st: {reference_date}")
+        last_day = calendar.monthrange(reference_date.year, reference_date.month)[1]
+        return reference_date.replace(day=last_day)
+    raise IngestionError(f"Unsupported frequency for SGS ingestion: {frequency}")
+
+
 def _upsert(
     session: Session,
     run: IngestionRun,
@@ -213,6 +234,7 @@ def _upsert(
     collected_at: datetime,
     summary: IngestionSummary,
 ) -> None:
+    frequency = Frequency(indicator.frequency)
     existing: dict[date, tuple[int, Decimal]] = {
         row.reference_date: (row.id, row.value)
         for row in session.execute(
@@ -248,7 +270,7 @@ def _upsert(
                     "geographic_unit_id": geo.id,
                     "reference_date": point.reference_date,
                     "period_start": point.reference_date,
-                    "period_end": point.reference_date,
+                    "period_end": period_end(point.reference_date, frequency),
                     "value": point.value,
                     "collected_at": collected_at,
                     "source_reference": source_reference,
