@@ -7,6 +7,7 @@ from app.api.errors import ApiError
 from app.api.v1.catalog import DbSession, build_indicator_out, get_indicator_or_404
 from app.models import Frequency
 from app.repositories import catalog as catalog_repo
+from app.repositories.observations import ObservationRow
 from app.schemas.catalog import GeographyOut
 from app.schemas.observations import (
     AggregationOut,
@@ -93,11 +94,11 @@ def get_observations(
             method=series.aggregation,  # type: ignore[arg-type]
             description=AGGREGATION_DESCRIPTIONS[series.aggregation],
         ),
-        # Effective range: never earlier than requested, even when a month is cut.
-        start_date=max(series.rows[0].period_start, start_date or date.min)
-        if series.rows
-        else start_date,
-        end_date=series.rows[-1].reference_date if series.rows else end_date,
+        # Effective range covered by the returned reference periods, clipped to the request:
+        # from the first period's start to the last period's end (or, for a partial last
+        # period, its last available date).
+        start_date=effective_start(series.rows, start_date),
+        end_date=effective_end(series.rows, series.partial_flags, end_date),
         count=len(series.rows),
         stats=None
         if stats is None
@@ -120,3 +121,19 @@ def get_observations(
             for row, partial in zip(series.rows, series.partial_flags, strict=True)
         ],
     )
+
+
+def effective_start(rows: list[ObservationRow], requested: date | None) -> date | None:
+    if not rows:
+        return requested
+    first = rows[0].period_start
+    return max(first, requested) if requested else first
+
+
+def effective_end(
+    rows: list[ObservationRow], partial: list[bool], requested: date | None
+) -> date | None:
+    if not rows:
+        return requested
+    last = rows[-1].reference_date if partial[-1] else rows[-1].period_end
+    return min(last, requested) if requested else last

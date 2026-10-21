@@ -321,7 +321,7 @@ def test_docs_and_openapi_unaffected(client: TestClient) -> None:
     assert client.get("/docs").status_code == 200
 
 
-# --- Monthly series are filtered by reference-period overlap (issue #3) ---
+# --- Monthly series: a period matches when it ends within the range (issue #3, ADR 0005) ---
 
 
 def test_monthly_series_includes_month_overlapping_start(
@@ -333,11 +333,30 @@ def test_monthly_series_includes_month_overlapping_start(
     assert body["start_date"] == "2024-01-15"  # effective start never earlier than requested
 
 
-def test_monthly_series_includes_month_overlapping_end(
+def test_monthly_series_excludes_month_not_ended_by_end_date(
     client: TestClient, dbgg_seeded: None
 ) -> None:
+    # Feb/2024 is an end-of-month position (29/02), after the requested end: excluded.
     body = client.get(DBGG_URL, params={"end_date": "2024-02-15"}).json()
-    assert [o["date"] for o in body["observations"]] == ["2024-01-01", "2024-02-01"]
+    assert [o["date"] for o in body["observations"]] == ["2024-01-01"]
+    assert body["end_date"] == "2024-01-31"
+
+
+def test_monthly_range_inside_a_single_month_returns_no_value(
+    client: TestClient, dbgg_seeded: None
+) -> None:
+    body = client.get(
+        DBGG_URL, params={"start_date": "2024-02-05", "end_date": "2024-02-20"}
+    ).json()
+    assert body["count"] == 0
+    assert body["stats"] is None
+
+
+def test_effective_range_describes_returned_periods(client: TestClient, dbgg_seeded: None) -> None:
+    body = client.get(DBGG_URL).json()
+    assert (body["start_date"], body["end_date"]) == ("2024-01-01", "2024-03-31")
+    for obs in body["observations"]:
+        assert body["start_date"] <= obs["period_start"] <= obs["period_end"] <= body["end_date"]
 
 
 def test_monthly_series_excludes_months_outside_range(
@@ -352,3 +371,9 @@ def test_monthly_series_excludes_months_outside_range(
 def test_daily_series_filtering_is_unchanged(client: TestClient, seeded: None) -> None:
     body = client.get(URL, params={"start_date": "2024-02-15", "end_date": "2024-02-16"}).json()
     assert [o["date"] for o in body["observations"]] == ["2024-02-15", "2024-02-16"]
+
+
+def test_repeated_start_date_is_rejected(client: TestClient) -> None:
+    response = client.get(f"{URL}?start_date=2024-01-01&start_date=2024-06-01")
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "repeated_parameter"
