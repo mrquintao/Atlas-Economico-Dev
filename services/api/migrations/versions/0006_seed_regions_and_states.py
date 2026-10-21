@@ -101,9 +101,21 @@ def upgrade() -> None:
             ),
             {"code": code, "acronym": acronym, "name": name, "region": region},
         )
+    counts = dict(
+        conn.execute(
+            sa.text(
+                "SELECT geographic_level, count(*) FROM geographic_units "
+                "WHERE geographic_level IN ('region', 'state') GROUP BY geographic_level"
+            )
+        ).all()
+    )
+    # INSERT ... SELECT inserts nothing if the parent is missing; fail instead of seeding less.
+    if counts != {"region": len(REGIONS), "state": len(STATES)}:
+        raise RuntimeError(f"Expected 5 regions and 27 states, got {counts}")
 
 
 def downgrade() -> None:
+    # Fails on the foreign key (by design) once any observation references a region or UF.
     conn = op.get_bind()
     conn.execute(sa.text("DELETE FROM geographic_units WHERE geographic_level = 'state'"))
     conn.execute(sa.text("DELETE FROM geographic_units WHERE geographic_level = 'region'"))

@@ -5,7 +5,7 @@ from decimal import Decimal
 
 import httpx
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
@@ -79,7 +79,10 @@ def test_inserts_observations_and_logs_run(db: Session, ingest) -> None:
 
 
 def test_stores_national_series_under_brasil_not_region_with_same_code(db: Session, ingest) -> None:
-    # IBGE code 1 is both Brasil and the Norte region (migration 0006).
+    # IBGE code 1 is both Brasil and the Norte region (migration 0006). Rewriting the Brasil row
+    # moves it after Norte in the heap, so a lookup by code alone would pick the region.
+    db.execute(text("UPDATE geographic_units SET name = name WHERE geographic_level = 'country'"))
+    db.flush()
     ingest(FakeSGS(daily(date(2024, 1, 1), 3, "11.75")), start=date(2024, 1, 1))
     levels = set(
         db.scalars(

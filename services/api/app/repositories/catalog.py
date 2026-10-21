@@ -32,7 +32,8 @@ def list_sources(session: Session) -> list[DataSource]:
 
 
 # Resolution order when a code or acronym exists at several levels ("1" is Brasil and the Norte
-# region; "SE" is Sergipe and the Sudeste region): coarser national/state units come first.
+# region; "SE" is Sergipe and the Sudeste region): country, then state, then region, so a bare UF
+# acronym or code always means the UF. Listings use the same order.
 LEVEL_ORDER = case(
     {"country": 0, "state": 1, "region": 2, "municipality": 3},
     value=GeographicUnit.geographic_level,

@@ -106,7 +106,11 @@ def seed(session: Session) -> dict[str, int]:
             raise SystemExit(
                 f"Refusing to seed: the database already has {model.__tablename__} rows."
             )
-    geo = session.scalar(select(GeographicUnit).where(GeographicUnit.acronym == "BR"))
+    geo = session.scalar(
+        select(GeographicUnit).where(
+            GeographicUnit.geographic_level == "country", GeographicUnit.acronym == "BR"
+        )
+    )
     if geo is None:
         raise SystemExit("Run the migrations first (catalog not seeded).")
     counts: dict[str, int] = {}
