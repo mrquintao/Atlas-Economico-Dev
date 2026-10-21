@@ -101,6 +101,19 @@ DCL/RCL 113,03%, pessoal 118.023.183.648,21 (42,28%); SP 2026, 4º bimestre: RCL
 primário 5.320.559.240,55, nominal −3.239.892.643,59, investimentos 6.364.385.612,14; SP 2018, 3º
 quadrimestre: DC 311.794.212.065,99; PR 2018, 3º quadrimestre: pessoal 16.756.448.040,19 (44,57%).
 
+## Verificação real (21/10/2026)
+
+- `derive-fiscal --year 2025 --collect` no banco local: 5 anexos × 27 UFs (RGF Anexos 01 e 02 do
+  Executivo, 3 quadrimestres; RREO Anexos 01, 03 e 06, 6 bimestres; todas as entregas presentes),
+  **1.053 observações** (162 por indicador bimestral, 81 por quadrimestral), 0 `row_missing`,
+  0 `ambiguous`. Reexecução: 0 inseridas, 0 alteradas, 1.053 inalteradas.
+- As 54 amostras da tabela acima (6 UFs × 9 indicadores) conferem com o banco, sem divergência.
+- Conferência independente na API oficial, em períodos do início e do meio do ano de outras UFs:
+  RCL PA 2º bim. = 41.267.835.625,04; DCL GO 2º quadr. = 12.520.638.489,13; primário CE 3º bim. =
+  858.276.624,42; pessoal/RCL AM 1º quadr. = 38,28%; investimentos SC 4º bim. = 2.858.129.884,70 —
+  todos iguais aos derivados. O qa-auditor conferiu ainda AC (DCL, 1º quadr.), TO (DCL/RCL, 1º a 3º
+  quadr.) e PE (investimentos, 3º bim.) na camada bruta.
+
 ## Fora do escopo agora
 
 Resultados de 2018–2022 (só como série própria, nunca emendada); resultados com RPPS ou abaixo da
