@@ -3,6 +3,25 @@
 Entradas curtas, da mais recente para a mais antiga: o que foi entregue, o que foi validado, as falhas e
 como foram corrigidas, e as decisões relevantes. Os detalhes ficam nos PRs, nas issues e nos ADRs.
 
+
+## 2026-10-21 — S6 concluída: mapa coroplético das UFs (issue #16, PR #45)
+
+- Concorrência: outra sessão ainda finalizava a S7 (PR #44); esta sessão reivindicou a S6 na issue e
+  mesclou a `main` antes do PR (conflitos aditivos em `estados/page.tsx` e `state-indicators.ts`).
+- API `GET /states/map/{code}`: 27 UFs num só período, `coverage`, período padrão com ≥ 14 UFs,
+  escala pelo catálogo (`SIGNED_CODES`), notas. Web: D3 Geo (`d3-geo` 3.1.1), quantis viridis/PuOr,
+  hachura "sem dado", legenda, filtros, teclado, tabela; malha sintética na fixture E2E.
+- economist: regras de escala, período padrão, notas e indicador padrão (pessoal/RCL).
+- qa-auditor: **crítico** — a malha do IBGE (RFC 7946, anel externo anti-horário) virava "globo
+  inteiro" no d3-geo; os testes passavam porque os quadrados sintéticos eram horários. Corrigido com
+  reorientação dos anéis, teste sobre a amostra real e quadrados sintéticos anti-horários. Médios e
+  baixos corrigidos (mapa velho sob erro, período mantido com dados de outro indicador, cobertura
+  só de UFs); zero na primeira classe não negativa ficou documentado.
+- Verificação real: `derive-fiscal --year 2025 --collect` (1.053 observações) + malha do IBGE; o
+  mapa confere com as 42 amostras oficiais; inspeção visual com a malha real.
+- Ambiente: `/tmp/pgdata` recriado (bancos `atlas` com 2025 das 27 UFs e malha, `atlas_ci`,
+  `atlas_test`, `atlas_e2e`). Lição: `pkill -f` com padrão da própria linha derrubou o shell de novo.
+
 ## 2026-10-21 — S7: página por estado `/estados/[uf]` (issue #17, PRs #43 e #44)
 
 - O mantenedor integrou o branch no PR #43 antes da auditoria; o PR #44 traz as correções do economist

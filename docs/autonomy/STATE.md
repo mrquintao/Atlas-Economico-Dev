@@ -7,12 +7,12 @@
 |---|---|
 | Atualizado em | 2026-10-21 |
 | Fase atual | 2 — Atlas estadual (MVP nacional concluído: release `v0.1.0`) |
-| Última entrega | S7 — página por estado `/estados/[uf]` (issue #17, PRs #43 e #44). Antes: S5 (#15, PR #42), S4 (#14, PR #41), S3 (#13, PR #40), S2 (#12, PR #39), S1 (#11, PR #38) e [release `v0.1.0`](https://github.com/mrquintao/Atlas-Economico-Dev/releases/tag/v0.1.0) |
-| Próxima entrega elegível | **S6 — mapa interativo ([#16](https://github.com/mrquintao/Atlas-Economico-Dev/issues/16))** (D3 Geo sobre `/geographies/states/boundaries` + dados estaduais; links para `/estados/[uf]`); depois S8 (#18, comparações e rankings) |
+| Última entrega | S6 — mapa coroplético das UFs em `/estados` (issue #16, PR #45). Antes: S7 (#17, PRs #43 e #44), S5 (#15, PR #42), S4 (#14, PR #41), S3 (#13, PR #40), S2 (#12, PR #39), S1 (#11, PR #38) e [release `v0.1.0`](https://github.com/mrquintao/Atlas-Economico-Dev/releases/tag/v0.1.0) |
+| Próxima entrega elegível | **S8 — comparação entre estados e rankings com métricas relativas ([#18](https://github.com/mrquintao/Atlas-Economico-Dev/issues/18))**; depois S9 (#19, release `v0.2.0`) |
 | Issue ativa | nenhuma (comentar na issue ao iniciar, para evitar sessões concorrentes) |
 | Branch | novo branch a partir da `main` atualizada |
-| Último commit integrado na `main` | merge do PR #44 (conferir com `git log origin/main -1`); tag `v0.1.0` em `ade5512` |
-| Última validação | S7: `scripts/check.sh` verde (382 pytest, 112 vitest); E2E 24/24 local e no CI (fixture sintética com SP, DF e MG) |
+| Último commit integrado na `main` | merge do PR #45 (conferir com `git log origin/main -1`); tag `v0.1.0` em `ade5512` |
+| Última validação | S6: `scripts/check.sh` verde (397 pytest, 137 vitest); E2E 28/28; mapa sobre coleta real de 2025 (27 UFs) igual às 42 amostras oficiais, com a malha real do IBGE |
 
 ## Bloqueios
 
@@ -29,12 +29,11 @@
 
 ## Próxima ação recomendada
 
-Iniciar a S6 (#16), mapa coroplético das 27 UFs: geometrias de `/geographies/states/boundaries`
-(malha só é coletada manualmente com `ingest-boundaries`) e valores por UF. Hoje só há endpoints por UF
-(`/states/{uf}/…`, ~40–55 consultas cada): um mapa precisa de um endpoint com as 27 UFs de um indicador
-num período (consolidar as consultas, achado da S5). Cada UF do mapa deve linkar para `/estados/[uf]`;
-UF sem dado = ausência explícita (nunca cor de zero). Reutilizar `formatValue`/`formatPeriod`
-(`src/lib/format.ts`) e a lista `src/lib/states.ts`.
+Iniciar a S8 (#18), comparação entre UFs e rankings com métricas relativas (per capita, % da RCL).
+Reaproveitar o corte transversal de `GET /states/map/{code}` (27 UFs num período, `coverage`) e as
+regras de escala/notas do mapa (`docs/state-fiscal-indicators.md`, seção S6). Métricas per capita exigem
+população oficial (IBGE) com metadados: validar a série com o economist antes. Manter neutralidade
+(sem "melhor/pior") e o DF com a nota de comparabilidade.
 
 Concorrência: na S7, o mantenedor integrou o branch da sessão (PR #43) antes da auditoria; as
 correções vieram no PR #44. Na S1, outra sessão disparou a release `v0.1.0` um minuto antes (a segunda
@@ -63,7 +62,7 @@ segue coberta só pelo smoke test do job Docker (ADR 0008).
 
 - PostgreSQL 16 local: `/usr/lib/postgresql/16/bin`, dados em `/tmp/pgdata` (sobrevive a reinícios;
   após um reboot: `su postgres -c "/usr/lib/postgresql/16/bin/pg_ctl -D /tmp/pgdata -l /tmp/pgdata/log -o '-p 5432 -k /tmp' start"`).
-  Bancos: `atlas` (dados reais, **não destruir**; recriado do zero na sessão da S5: `atlas` migrado até 0009, com os anexos de 2024 e 2025 de SP e DF e os `STATE_*` derivados, sem séries nacionais nem malha), `atlas_test` e `atlas_ci` (descartáveis).
+  Bancos: `atlas` (dados reais, **não destruir**; recriado do zero na sessão da S6: migrado até 0009, com os anexos de 2025 das 27 UFs, os `STATE_*` derivados e a malha do IBGE, sem séries nacionais), `atlas_test` e `atlas_ci` (descartáveis).
 - Validação local: `TEST_DATABASE_URL=postgresql+psycopg://atlas:atlas@localhost:5432/atlas_ci scripts/check.sh`.
 - E2E local: banco `atlas_e2e` com a fixture sintética (`docs/testing-e2e.md`), `npm run build` e
   `CI=1 DATABASE_URL=…/atlas_e2e PLAYWRIGHT_CHROMIUM_EXECUTABLE=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npm run test:e2e`.
