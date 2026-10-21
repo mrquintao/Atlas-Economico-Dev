@@ -52,15 +52,33 @@ que atende ao filtro de intervalo das consultas (ADR 0005); e índice por `refer
 
 ## Frontend
 
-- `src/app/` — layout com navegação (`Brasil`, `Metodologia`, `Fontes de dados`) e páginas
-  (estáticas; dados buscados no cliente após hidratação): `/`, `/metodologia` e `/fontes`.
-- `src/features/dashboard/` — painel, filtro de período, cartões, gráfico, metodologia.
+- `src/app/` — layout com navegação (`Brasil`, `Estados`, `Metodologia`, `Fontes de dados`) e páginas
+  (estáticas; dados buscados no cliente após hidratação): `/`, `/estados`, `/estados/[uf]`,
+  `/metodologia` e `/fontes`. As 27 páginas `/estados/[uf]` são pré-renderizadas a partir da lista de
+  UFs em `src/lib/states.ts` (a mesma da migração 0006, conferida por teste).
+- `src/proxy.ts` — Proxy do Next.js 16 restrito a `/estados/:uf`: sigla em minúsculas → `308` para a
+  página canônica (`/estados/mg` → `/estados/MG`); qualquer outro segmento (`XX`, `BR`, código IBGE)
+  → página `not-found` com status `404`. A verificação precisa ocorrer antes da renderização: a página
+  é transmitida em streaming e um `notFound()` dentro dela só produziria a página de erro com status 200.
+- `src/features/dashboard/` — painel nacional, filtro de período, cartões, gráfico, metodologia.
+  O gráfico e a sincronização servem a qualquer frequência: diária, mensal, bimestral (RREO) e
+  quadrimestral (RGF). Um ponto de período vale pelo seu último dia ao alinhar o cursor (um
+  quadrimestre destaca o seu último bimestre); lacunas de período quebram a linha; nos fluxos
+  acumulados no ano a linha também é interrompida na virada do ano (o valor de janeiro recomeça a
+  acumulação).
+- `src/features/states/` — página da UF sobre `GET /states/{uf}/dashboard` (cartões com o último
+  valor, período de referência, janela de acumulação e diferença para o mesmo período do ano
+  anterior) e `GET /states/{uf}/indicators` (uma requisição para todas as séries do intervalo).
+  Indicadores sem dados da UF não têm cartão nem gráfico e são listados como ausentes; UF sem nenhum
+  dado mostra só o aviso. A ressalva do DF (`notes`) aparece em destaque.
 - `src/features/catalog/` — páginas de catálogo: `/metodologia` lista todos os indicadores de
   `GET /api/v1/indicators` e `/fontes` as fontes de `GET /api/v1/sources` com os indicadores de cada
   uma. `IndicatorMetadata` também é usado no painel de metodologia de cada gráfico: nenhum texto
   metodológico fica no frontend, tudo vem do catálogo (seeds das migrações). Âncoras por código
   (`/metodologia#SELIC_TARGET`, `/fontes#BCB`).
   O intervalo de datas é estado único do painel e é repassado a todos os gráficos (sincronização).
-- `src/lib/format.ts` — formatação pt-BR reutilizável (vírgula decimal, `p.p.`, datas sem fuso).
+- `src/lib/format.ts` — formatação pt-BR reutilizável (vírgula decimal, `p.p.`, datas sem fuso,
+  valores em reais com escala explícita — `R$ 268,00 bi` —, bimestres `6º bim./2025 (nov–dez)` e
+  quadrimestres `3º quadr./2025 (set–dez)`).
 - `src/lib/period.ts` — períodos predefinidos (5 anos, 10 anos, desde 2008, todo o histórico).
 - `src/hooks/useObservations.ts` — carregamento com estados de loading/erro/sucesso e cancelamento.

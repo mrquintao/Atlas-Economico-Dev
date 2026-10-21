@@ -66,7 +66,7 @@ docker compose exec api python -m app.ingestion.cli ingest-boundaries           
 docker compose exec api python -m app.ingestion.cli ingest-siconfi --report RGF --annex "RGF-Anexo 02" --state SP --year 2024  # SICONFI
 ```
 
-- Frontend: http://localhost:3000 (painel nacional; catálogo em `/metodologia` e `/fontes`)
+- Frontend: http://localhost:3000 (painel nacional; estados em `/estados` e `/estados/SP`; catálogo em `/metodologia` e `/fontes`)
 - API: http://localhost:8000 · documentação OpenAPI interativa em http://localhost:8000/docs
 - PostgreSQL: `127.0.0.1:5432` (acessível apenas a partir do computador local; a API usa a rede interna do Compose).
 

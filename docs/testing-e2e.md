@@ -16,6 +16,7 @@ Os E2E nunca usam dados oficiais coletados nem chamam as fontes. O banco de test
 | `SELIC_TARGET` | diária | 01/01/2004 a 30/06/2026 (nível que muda a cada 45 dias) |
 | `DBGG_GDP` | mensal | dez/2006 a mai/2026 |
 | `IPCA_12M` | mensal | jan/2000 a mai/2026 |
+| 9 indicadores `STATE_*` | bimestral e quadrimestral | 2023 a 2025: SP com os nove, DF sem `STATE_NOMINAL_RESULT`, MG só com `STATE_RCL` e `STATE_DCL_RCL`; demais UFs sem dados |
 
 O script só roda com `ATLAS_E2E_SEED=1`, num banco cujo nome contenha `e2e` ou `test` (o banco
 `atlas`, padrão do `DATABASE_URL`, é recusado) e que ainda não tenha observações nem execuções de coleta.
@@ -33,6 +34,12 @@ Assim, nunca mistura valores sintéticos com dados oficiais.
   demais.
 - Troca diária/mensal da Selic mantendo o zoom.
 - Estado vazio (período sem observações) e intervalo inválido (início após o fim).
+- Páginas estaduais (`e2e/states.spec.ts`): lista das 27 UFs; cartões de SP (valor em reais com
+  escala, bimestre/quadrimestre, janela de acumulação, diferença para o mesmo período do ano anterior
+  e fonte); gráficos nomeados pelos períodos; cursor de um quadrimestre que destaca o **último
+  bimestre** do período no gráfico bimestral; período personalizado; ressalva e indicador ausente do
+  DF; ausências explícitas de MG; UF sem dados (AC); `/estados/mg` → `308` para `/estados/MG`; UF
+  inválida (`XX`, `BR`, `31`) → página "não encontrada" com status `404`.
 - Navegação para "Metodologia" e "Fontes de dados", âncoras por indicador e link do painel de metodologia.
 - **Nenhum erro no console** nem exceção não tratada em nenhum teste (fixture automática).
 
