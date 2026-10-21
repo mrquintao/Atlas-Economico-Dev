@@ -14,6 +14,7 @@ from app.api.query_params import reject_unknown_query_params
 class Filters(BaseModel):
     limit: int = 10
     order_by: str = Field("date", alias="orderBy")
+    view: str | None = Field(None, validation_alias="vv")
 
 
 def paging(page: int = 1) -> int:
@@ -45,16 +46,23 @@ def client() -> TestClient:
 
 
 def test_fields_of_a_query_model_are_accepted(client: TestClient) -> None:
-    assert client.get("/model", params={"limit": 5, "orderBy": "value"}).json() == {
+    assert client.get("/model", params={"limit": 5, "orderBy": "value", "vv": "x"}).json() == {
         "limit": 5,
         "order_by": "value",
+        "view": "x",
     }
+
+
+def test_validation_alias_is_the_accepted_name(client: TestClient) -> None:
+    # The field name is not read from the query string, so it must not be silently accepted.
+    body = client.get("/model", params={"view": "x"}).json()["error"]
+    assert body["code"] == "unknown_parameter"
 
 
 def test_unknown_parameter_on_a_query_model_route(client: TestClient) -> None:
     body = client.get("/model", params={"offset": 1}).json()["error"]
     assert body["code"] == "unknown_parameter"
-    assert body["details"]["allowed"] == ["limit", "orderBy"]
+    assert body["details"]["allowed"] == ["limit", "orderBy", "vv"]
 
 
 def test_aliases_lists_and_dependency_params(client: TestClient) -> None:

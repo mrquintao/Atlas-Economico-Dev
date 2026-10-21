@@ -24,8 +24,10 @@ auditoria do `qa-auditor`.
      (fim da janela); a janela da medida pode começar antes do início escolhido, por definição.
 
    Para isso, `period_start`/`period_end` são sempre o período de referência (mês ou bimestre), nunca a
-   janela de acumulação, que é metadado da série. Um intervalo contido num único mês não traz ponto
-   mensal: a interface mostra o estado vazio, nunca um valor preenchido.
+   janela de acumulação, que é metadado da série. Em séries mensais nativas, um intervalo contido num
+   único mês não traz ponto: a interface mostra o estado vazio, nunca um valor preenchido. Na visão
+   mensal agregada de uma série diária (ex.: Selic), o filtro age sobre os dados diários antes da
+   agregação, e meses cortados pelo intervalo vêm marcados `partial`.
 2. **Datas efetivas da resposta:** `start_date` e `end_date` descrevem o intervalo coberto pelos
    períodos devolvidos, recortado ao pedido: início do primeiro período (ou o início pedido, se
    posterior) até o fim do último período (ou a última data disponível, se o período estiver parcial).

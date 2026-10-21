@@ -7,13 +7,12 @@
 |---|---|
 | Atualizado em | 2026-10-21 |
 | Fase atual | 1 — MVP nacional |
-| Entrega ativa | M1 — Robustez (parâmetros desconhecidos, filtros mensais, estados de carregamento) |
-| Issue ativa | [#3](https://github.com/mrquintao/Atlas-Economico-Dev/issues/3) |
-| PR associado | (a abrir) |
-| Branch | `claude/compassionate-mayer-eon3qz` (a partir de `main@c0f3b5c`) |
-| Último commit integrado na `main` | `c0f3b5c` — merge do PR #2 (DBGG/PIB e gráficos sincronizados) |
-| Próxima entrega elegível após a ativa | M2 — IPCA 12 meses ([#4](https://github.com/mrquintao/Atlas-Economico-Dev/issues/4)) |
-| Última validação | PR #2: CI verde (API, Web, Docker); 93 pytest e 41 vitest |
+| Última entrega | M1 — Robustez (issue #3), PR #28: parâmetros desconhecidos e repetidos (422), filtro pelo fim do período de referência + índice, presets alinhados ao mês, estados de carregamento consistentes |
+| Próxima entrega elegível | **M2 — IPCA 12 meses ([#4](https://github.com/mrquintao/Atlas-Economico-Dev/issues/4))** |
+| Issue ativa | nenhuma até o início da M2 |
+| Branch | novo branch a partir da `main` atualizada após o merge do PR #28 |
+| Último commit integrado na `main` | merge do PR #28 (conferir com `git log origin/main -1`) |
+| Última validação | `scripts/check.sh` num clone limpo: 113 pytest (PostgreSQL) e 46 vitest; lint, format, `alembic check`, typecheck e build; navegador com dados reais (cursor 118/118, console limpo); qa-auditor: pronto para PR |
 
 ## Bloqueios
 
@@ -30,12 +29,16 @@
 
 ## Próxima ação recomendada
 
-Concluir a M1 (#3): implementar, validar, auditar com o `qa-auditor`, abrir o PR, integrar quando o gate
-for satisfeito e iniciar a M2 (#4), começando pela validação metodológica do SIDRA 1737 pelo `economist`.
+Iniciar a M2 (#4): (1) testar o acesso ao SIDRA (`apisidra.ibge.gov.br`) pelo proxy; (2) `economist` valida a
+tabela 1737, a variável do acumulado em 12 meses e as amostras; (3) conector `integrations/ibge/sidra.py`
+e despacho da ingestão por fonte; (4) seed `IPCA_12M` com `period_*` = mês de referência e janela de 12
+meses como metadado (comentário na #4); (5) cartão e terceiro gráfico sincronizado.
 
 ## Ambiente de desenvolvimento (lembrete para sessões em nuvem)
 
-- PostgreSQL 16 local: `/usr/lib/postgresql/16/bin`; bancos `atlas` (dados reais, **não destruir**),
-  `atlas_test` e `atlas_ci` (descartáveis).
+- PostgreSQL 16 local: `/usr/lib/postgresql/16/bin`, dados em `/tmp/pgdata` (sobrevive a reinícios;
+  após um reboot: `su postgres -c "/usr/lib/postgresql/16/bin/pg_ctl -D /tmp/pgdata -l /tmp/pgdata/log -o '-p 5432 -k /tmp' start"`).
+  Bancos: `atlas` (dados reais, **não destruir**; migrado até 0004), `atlas_test` e `atlas_ci` (descartáveis).
+- Validação local: `TEST_DATABASE_URL=postgresql+psycopg://atlas:atlas@localhost:5432/atlas_ci scripts/check.sh`.
 - Sem Docker local: os Dockerfiles são validados pelo job `Docker Compose` do CI.
 - Proxy de saída: a API do BCB responde; o SIDRA deve ser testado no início da M2.

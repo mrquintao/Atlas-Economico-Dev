@@ -47,7 +47,13 @@ def _declared_query_params(route: APIRoute) -> dict[str, bool]:
             annotation = _unwrap_optional(param.field_info.annotation)
             if isinstance(annotation, type) and issubclass(annotation, BaseModel):
                 for name, field in annotation.model_fields.items():
-                    declared[field.alias or name] = _is_sequence(field.annotation)
+                    # The name actually read from the query string: validation alias, alias, name.
+                    query_name = (
+                        field.validation_alias
+                        if isinstance(field.validation_alias, str)
+                        else field.alias or name
+                    )
+                    declared[query_name] = _is_sequence(field.annotation)
             else:
                 declared[param.alias] = _is_sequence(annotation)
         pending.extend(dependant.dependencies)

@@ -3,6 +3,21 @@
 Entradas curtas, da mais recente para a mais antiga: o que foi entregue, o que foi validado, as falhas e
 como foram corrigidas, e as decisões relevantes. Os detalhes ficam nos PRs, nas issues e nos ADRs.
 
+## 2026-10-21 — M1 concluída (issue #3, PR #28)
+
+- API: `422 unknown_parameter` para parâmetros não declarados (inclusive campos de modelos de query) e
+  `422 repeated_parameter` para escalares repetidos.
+- Filtro temporal: a primeira versão (sobreposição de períodos) foi rejeitada pelo qa-auditor, porque
+  incluía a posição de 31/03 num intervalo encerrado em 15/03. A regra final, validada pelo economist, é
+  "o período de referência termina no intervalo", com novo índice `period_end` (migração 0004; o
+  Seq Scan virou Index Scan). Datas efetivas da resposta simétricas.
+- Frontend: presets alinhados ao 1º dia do mês, domínio do eixo a partir do mês inicial, "Atualizando…",
+  nova tentativa em todos os erros, erro do catálogo visível.
+- Processo: a validação por clone limpo pegou erros de ruff que quebrariam o CI. Criado
+  `scripts/check.sh`, espelho dos gates do CI (recusa o banco de dados reais), e `alembic check` no CI.
+- Testes: 113 pytest e 46 vitest; regressões comprovadas (falham sem a correção). Duas auditorias do
+  qa-auditor; a final deu "pronto para PR".
+
 ## 2026-10-21 — Decisão de escopo: exclusão de funcionalidades com LLM (ADR 0004)
 
 - Decisão permanente do mantenedor: o produto não terá funcionalidades baseadas em LLM.
@@ -18,7 +33,6 @@ como foram corrigidas, e as decisões relevantes. Os detalhes ficam nos PRs, nas
 - Backlog no GitHub: issues #3–#27 (Fases 1–3, I1 de infraestrutura), com labels `phase:*`, `type:*`,
   `priority:*`, `autonomous:yes` e `agent:blocked`.
 - Bloqueios registrados: proteção de branch e auto-merge nativo (#10) e GitHub Projects.
-- M1 em andamento (detalhes no PR).
 
 ## 2026-10-21 — PR #2: DBGG/PIB (SGS 13762) e gráficos sincronizados
 

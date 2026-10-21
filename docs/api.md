@@ -26,7 +26,7 @@ inexistente com parâmetro desconhecido responde 422. Erros sempre no formato:
 | Parâmetro | Padrão | Descrição |
 |---|---|---|
 | `start_date` | — (início da série) | Data inicial inclusiva |
-| `end_date` | — (última observação) | Data final inclusiva. Entra toda observação cujo **período de referência termina** no intervalo (`start_date <= period_end <= end_date`; ADR 0005) |
+| `end_date` | — (última observação) | Data final inclusiva. Entra toda observação cujo **período de referência termina** no intervalo (`start_date <= period_end <= end_date`; ADR 0005). Com `frequency=monthly` sobre série diária, o filtro age sobre os dados diários **antes** da agregação: o último mês pode vir com `partial: true` e `period_end` após `end_date` |
 | `geography` | `BR` | Sigla ou código IBGE. Série nacional pedida para UF → `422 geography_not_available` |
 | `frequency` | `original` | `original`, `daily` ou `monthly` (último valor do mês). Conversão para frequência mais alta → `422 frequency_not_supported` |
 

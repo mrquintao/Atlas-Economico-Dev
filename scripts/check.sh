@@ -6,6 +6,10 @@
 #   TEST_DATABASE_URL=postgresql+psycopg://atlas:atlas@localhost:5432/atlas_ci scripts/check.sh
 set -euo pipefail
 : "${TEST_DATABASE_URL:?set TEST_DATABASE_URL to a disposable database}"
+# Never run against the database with real collected data (the checks drop the schema).
+case "${TEST_DATABASE_URL%%\?*}" in
+  */atlas) echo "Refusing to run: TEST_DATABASE_URL points to the 'atlas' database (real data)." >&2; exit 2 ;;
+esac
 root="$(cd "$(dirname "$0")/.." && pwd)"
 
 echo "== API =="

@@ -16,8 +16,9 @@ o `PROJECT_SPEC.md` nem sobre as proibições abaixo.
 5. Validar localmente **a partir de um clone limpo** com `scripts/check.sh` (lint, format, migrações,
    testes, typecheck e build: os mesmos gates dos jobs API e Web do CI).
 6. Validar dados contra a fonte oficial (amostras registradas na documentação).
-7. Pedir auditoria adversarial ao `qa-auditor`, corrigir os achados críticos, altos e médios (os baixos
-   são corrigidos ou registrados na issue) e repetir a validação.
+7. Pedir auditoria adversarial ao `qa-auditor`; corrigir os achados críticos e altos; corrigir os médios
+   ou registrar a decisão (no PR ou em ADR); corrigir ou registrar na issue os baixos; repetir a
+   validação e a auditoria quando houver correção relevante.
 8. Fazer commits pequenos, abrir o PR para a `main` com `Closes #N`, aguardar o CI e integrar (§3).
 9. Atualizar `STATE.md`, `RUN_LOG.md`, o roadmap e a issue.
 
