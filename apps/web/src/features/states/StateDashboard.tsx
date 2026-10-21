@@ -13,8 +13,9 @@ import {
   type DateRange,
   type PeriodPreset,
 } from "@/lib/period";
-import type { Indicator, StateIndicatorSeries, StateIndicators } from "@/types/api";
+import type { Frequency, Indicator, StateIndicatorSeries, StateIndicators } from "@/types/api";
 
+import { alignTime, granularityOf, isoToTime } from "../dashboard/chart-sync";
 import { SeriesBody } from "../dashboard/IndicatorPanel";
 import { PeriodFilter } from "../dashboard/PeriodFilter";
 import { resetsEachYear } from "./state-indicators";
@@ -28,10 +29,23 @@ interface StoredBounds {
   last: string | null;
 }
 
-/** Earliest first and latest last stored date of the UF across its state indicators. */
+/** Last day of the period that starts on `iso` (a bimester, a four-month period…). */
+function periodEnd(iso: string, frequency: Frequency): string {
+  const end = new Date(alignTime(isoToTime(iso), granularityOf(frequency, false), "day"));
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}`;
+}
+
+/**
+ * Earliest first stored date and latest end of the last stored period of the UF. Stored dates
+ * are period starts, while the API filters by period end: ending the range at the last period's
+ * start would leave that period out.
+ */
 export function stateBounds(indicators: Indicator[]): StoredBounds {
   const firsts = indicators.flatMap((i) => (i.first_stored_date ? [i.first_stored_date] : []));
-  const lasts = indicators.flatMap((i) => (i.last_stored_date ? [i.last_stored_date] : []));
+  const lasts = indicators.flatMap((i) =>
+    i.last_stored_date ? [periodEnd(i.last_stored_date, i.frequency)] : [],
+  );
   return {
     first: firsts.length ? firsts.reduce((a, b) => (a < b ? a : b)) : null,
     last: lasts.length ? lasts.reduce((a, b) => (a > b ? a : b)) : null,

@@ -32,7 +32,7 @@ Legenda de status: ✅ concluída · 🔄 em andamento · ⏳ pendente · ⛔ bl
 | S4 | Catálogo e normalização de indicadores fiscais estaduais (RCL, DC, DCL, DCL/RCL, pessoal, primário, nominal, investimentos), validados pelo economist | S3 | §16 | ✅ | #14 · PR #41 |
 | S5 | API estadual: `/states/{uf}/indicators` e `/states/{uf}/dashboard` | S4 | §12 | ✅ | #15 · PR #42 |
 | S6 | Mapa interativo do Brasil (D3 Geo): coroplético acessível, ausências explícitas, filtro temporal | S2, S5 | §15 | ⏳ | #16 |
-| S7 | Página por estado `/estados/[uf]` | S5 | §15, §16 | ⏳ | #17 |
+| S7 | Página por estado `/estados/[uf]` | S5 | §15, §16 | 🔄 | #17 |
 | S8 | Comparação entre estados e rankings com métricas relativas | S5, S7 | §16 | ⏳ | #18 |
 | S9 | Release `v0.2.0` (Atlas estadual) | S1–S8 | §23 | ⏳ | #19 |
 

@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: PageProps<"/estados/[uf]">): 
         title: `${state.name} (${state.acronym}) — Atlas Econômico Brasileiro`,
         description: `Indicadores fiscais — ${state.name} (${state.acronym}): valores dos relatórios entregues ao SICONFI, com fonte e metodologia.`,
       }
-    : { title: "UF não encontrada — Atlas Econômico Brasileiro" };
+    : { title: "Página não encontrada — Atlas Econômico Brasileiro" };
 }
 
 export default async function StatePage({ params }: PageProps<"/estados/[uf]">) {

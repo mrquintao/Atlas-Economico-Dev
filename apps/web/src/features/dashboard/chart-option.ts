@@ -131,10 +131,12 @@ export function buildTimeSeriesOption({
       borderColor: palette.grid,
       textStyle: { color: palette.text },
       formatter: (params: unknown) => {
-        const first = (Array.isArray(params) ? params[0] : params) as { data?: Datum } | undefined;
-        if (!first?.data) return "";
+        // A year break of a year-to-date flow shares the x of January's value: show the value.
+        const items = (Array.isArray(params) ? params : [params]) as { data?: Datum }[];
+        const first = items.find((p) => p?.data && p.data[1] !== null);
+        if (!first?.data) return ""; // only a break inserted for a missing period
         const [date, value, partial] = first.data;
-        if (value === null) return ""; // break inserted for a missing period
+        if (value === null) return "";
         const partialNote = partial ? " (mês parcial)" : "";
         const when = sparse
           ? `Referência: ${formatPeriod(frequency, date, true)}`

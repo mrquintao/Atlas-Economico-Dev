@@ -70,7 +70,9 @@ export function formatCurrency(value: number, signed = false, decimals = DECIMAL
 
 /** An axis tick: up to two decimals, none when not needed ("0,5", "1", "1,5"). */
 export function formatAxisNumber(value: number): string {
-  return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 }).format(value);
+  // Ticks like -1e-16 or -0 would read "-0".
+  const tick = Math.abs(value) < 0.005 ? 0 : value;
+  return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 }).format(tick);
 }
 
 /** A level in its unit: amounts in reais are scaled (formatCurrency), rates use formatRate. */

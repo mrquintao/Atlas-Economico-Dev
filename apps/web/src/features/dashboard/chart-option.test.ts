@@ -212,6 +212,16 @@ describe("fiscal series (synthetic test data)", () => {
     expect(ticks).toEqual(["0", "0,5", "1", "1,5", "2"]);
   });
 
+  it("shows January's value, not the year break that shares its date", () => {
+    const html = option.tooltip.formatter([
+      { data: ["2025-01-01", null, false] },
+      { data: ["2025-01-01", 15e9, false] },
+    ]);
+    expect(html).toContain("R$ 15,00 bi");
+    expect(html).toContain("1º bim./2025 (jan–fev)");
+    expect(option.tooltip.formatter([{ data: ["2025-05-01", null, false] }])).toBe("");
+  });
+
   it("marks every point of a sparse series, so a single period is visible", () => {
     expect(option.series[0].symbolSize(["2025-11-01", 1, false])).toBeGreaterThan(0);
   });

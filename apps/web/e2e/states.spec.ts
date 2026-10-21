@@ -68,6 +68,25 @@ test("SP: charts in their own periods, synchronised across bimesters and four-mo
   expect(await tooltipText(rcl)).toBe("R$ 268,00 bi Referência: 6º bim./2025 (nov–dez)");
 });
 
+test("SP: the first bimester of a year-to-date flow shows its value on hover", async ({ page }) => {
+  await page.goto("/estados/SP");
+  const primary = chart(page, "Resultado primário");
+  await expect(primary).toBeVisible();
+  // Default domain: 01/01/2023 to 31/12/2025 (end of the last bimester); 01/01/2025 sits at
+  // 731 of 1095 days. January restarts the accumulation (a line break shares its date).
+  await hover(page, primary, 731 / 1095);
+  expect(await tooltipText(primary)).toBe("R$ 3,00 bi Referência: 1º bim./2025 (jan–fev)");
+});
+
+test("SP: the latest end date still includes the latest periods", async ({ page }) => {
+  await page.goto("/estados/SP");
+  await expect(chart(page, RCL)).toBeVisible();
+  await page.getByLabel("Data final").fill("2025-12-31");
+  await expect(chart(page, RCL)).toHaveAccessibleName(/a 6º bim\.\/2025/);
+  await expect(chart(page, DCL_RCL)).toHaveAccessibleName(/a 3º quadr\.\/2025/);
+  await expect(page.getByLabel("Data final")).toHaveAttribute("max", "2025-12-31");
+});
+
 test("SP: a custom period reloads every chart", async ({ page }) => {
   await page.goto("/estados/SP");
   await expect(chart(page, RCL)).toBeVisible();
@@ -118,6 +137,7 @@ for (const path of ["/estados/XX", "/estados/BR", "/estados/31"]) {
   test(`an invalid UF (${path}) gets a friendly 404`, async ({ page, consoleErrors }) => {
     const response = await page.goto(path);
     expect(response?.status()).toBe(404);
+    await expect(page).toHaveTitle("Página não encontrada — Atlas Econômico Brasileiro");
     await expect(page.getByRole("heading", { level: 1, name: "Página não encontrada" })).toBeVisible();
     await page.getByRole("link", { name: "Ver a lista de estados" }).click();
     await expect(page).toHaveURL(/\/estados$/);

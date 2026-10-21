@@ -280,7 +280,7 @@ describe("StateDashboard", () => {
     expect(rclChart).toHaveAttribute("data-resets", "false");
     expect(rclChart).toHaveTextContent("de 6º bim./2024 a 6º bim./2025");
     // Shared x-axis domain: the UF's earliest first and latest last stored dates.
-    expect(rclChart).toHaveAttribute("data-domain", "2024-01-01/2025-11-01");
+    expect(rclChart).toHaveAttribute("data-domain", "2024-01-01/2025-12-31");
     const primaryChart = screen.getByTestId("chart-Resultado primário");
     expect(primaryChart).toHaveAttribute("data-resets", "true");
     // No statistics for year-to-date flows (periods not comparable): only the last value.
@@ -302,9 +302,9 @@ describe("StateDashboard", () => {
     expect(requests("/states/SP/indicators")[0].searchParams.get("start_date")).toBeNull();
 
     await userEvent.click(screen.getByRole("button", { name: "5 anos" }));
-    // "5 anos" ends at the latest period stored for the UF (nov/2025).
+    // "5 anos" ends at the end of the latest period stored for the UF (31/12/2025).
     await waitFor(() =>
-      expect(requests("/states/SP/indicators").at(-1)?.searchParams.get("start_date")).toBe("2020-11-01"),
+      expect(requests("/states/SP/indicators").at(-1)?.searchParams.get("start_date")).toBe("2020-12-01"),
     );
     expect(requests("/states/SP/dashboard")).toHaveLength(1);
   });
@@ -350,8 +350,13 @@ describe("StateDashboard", () => {
 });
 
 describe("stateBounds", () => {
+  it("ends at the last day of the latest stored period (bimester or four-month period)", () => {
+    expect(stateBounds([{ ...dclRcl, last_stored_date: "2025-09-01" }]).last).toBe("2025-12-31");
+    expect(stateBounds([{ ...rcl, last_stored_date: "2024-01-01" }]).last).toBe("2024-02-29");
+  });
+
   it("spans the UF's stored dates and ignores indicators without data", () => {
-    expect(stateBounds([rcl, dclRcl, noData(dc)])).toEqual({ first: "2024-01-01", last: "2025-11-01" });
+    expect(stateBounds([rcl, dclRcl, noData(dc)])).toEqual({ first: "2024-01-01", last: "2025-12-31" });
     expect(stateBounds([noData(dc)])).toEqual({ first: null, last: null });
   });
 });

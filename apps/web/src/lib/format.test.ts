@@ -60,6 +60,8 @@ describe("format", () => {
     expect(formatAxisNumber(0.5)).toBe("0,5");
     expect(formatAxisNumber(1)).toBe("1");
     expect(formatAxisNumber(1234.25)).toBe("1.234,25");
+    expect(formatAxisNumber(-0)).toBe("0");
+    expect(formatAxisNumber(-1e-16)).toBe("0");
   });
 
   it("signs differences in reais and never shows -0", () => {
