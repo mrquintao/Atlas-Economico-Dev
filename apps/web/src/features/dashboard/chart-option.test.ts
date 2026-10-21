@@ -195,6 +195,33 @@ describe("fiscal series (synthetic test data)", () => {
     expect(html).toContain("Referência: 6º bim./2025 (nov–dez)");
   });
 
+  it("keeps fractional ticks distinct on a small axis (no repeated rounded labels)", () => {
+    const small = buildTimeSeriesOption({
+      name: "Investimentos",
+      unit: "R$ correntes",
+      frequency: "bimonthly",
+      aggregated: false,
+      step: false,
+      domain: null,
+      description: "Investimentos.",
+      palette,
+      observations: [period("2025-01-01", "2025-02-28", 0.3e9), period("2025-03-01", "2025-04-30", 1.83e9)],
+    }) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+    expect(small.yAxis.name).toBe("R$ correntes, em bilhões");
+    const ticks = [0, 0.5e9, 1e9, 1.5e9, 2e9].map((v) => small.yAxis.axisLabel.formatter(v));
+    expect(ticks).toEqual(["0", "0,5", "1", "1,5", "2"]);
+  });
+
+  it("shows January's value, not the year break that shares its date", () => {
+    const html = option.tooltip.formatter([
+      { data: ["2025-01-01", null, false] },
+      { data: ["2025-01-01", 15e9, false] },
+    ]);
+    expect(html).toContain("R$ 15,00 bi");
+    expect(html).toContain("1º bim./2025 (jan–fev)");
+    expect(option.tooltip.formatter([{ data: ["2025-05-01", null, false] }])).toBe("");
+  });
+
   it("marks every point of a sparse series, so a single period is visible", () => {
     expect(option.series[0].symbolSize(["2025-11-01", 1, false])).toBeGreaterThan(0);
   });

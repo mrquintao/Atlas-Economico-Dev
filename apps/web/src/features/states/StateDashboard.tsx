@@ -13,8 +13,9 @@ import {
   type DateRange,
   type PeriodPreset,
 } from "@/lib/period";
-import type { Indicator, StateIndicatorSeries, StateIndicators } from "@/types/api";
+import type { Frequency, Indicator, StateIndicatorSeries, StateIndicators } from "@/types/api";
 
+import { alignTime, granularityOf, isoToTime } from "../dashboard/chart-sync";
 import { SeriesBody } from "../dashboard/IndicatorPanel";
 import { PeriodFilter } from "../dashboard/PeriodFilter";
 import { resetsEachYear } from "./state-indicators";
@@ -28,10 +29,23 @@ interface StoredBounds {
   last: string | null;
 }
 
-/** Earliest first and latest last stored date of the UF across its state indicators. */
+/** Last day of the period that starts on `iso` (a bimester, a four-month period…). */
+function periodEnd(iso: string, frequency: Frequency): string {
+  const end = new Date(alignTime(isoToTime(iso), granularityOf(frequency, false), "day"));
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}`;
+}
+
+/**
+ * Earliest first stored date and latest end of the last stored period of the UF. Stored dates
+ * are period starts, while the API filters by period end: ending the range at the last period's
+ * start would leave that period out.
+ */
 export function stateBounds(indicators: Indicator[]): StoredBounds {
   const firsts = indicators.flatMap((i) => (i.first_stored_date ? [i.first_stored_date] : []));
-  const lasts = indicators.flatMap((i) => (i.last_stored_date ? [i.last_stored_date] : []));
+  const lasts = indicators.flatMap((i) =>
+    i.last_stored_date ? [periodEnd(i.last_stored_date, i.frequency)] : [],
+  );
   return {
     first: firsts.length ? firsts.reduce((a, b) => (a < b ? a : b)) : null,
     last: lasts.length ? lasts.reduce((a, b) => (a > b ? a : b)) : null,
@@ -41,11 +55,10 @@ export function stateBounds(indicators: Indicator[]): StoredBounds {
 interface Props {
   /** UF acronym (validated by the page). */
   uf: string;
-  name: string;
 }
 
 /** Fiscal panel of one UF: latest values, explicit absences and synchronised charts. */
-export function StateDashboard({ uf, name }: Props) {
+export function StateDashboard({ uf }: Props) {
   const [preset, setPreset] = useState<PeriodPreset>(STATE_DEFAULT_PRESET);
   const [range, setRange] = useState<DateRange>({ start: null, end: null });
   const invalidRange = !isValidRange(range);
@@ -116,13 +129,13 @@ export function StateDashboard({ uf, name }: Props) {
         <h2 id="state-highlights" className="text-lg font-semibold">
           Últimos valores publicados
         </h2>
-        <Highlights dashboard={dashboard} name={name} />
+        <Highlights dashboard={dashboard} />
       </section>
 
       {missing.length > 0 && !noData && (
         <section aria-labelledby="state-missing" className="flex flex-col gap-2">
           <h2 id="state-missing" className="text-lg font-semibold">
-            Indicadores sem dados para {name}
+            Indicadores sem dados nesta UF
           </h2>
           <p className="text-sm text-muted-foreground">
             Não há valores armazenados destes indicadores para a UF. Eles não são estimados nem
@@ -157,7 +170,8 @@ export function StateDashboard({ uf, name }: Props) {
                   O período vale para todos os gráficos abaixo, que compartilham o mesmo eixo de
                   datas: o zoom e o cursor de um gráfico acompanham os demais. Cada indicador
                   mantém a periodicidade em que é publicado (bimestre do RREO ou quadrimestre do
-                  RGF) e os valores estão em reais correntes, sem correção pela inflação.
+                  RGF). Os valores em reais estão em reais correntes, sem correção pela inflação;
+                  os percentuais da RCL são os publicados nos demonstrativos.
                 </p>
               </CardContent>
             </Card>
@@ -169,13 +183,7 @@ export function StateDashboard({ uf, name }: Props) {
   );
 }
 
-function Highlights({
-  dashboard,
-  name,
-}: {
-  dashboard: ReturnType<typeof useStateDashboard>;
-  name: string;
-}) {
+function Highlights({ dashboard }: { dashboard: ReturnType<typeof useStateDashboard> }) {
   if (dashboard.status === "error" && !dashboard.data) {
     return <InlineError message={dashboard.error.message} onRetry={dashboard.retry} />;
   }
@@ -190,8 +198,8 @@ function Highlights({
   if (available.length === 0) {
     return (
       <p className="rounded-lg border border-border p-5 text-sm text-muted-foreground">
-        Ainda não há dados fiscais armazenados para {name}. Os indicadores aparecem aqui depois da
-        coleta dos relatórios que o estado entrega ao SICONFI; nenhum valor é estimado.
+        Ainda não há dados fiscais armazenados para esta UF. Os indicadores aparecem aqui depois da
+        coleta dos relatórios que a UF entrega ao SICONFI; nenhum valor é estimado.
       </p>
     );
   }

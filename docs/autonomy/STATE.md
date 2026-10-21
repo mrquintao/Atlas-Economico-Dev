@@ -7,12 +7,12 @@
 |---|---|
 | Atualizado em | 2026-10-21 |
 | Fase atual | 2 — Atlas estadual (MVP nacional concluído: release `v0.1.0`) |
-| Última entrega | S5 — API estadual `/states/{uf}/indicators` e `/states/{uf}/dashboard` (issue #15, PR #42). Antes: S4 (#14, PR #41), S3 (#13, PR #40), S2 (#12, PR #39), S1 (#11, PR #38) e [release `v0.1.0`](https://github.com/mrquintao/Atlas-Economico-Dev/releases/tag/v0.1.0) |
-| Próxima entrega elegível | **S7 — página por estado `/estados/[uf]` ([#17](https://github.com/mrquintao/Atlas-Economico-Dev/issues/17))**, que consome `/states/{uf}/dashboard` e `/states/{uf}/indicators`; S6 (mapa, #16) também está liberada |
+| Última entrega | S7 — página por estado `/estados/[uf]` (issue #17, PRs #43 e #44). Antes: S5 (#15, PR #42), S4 (#14, PR #41), S3 (#13, PR #40), S2 (#12, PR #39), S1 (#11, PR #38) e [release `v0.1.0`](https://github.com/mrquintao/Atlas-Economico-Dev/releases/tag/v0.1.0) |
+| Próxima entrega elegível | **S6 — mapa interativo ([#16](https://github.com/mrquintao/Atlas-Economico-Dev/issues/16))** (D3 Geo sobre `/geographies/states/boundaries` + dados estaduais; links para `/estados/[uf]`); depois S8 (#18, comparações e rankings) |
 | Issue ativa | nenhuma (comentar na issue ao iniciar, para evitar sessões concorrentes) |
 | Branch | novo branch a partir da `main` atualizada |
-| Último commit integrado na `main` | merge do PR #42 (conferir com `git log origin/main -1`); tag `v0.1.0` em `ade5512` |
-| Última validação | S5: `scripts/check.sh` em clone limpo verde (382 pytest, 73 vitest); dashboard de SP e DF sobre coleta real de 2024–2025 igual às 18 amostras oficiais de 2025; DF 3º quadr./2024 conferido na API do Tesouro |
+| Último commit integrado na `main` | merge do PR #44 (conferir com `git log origin/main -1`); tag `v0.1.0` em `ade5512` |
+| Última validação | S7: `scripts/check.sh` verde (382 pytest, 112 vitest); E2E 24/24 local e no CI (fixture sintética com SP, DF e MG) |
 
 ## Bloqueios
 
@@ -29,21 +29,23 @@
 
 ## Próxima ação recomendada
 
-Iniciar a S7 (#17), página `/estados/[uf]` sobre `/states/{uf}/dashboard` e `/states/{uf}/indicators`
-(contrato em `docs/api.md`). Exibir a nota do DF (`notes`), `change_note`, `accumulation_window` e o
-período de cada valor (bimestre × quadrimestre); `status: available` com `count: 0` = "sem dados no
-intervalo". Para ter dados locais: `derive-fiscal --year 2025 --collect` (≈ 15 min a 1 req/s; outros
-anos idem; `--state SP --state DF` para um recorte rápido). Antes de pôr o SICONFI no agendador, criar
-trava entre processos. Atenção: códigos e siglas do IBGE são únicos só por nível (`1` = Brasil e Norte;
-`SE` = Sergipe e Sudeste).
+Iniciar a S6 (#16), mapa coroplético das 27 UFs: geometrias de `/geographies/states/boundaries`
+(malha só é coletada manualmente com `ingest-boundaries`) e valores por UF. Hoje só há endpoints por UF
+(`/states/{uf}/…`, ~40–55 consultas cada): um mapa precisa de um endpoint com as 27 UFs de um indicador
+num período (consolidar as consultas, achado da S5). Cada UF do mapa deve linkar para `/estados/[uf]`;
+UF sem dado = ausência explícita (nunca cor de zero). Reutilizar `formatValue`/`formatPeriod`
+(`src/lib/format.ts`) e a lista `src/lib/states.ts`.
 
-Concorrência: na sessão da S1, outra sessão disparou a release `v0.1.0` um minuto antes (a segunda
+Concorrência: na S7, o mantenedor integrou o branch da sessão (PR #43) antes da auditoria; as
+correções vieram no PR #44. Na S1, outra sessão disparou a release `v0.1.0` um minuto antes (a segunda
 execução foi recusada pela trava de tag). Antes de começar, conferir branches e PRs abertos e
 reivindicar a issue com um comentário.
 
 Migração mais recente: `0009` (frequências `bimonthly`/`four_monthly` e seed dos 9 indicadores fiscais estaduais).
 
-Achados menores pendentes (registrados nas issues/PRs): S5 — ~40–55 consultas por requisição em `/states/{uf}/…` (consolidar quando houver endpoint com as 27 UFs); nota do DF ausente em `/indicators/{code}/observations?geography=DF`. S4 — observação mantida quando uma retificação remove a linha de origem (ADR 0010); coleta falha interrompe `derive-fiscal --collect` sem derivar. S3 — `Retry-After` do 429 ignorado (backoff
+Achados menores pendentes (registrados nas issues/PRs): S7 — `/estados/mg/` faz dois 308; `grid.left`
+fixo de 44 px pode cortar rótulos do eixo em R$ abaixo de 1 mi; fixture E2E sem bimestre faltante;
+erro na recarga das séries estaduais mostra um aviso por painel. S5 — ~40–55 consultas por requisição em `/states/{uf}/…` (consolidar quando houver endpoint com as 27 UFs); nota do DF ausente em `/indicators/{code}/observations?geography=DF`. S4 — observação mantida quando uma retificação remove a linha de origem (ADR 0010); coleta falha interrompe `derive-fiscal --collect` sem derivar. S3 — `Retry-After` do 429 ignorado (backoff
 já mais lento que o limite); coleta do SICONFI manual, fora do agendador; limitador de taxa por processo.
 S2 — a malha só é coletada manualmente
 (`ingest-boundaries`), fora do agendador; edições não publicadas pelo IBGE respondem 500 e passam

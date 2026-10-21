@@ -3,6 +3,7 @@ import { formatPeriod, formatValue, formatValueChange, isCurrencyUnit } from "@/
 import type { StateDashboardItem } from "@/types/api";
 
 import { sourceSeriesLabel } from "../dashboard/summary";
+import { signNote } from "./state-indicators";
 
 /**
  * Latest published value of a state indicator, with its reference period, accumulation window
@@ -29,6 +30,9 @@ export function StateIndicatorCard({ item }: { item: StateDashboardItem }) {
             {isCurrencyUnit(indicator.unit) ? ` · ${indicator.unit}` : null}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">{item.accumulation_window}</p>
+          {signNote(indicator.code) && (
+            <p className="mt-1 text-xs text-muted-foreground">{signNote(indicator.code)}</p>
+          )}
           {change ? (
             <div className="mt-3 text-sm">
               <p>
@@ -47,7 +51,8 @@ export function StateIndicatorCard({ item }: { item: StateDashboardItem }) {
             </div>
           ) : (
             <p className="mt-3 text-xs text-muted-foreground">
-              Sem valor armazenado do mesmo período do ano anterior: não há comparação.
+              Não há valor armazenado para o mesmo período do ano anterior; por isso, não há
+              comparação.
             </p>
           )}
         </>
