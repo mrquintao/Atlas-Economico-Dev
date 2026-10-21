@@ -2,19 +2,20 @@
 
 import { geoMercator, geoPath } from "d3-geo";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useId, useMemo, useState, type MouseEvent } from "react";
+import { useId, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { InlineError, LoadingState, RefreshingIndicator, RetryButton } from "@/components/ui/states";
 import { useIndicators, useStateBoundaries, useStateMap } from "@/hooks/useObservations";
 import { formatPeriod, formatValue } from "@/lib/format";
-import { statePath } from "@/lib/states";
+import { findState, statePath } from "@/lib/states";
 import type { BoundaryFeature, Indicator, StateBoundaries, StateMap, StateMapValue } from "@/types/api";
 
 import { rewindForD3 } from "./map-geometry";
 import { buildScale, NO_DATA_FILL, type MapScale } from "./map-scale";
 import { keptPeriod, STATE_INDICATOR_ORDER } from "./state-indicators";
+import { StateDetails } from "./StateDetails";
+import { Swatch } from "./Swatch";
 
 /** A ratio published since 2018 and never negative (economist, S6). */
 export const DEFAULT_MAP_CODE = "STATE_PERSONNEL_EXEC_RCL";
@@ -42,9 +43,15 @@ export function valueLabel(item: StateMapValue, unit: string): string {
   return item.value === null ? "sem dado" : formatValue(item.value, unit);
 }
 
-/** Choropleth of one state indicator in the 27 UFs, with a period filter and a table. */
+/**
+ * Choropleth of one state indicator in the 27 UFs, with a period filter and a table. A click (or
+ * Enter) on a UF selects it and shows its values in the side panel; the panel links to the
+ * UF's page.
+ */
 export function StateMapPanel() {
   const [code, setCode] = useState(DEFAULT_MAP_CODE);
+  // The selection survives indicator and period changes.
+  const [selected, setSelected] = useState<string | null>(null);
   // null: the API's default period (the most recent well-covered one).
   const [referenceDate, setReferenceDate] = useState<string | null>(null);
   const catalog = useIndicators();
@@ -77,7 +84,7 @@ export function StateMapPanel() {
         </h2>
         <p className="text-sm text-muted-foreground">
           Escolha um indicador e um período; todas as UFs aparecem no mesmo período. Clique numa UF
-          (ou use Tab e Enter) para abrir a página do estado.
+          (ou use Tab e Enter) para ver os dados dela ao lado do mapa.
         </p>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -141,7 +148,7 @@ export function StateMapPanel() {
         {!data ? (
           map.status !== "error" && <LoadingState />
         ) : (
-          <MapBody data={data} boundaries={boundaries} />
+          <MapBody data={data} boundaries={boundaries} selected={selected} onSelect={setSelected} />
         )}
       </CardContent>
     </Card>
@@ -158,10 +165,15 @@ export function stateIndicatorOptions(indicators: readonly Indicator[]): OptionI
 function MapBody({
   data,
   boundaries,
+  selected,
+  onSelect,
 }: {
   data: StateMap;
   boundaries: ReturnType<typeof useStateBoundaries>;
+  selected: string | null;
+  onSelect: (acronym: string | null) => void;
 }) {
+  const panelRef = useRef<HTMLDivElement>(null);
   const scale = useMemo(() => buildScale(data.scale, data.states.map((s) => s.value)), [data]);
   const { indicator, period } = data;
   const periodLabel = period ? formatPeriod(indicator.frequency, period.reference_date, true) : null;
@@ -184,14 +196,22 @@ function MapBody({
           {covered} de {TOTAL_UFS} UFs com dado publicado neste período.
         </span>
       </p>
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <div>
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+        <div className="flex flex-col gap-4">
           {boundaries.data ? (
             <ChoroplethSvg
               data={data}
               boundaries={boundaries.data}
               scale={scale}
               periodLabel={periodLabel ?? ""}
+              selected={selected}
+              onSelect={(acronym) => {
+                onSelect(acronym);
+                // Small screens: the panel sits below the map; bring it into view.
+                if (acronym && window.matchMedia?.("(max-width: 1023px)").matches) {
+                  panelRef.current?.scrollIntoView?.({ block: "start", behavior: "smooth" });
+                }
+              }}
             />
           ) : boundaries.status === "error" ? (
             <div className="flex flex-col gap-2 rounded-lg border border-border p-5 text-sm">
@@ -207,9 +227,19 @@ function MapBody({
           ) : (
             <LoadingState label="Carregando a malha das UFs…" />
           )}
+          <Legend data={data} scale={scale} />
         </div>
-        <Legend data={data} scale={scale} />
+        <div ref={panelRef} className="scroll-mt-4 lg:sticky lg:top-4">
+          <StateDetails
+            uf={selected ? findState(selected) : null}
+            data={data}
+            scale={scale}
+            periodLabel={periodLabel ?? ""}
+            onSelect={onSelect}
+          />
+        </div>
       </div>
+      <MapNotes data={data} />
       <MapTable data={data} scale={scale} periodLabel={periodLabel ?? ""} />
       <p className="text-xs text-muted-foreground">
         {SOURCE_NOTE}
@@ -231,13 +261,16 @@ function ChoroplethSvg({
   boundaries,
   scale,
   periodLabel,
+  selected,
+  onSelect,
 }: {
   data: StateMap;
   boundaries: StateBoundaries;
   scale: MapScale;
   periodLabel: string;
+  selected: string | null;
+  onSelect: (acronym: string | null) => void;
 }) {
-  const router = useRouter();
   const [active, setActive] = useState<Hovered | null>(null);
   const patternId = `no-data-${useId().replace(/:/g, "")}`;
   const { unit } = data.indicator;
@@ -271,11 +304,17 @@ function ChoroplethSvg({
     return index === null ? `url(#${patternId})` : scale.classes[index].color;
   }
 
-  function navigate(event: MouseEvent<Element>, href: string) {
-    // Keep new-tab and download gestures; otherwise navigate without a full page load.
-    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    event.preventDefault();
-    router.push(href);
+  function toggle(acronym: string) {
+    onSelect(selected === acronym ? null : acronym);
+  }
+
+  function handleKey(event: KeyboardEvent<Element>, acronym: string) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      toggle(acronym);
+    } else if (event.key === "Escape") {
+      onSelect(null);
+    }
   }
 
   function track(event: MouseEvent<Element>, acronym: string) {
@@ -289,6 +328,7 @@ function ChoroplethSvg({
   }
 
   const activeShape = active ? shapes.find((s) => s.acronym === active.acronym) : undefined;
+  const selectedShape = selected ? shapes.find((s) => s.acronym === selected) : undefined;
   const activeItem = active ? byAcronym.get(active.acronym) : undefined;
   const df = shapes.find((s) => s.acronym === "DF");
 
@@ -300,6 +340,7 @@ function ChoroplethSvg({
         role="group"
         aria-label={`Mapa de ${data.indicator.short_name} por UF, ${periodLabel}`}
         onMouseLeave={() => setActive(null)}
+        data-selected={selected ?? undefined}
       >
         <defs>
           <pattern id={patternId} width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -313,22 +354,28 @@ function ChoroplethSvg({
             item ? valueLabel(item, unit) : "sem dado"
           }, ${periodLabel}`;
           return (
-            // An SVG link: focusable with Tab, Enter follows it; plain clicks navigate client-side.
-            <a
+            // A toggle button per UF: focusable with Tab; a click, Enter or Space selects it.
+            <path
               key={shape.acronym}
-              href={statePath(shape)}
+              role="button"
+              tabIndex={0}
               aria-label={label}
+              aria-pressed={selected === shape.acronym}
               data-uf={shape.acronym}
-              onClick={(event) => navigate(event, statePath(shape))}
+              d={shape.d}
+              fill={fill(shape.acronym)}
+              stroke="#ffffff"
+              strokeWidth={0.8}
+              strokeLinejoin="round"
+              onClick={() => toggle(shape.acronym)}
+              onKeyDown={(event) => handleKey(event, shape.acronym)}
               onMouseMove={(event) => track(event, shape.acronym)}
               onFocus={() =>
                 setActive({ acronym: shape.acronym, x: shape.centroid[0], y: shape.centroid[1] })
               }
               onBlur={() => setActive(null)}
-              className="outline-none"
-            >
-              <path d={shape.d} fill={fill(shape.acronym)} stroke="var(--background)" strokeWidth={0.8} />
-            </a>
+              className="cursor-pointer outline-none transition-[filter] hover:brightness-110"
+            />
           );
         })}
         {df && (
@@ -347,15 +394,23 @@ function ChoroplethSvg({
             *
           </text>
         )}
-        {activeShape && (
+        {activeShape && activeShape !== selectedShape && (
           <path
             d={activeShape.d}
             fill="none"
             stroke="var(--foreground)"
-            strokeWidth={2.5}
+            strokeWidth={1.5}
+            strokeLinejoin="round"
             pointerEvents="none"
             aria-hidden
           />
+        )}
+        {selectedShape && (
+          // White halo under a dark outline: visible on every class colour, light or dark.
+          <g pointerEvents="none" aria-hidden>
+            <path d={selectedShape.d} fill="none" stroke="#ffffff" strokeWidth={5} strokeLinejoin="round" />
+            <path d={selectedShape.d} fill="none" stroke="var(--foreground)" strokeWidth={2.5} strokeLinejoin="round" />
+          </g>
         )}
       </svg>
       {active && activeItem && (
@@ -380,34 +435,17 @@ function ChoroplethSvg({
 
 const NO_DATA_SHORT = "nenhum valor publicado (não é zero)";
 
-function Swatch({ color, hatched }: { color?: string; hatched?: boolean }) {
-  return (
-    <span
-      aria-hidden
-      className="inline-block size-4 shrink-0 rounded-sm border border-border"
-      style={
-        hatched
-          ? {
-              backgroundColor: NO_DATA_FILL,
-              backgroundImage: "repeating-linear-gradient(45deg, #6b7280 0 1.5px, transparent 1.5px 6px)",
-            }
-          : { backgroundColor: color }
-      }
-    />
-  );
-}
-
 function Legend({ data, scale }: { data: StateMap; scale: MapScale }) {
   const { unit } = data.indicator;
   const missing = data.states.filter((s) => s.status === "no_data").length;
   return (
-    <div className="flex flex-col gap-3 text-sm">
-      <h3 className="font-semibold">Legenda ({unit})</h3>
-      <ul aria-label="Legenda do mapa" className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-2 text-sm">
+      <h3 className="text-xs font-semibold text-muted-foreground">Legenda ({unit})</h3>
+      <ul aria-label="Legenda do mapa" className="flex flex-wrap gap-x-5 gap-y-1.5">
         {scale.classes.map((c) => (
           <li key={`${c.min}-${c.max}`} className="flex items-center gap-2">
             <Swatch color={c.color} />
-            <span>
+            <span className="tabular-nums">
               {c.min === c.max ? formatValue(c.min, unit) : `${formatValue(c.min, unit)} a ${formatValue(c.max, unit)}`}{" "}
               <span className="text-muted-foreground">
                 ({c.count} {c.count === 1 ? "UF" : "UFs"})
@@ -425,14 +463,20 @@ function Legend({ data, scale }: { data: StateMap; scale: MapScale }) {
           </span>
         </li>
       </ul>
-      <div className="flex flex-col gap-1.5 text-xs text-muted-foreground">
-        <p>{QUANTILE_NOTE}</p>
-        {data.scale === "diverging" && <p>{DIVERGING_NOTE}</p>}
-        <p>{NO_DATA_LABEL}</p>
-        {data.notes.map((note) => (
-          <p key={note}>{note.startsWith("O Distrito Federal") ? `* ${note}` : note}</p>
-        ))}
-      </div>
+    </div>
+  );
+}
+
+/** How to read the colours, absences and the UFs' comparability notes. */
+function MapNotes({ data }: { data: StateMap }) {
+  return (
+    <div className="flex max-w-4xl flex-col gap-1.5 text-xs text-muted-foreground">
+      <p>{QUANTILE_NOTE}</p>
+      {data.scale === "diverging" && <p>{DIVERGING_NOTE}</p>}
+      <p>{NO_DATA_LABEL}</p>
+      {data.notes.map((note) => (
+        <p key={note}>{note.startsWith("O Distrito Federal") ? `* ${note}` : note}</p>
+      ))}
     </div>
   );
 }

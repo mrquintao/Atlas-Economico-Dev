@@ -72,7 +72,7 @@ export function PeriodFilter({
         </label>
       </div>
       {invalidRange && (
-        <p id={errorId} role="alert" className="text-sm text-red-700 dark:text-red-400 lg:basis-full">
+        <p id={errorId} role="alert" className="text-sm text-danger lg:basis-full">
           A data inicial deve ser anterior ou igual à data final.
         </p>
       )}

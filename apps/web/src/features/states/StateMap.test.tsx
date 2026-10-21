@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { STATES } from "@/lib/states";
-import type { Indicator, StateBoundaries, StateMap, StateMapPeriod } from "@/types/api";
+import type { Indicator, StateBoundaries, StateDashboard, StateMap, StateMapPeriod } from "@/types/api";
 
 import { SEQUENTIAL_PALETTE } from "./map-scale";
 import { DEFAULT_MAP_CODE, DIVERGING_NOTE, StateMapPanel, stateIndicatorOptions } from "./StateMap";
@@ -96,6 +96,36 @@ const BOUNDARIES: StateBoundaries = {
   }),
 };
 
+/** Dashboard of a UF: RCL published, DCL/RCL never stored (absent, not zero). */
+function dashboardFor(acronym: string): StateDashboard {
+  const state = STATES.find((s) => s.acronym === acronym) ?? STATES[0];
+  const none = { method: "none" as const, description: "" };
+  return {
+    geography: { ibge_code: state.ibgeCode, acronym: state.acronym, name: state.name, geographic_level: "state" },
+    notes: acronym === "DF" ? [DF_NOTE] : [],
+    indicators: [
+      {
+        indicator: RCL,
+        status: "available",
+        aggregation: none,
+        accumulation_window: "Últimos 12 meses até o fim do período.",
+        change_note: null,
+        latest: { date: "2025-11-01", value: 268e9, period_start: "2025-11-01", period_end: "2025-12-31", partial: false },
+        change_12m: null,
+      },
+      {
+        indicator: DCL_RCL,
+        status: "no_data",
+        aggregation: none,
+        accumulation_window: "Saldo no fim do período.",
+        change_note: null,
+        latest: null,
+        change_12m: null,
+      },
+    ],
+  };
+}
+
 let fetchMock: ReturnType<typeof vi.fn>;
 let boundariesStatus = 200;
 /** "CODE@date" pairs answered with 404 period_not_found (a gap of that indicator). */
@@ -110,6 +140,8 @@ async function defaultFetch(url: string): Promise<Response> {
       : json({ error: { code: "boundaries_not_found", message: "Malha das UFs não coletada." } }, 404);
   }
   if (pathname.endsWith("/indicators")) return json(CATALOG);
+  const uf = /\/states\/([A-Z]{2})\/dashboard$/.exec(pathname)?.[1];
+  if (uf) return json(dashboardFor(uf));
   const code = /\/states\/map\/([^/]+)$/.exec(pathname)?.[1];
   const date = searchParams.get("reference_date");
   if (code && gaps.has(`${code}@${date}`)) {
@@ -127,7 +159,7 @@ function mapRequests(): URL[] {
 
 async function findState(name: RegExp): Promise<HTMLElement> {
   const map = await screen.findByRole("group", { name: /^Mapa de / });
-  return within(map).findByRole("link", { name });
+  return within(map).findByRole("button", { name });
 }
 
 beforeEach(() => {
@@ -151,22 +183,22 @@ describe("stateIndicatorOptions", () => {
 });
 
 describe("StateMapPanel", () => {
-  it("draws the 27 UFs as links named by value, unit and period; DF without data is hatched", async () => {
+  it("draws the 27 UFs as toggle buttons named by value, unit and period; DF without data is hatched", async () => {
     render(<StateMapPanel />);
     const map = await screen.findByRole("group", { name: /^Mapa de /, });
-    await waitFor(() => expect(within(map).getAllByRole("link")).toHaveLength(27));
+    await waitFor(() => expect(within(map).getAllByRole("button")).toHaveLength(27));
     expect(mapRequests()[0].pathname).toBe(`/api/v1/states/map/${DEFAULT_MAP_CODE}`);
     expect(mapRequests()[0].searchParams.has("reference_date")).toBe(false);
 
     const sp = await findState(/^São Paulo:/);
     expect(sp).toHaveAccessibleName("São Paulo: 55,00% da RCL ajustada, 1º quadr./2025 (jan–abr)");
-    expect(sp).toHaveAttribute("href", "/estados/SP");
-    expect(sp.querySelector("path")?.getAttribute("fill")).toMatch(/^#/);
+    expect(sp).toHaveAttribute("aria-pressed", "false");
+    expect(sp.getAttribute("fill")).toMatch(/^#/);
 
     const df = await findState(/^Distrito Federal/);
     expect(df).toHaveAccessibleName("Distrito Federal*: sem dado, 1º quadr./2025 (jan–abr)");
     // Never a palette colour (nor the colour of the lowest class) for a missing value.
-    const fill = df.querySelector("path")?.getAttribute("fill") ?? "";
+    const fill = df.getAttribute("fill") ?? "";
     expect(fill).toMatch(/^url\(#no-data/);
     expect(SEQUENTIAL_PALETTE).not.toContain(fill);
     expect(screen.getByText("26 de 27 UFs com dado publicado neste período.")).toBeInTheDocument();
@@ -196,7 +228,7 @@ describe("StateMapPanel", () => {
     expect(within(table).getByRole("link", { name: "Acre (AC)" })).toHaveAttribute("href", "/estados/AC");
   });
 
-  it("keyboard: Tab focuses a UF and shows its tooltip; Enter follows the link", async () => {
+  it("keyboard: Tab focuses a UF and shows its tooltip; Enter selects it, Escape clears", async () => {
     const user = userEvent.setup();
     render(<StateMapPanel />);
     const acre = await findState(/^Acre:/);
@@ -208,15 +240,73 @@ describe("StateMapPanel", () => {
     const tooltip = await screen.findByRole("tooltip");
     expect(tooltip).toHaveTextContent("Acre");
     expect(tooltip).toHaveTextContent("% da RCL ajustada · 1º quadr./2025 (jan–abr)");
+    await user.keyboard("{Enter}");
+    expect(acre).toHaveAttribute("aria-pressed", "true");
+    expect(await screen.findByRole("heading", { level: 3, name: "Acre AC" })).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(acre).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("heading", { level: 3, name: "Nenhuma UF selecionada" })).toBeInTheDocument();
     await user.tab();
     expect(await findState(/^Alagoas:/)).toHaveFocus();
   });
 
-  it("a click navigates to the UF page", async () => {
+  it("a click selects the UF and shows its map value and latest published values, without navigating", async () => {
     render(<StateMapPanel />);
     const mg = await findState(/^Minas Gerais:/);
     fireEvent.click(mg);
-    expect(push).toHaveBeenCalledWith("/estados/MG");
+    expect(push).not.toHaveBeenCalled();
+    expect(mg).toHaveAttribute("aria-pressed", "true");
+    const panel = screen.getByRole("region", { name: "Minas Gerais MG" });
+    expect(panel).toHaveTextContent("Região Sudeste");
+    expect(panel).toHaveTextContent("Curto STATE_PERSONNEL_EXEC_RCL · 1º quadr./2025 (jan–abr)");
+    expect(panel).toHaveTextContent(/4\d,00% da RCL ajustada/);
+    expect(panel).toHaveTextContent(/Faixa \d de 5 da legenda/);
+
+    const latest = await within(panel).findByRole("region", { name: "Últimos valores publicados" });
+    await waitFor(() => expect(latest).toHaveTextContent("Curto STATE_RCL"));
+    expect(latest).toHaveTextContent("6º bim./2025 (nov–dez)");
+    expect(latest).toHaveTextContent("R$ 268,00 bi");
+    // A missing indicator is named as missing, never shown as zero.
+    expect(latest).toHaveTextContent("Sem dados nesta UF: Curto STATE_DCL_RCL.");
+    expect(within(panel).getByRole("link", { name: "Abrir o painel completo da UF" })).toHaveAttribute(
+      "href",
+      "/estados/MG",
+    );
+    expect(
+      fetchMock.mock.calls.some(([url]) => new URL(String(url)).pathname.endsWith("/states/MG/dashboard")),
+    ).toBe(true);
+
+    // A second click on the same UF clears the selection.
+    fireEvent.click(mg);
+    expect(mg).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("a UF without a value in the map says so; the list picker and the clear button work", async () => {
+    const user = userEvent.setup();
+    render(<StateMapPanel />);
+    await findState(/^Distrito Federal/);
+    await user.selectOptions(screen.getByRole("combobox", { name: "Ou escolha na lista" }), "DF");
+    const panel = screen.getByRole("region", { name: "Distrito Federal* DF" });
+    expect(panel).toHaveTextContent("Sem dado");
+    expect(panel).toHaveTextContent("Ausência não é zero.");
+    expect(await within(panel).findByText(`* ${DF_NOTE}`)).toBeInTheDocument();
+    expect(await findState(/^Distrito Federal/)).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(within(panel).getByRole("button", { name: "Limpar seleção" }));
+    expect(screen.getByRole("heading", { level: 3, name: "Nenhuma UF selecionada" })).toBeInTheDocument();
+  });
+
+  it("the selection survives an indicator change", async () => {
+    const user = userEvent.setup();
+    render(<StateMapPanel />);
+    fireEvent.click(await findState(/^São Paulo:/));
+    const select = screen.getByRole("combobox", { name: "Indicador" });
+    await waitFor(() => expect(within(select).getAllByRole("option")).toHaveLength(3));
+    await user.selectOptions(select, "STATE_DCL_RCL");
+    await screen.findByRole("group", { name: /^Mapa de Curto STATE_DCL_RCL/ });
+    const panel = screen.getByRole("region", { name: "São Paulo SP" });
+    await waitFor(() => expect(panel).toHaveTextContent("Curto STATE_DCL_RCL · 1º quadr./2025 (jan–abr)"));
+    expect(await findState(/^São Paulo:/)).toHaveAttribute("aria-pressed", "true");
   });
 
   it("hover shows the value, unit and period; a missing UF says so", async () => {

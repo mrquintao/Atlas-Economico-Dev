@@ -112,7 +112,7 @@ export function StateDashboard({ uf }: Props) {
       {notes.length > 0 && (
         <aside
           aria-labelledby="state-notes"
-          className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100"
+          className="rounded-lg border border-amber-300 border-l-4 border-l-amber-500 bg-amber-50 p-4 text-sm text-amber-950"
         >
           <h2 id="state-notes" className="font-semibold">
             Ressalva de comparabilidade

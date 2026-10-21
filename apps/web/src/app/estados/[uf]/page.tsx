@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { StateDashboard } from "@/features/states/StateDashboard";
 import { findState, STATES } from "@/lib/states";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 /**
  * The 27 UFs are prerendered. Unknown UFs (404) and lowercase acronyms (redirect) are handled in
@@ -30,22 +30,14 @@ export default async function StatePage({ params }: PageProps<"/estados/[uf]">) 
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex max-w-3xl flex-col gap-3">
-        <p className="text-sm">
-          <Link href="/estados" className="text-muted-foreground underline underline-offset-2 hover:text-foreground">
-            Estados
-          </Link>
-        </p>
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-          {state.name} ({state.acronym})
-        </h1>
-        <p className="text-muted-foreground">
+      <PageHeader eyebrow={{ href: "/estados", label: "Estados" }} title={`${state.name} (${state.acronym})`}>
+        <p>
           Indicadores fiscais extraídos dos relatórios da Lei de Responsabilidade Fiscal (RREO e
           RGF) que a UF entrega ao Tesouro Nacional pelo SICONFI. Cada valor aparece como
           publicado, com período de referência, fonte e metodologia. Indicadores sem dados
           aparecem como tal e nunca são estimados.
         </p>
-      </div>
+      </PageHeader>
       <StateDashboard uf={state.acronym} />
     </div>
   );

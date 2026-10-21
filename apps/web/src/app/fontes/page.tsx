@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { SourcesCatalog } from "@/features/catalog/SourcesCatalog";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 export const metadata: Metadata = {
   title: "Fontes de dados — Atlas Econômico Brasileiro",
@@ -10,14 +11,13 @@ export const metadata: Metadata = {
 export default function SourcesPage() {
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex max-w-3xl flex-col gap-3">
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Fontes de dados</h1>
-        <p className="text-muted-foreground">
+      <PageHeader eyebrow="Transparência" title="Fontes de dados">
+        <p>
           O Atlas usa exclusivamente dados de fontes oficiais. Os dados são coletados pelo backend,
           armazenados no banco do Atlas (as revisões detectadas na recoleta são registradas) e
           servidos pela API do Atlas; o site não consulta as fontes diretamente.
         </p>
-      </div>
+      </PageHeader>
       <SourcesCatalog />
     </div>
   );

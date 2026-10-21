@@ -47,7 +47,7 @@ export function RetryButton({ onRetry }: { onRetry: () => void }) {
 /** Compact error with retry, for places where content (or stale data) stays visible. */
 export function InlineError({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div role="alert" className="flex flex-wrap items-center gap-3 text-sm text-red-700 dark:text-red-400">
+    <div role="alert" className="flex flex-wrap items-center gap-3 text-sm text-danger">
       <span>{message}</span>
       <RetryButton onRetry={onRetry} />
     </div>

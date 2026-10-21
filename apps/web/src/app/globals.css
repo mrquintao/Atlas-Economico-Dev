@@ -1,32 +1,27 @@
 @import "tailwindcss";
 
-/* Design tokens (light). Dark theme follows the operating system preference. */
+/*
+ * Design tokens. The Atlas has a single light theme: charts, map palettes and the reading
+ * contrast were validated against it. Neutrals are slightly warm (paper-like page, white
+ * surfaces); one institutional blue is the only accent, so data colours stay the loudest thing
+ * on screen.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #0f172a;
+  color-scheme: light;
+  --background: #f6f6f3;
+  --foreground: #17191c;
   --card: #ffffff;
-  --card-foreground: #0f172a;
-  --muted: #f1f5f9;
-  --muted-foreground: #475569;
-  --border: #e2e8f0;
-  --ring: #1d4ed8;
-  --chart-line: #1d4ed8;
-  --chart-area: rgba(29, 78, 216, 0.08);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0b1120;
-    --foreground: #e2e8f0;
-    --card: #111827;
-    --card-foreground: #e2e8f0;
-    --muted: #1e293b;
-    --muted-foreground: #94a3b8;
-    --border: #1f2a3c;
-    --ring: #60a5fa;
-    --chart-line: #60a5fa;
-    --chart-area: rgba(96, 165, 250, 0.1);
-  }
+  --card-foreground: #17191c;
+  --muted: #efefea;
+  --muted-foreground: #585f67;
+  --border: #e2e2dc;
+  --border-strong: #c9c9c1;
+  --accent: #1f4f8f;
+  --accent-soft: #e9eef6;
+  --ring: #1f4f8f;
+  --danger: #a1261b;
+  --chart-line: #1f4f8f;
+  --chart-area: rgba(31, 79, 143, 0.07);
 }
 
 @theme inline {
@@ -37,13 +32,22 @@
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
   --color-ring: var(--ring);
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
-    sans-serif;
+  --color-danger: var(--danger);
+  --font-sans: "IBM Plex Sans Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
 }
 
 body {
   font-family: var(--font-sans);
+  font-feature-settings: "kern";
+}
+
+::selection {
+  background: var(--accent-soft);
 }
 
 @media (prefers-reduced-motion: reduce) {

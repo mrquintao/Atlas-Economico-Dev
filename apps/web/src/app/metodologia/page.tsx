@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { MethodologyCatalog } from "@/features/catalog/MethodologyCatalog";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 export const metadata: Metadata = {
   title: "Metodologia — Atlas Econômico Brasileiro",
@@ -11,14 +12,13 @@ export const metadata: Metadata = {
 export default function MethodologyPage() {
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex max-w-3xl flex-col gap-3">
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Metodologia</h1>
-        <p className="text-muted-foreground">
+      <PageHeader eyebrow="Transparência" title="Metodologia">
+        <p>
           Catálogo dos indicadores exibidos no Atlas. Os metadados abaixo são servidos pela API do
           Atlas, a mesma que alimenta os gráficos, e trazem a fonte e a série oficial, a unidade, a
           frequência, a metodologia, o período armazenado e a data da última coleta.
         </p>
-      </div>
+      </PageHeader>
       <MethodologyCatalog />
     </div>
   );
